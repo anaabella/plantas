@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -5,7 +6,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Plant } from '@/types';
 import { format } from 'date-fns';
-import { Skull } from 'lucide-react';
+import { HeartCrack } from 'lucide-react';
 
 interface PlantCardProps {
   plant: Plant;
@@ -29,7 +30,7 @@ export function PlantCard({ plant, onClick }: PlantCardProps) {
         />
         {plant.isDeceased && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <Skull className="h-12 w-12 text-white/80" />
+            <HeartCrack className="h-12 w-12 text-white/80" />
           </div>
         )}
       </div>
@@ -46,3 +47,5 @@ export function PlantCard({ plant, onClick }: PlantCardProps) {
     </Card>
   );
 }
+
+    

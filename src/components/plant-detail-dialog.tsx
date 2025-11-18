@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -12,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/types';
-import { Gift, RefreshCw, ShoppingBag, Skull, Droplets, Sun, Scissors } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Skull, Droplets, Sun, Scissors, HeartCrack } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface PlantDetailDialogProps {
@@ -67,7 +68,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
             {plant.isDeceased && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div className="flex flex-col items-center text-white">
-                  <Skull className="h-16 w-16" />
+                  <HeartCrack className="h-16 w-16" />
                   <p className="mt-2 text-lg font-bold font-headline">At Rest</p>
                 </div>
               </div>
@@ -126,3 +127,6 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
     </Dialog>
   );
 }
+
+
+    
