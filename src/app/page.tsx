@@ -7,7 +7,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,8 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 // Types
@@ -67,7 +69,9 @@ export default function PlantManagerFinal() {
   const [showWishlist, setShowWishlist] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('details'); 
+  const [activeTab, setActiveTab] = useState('details');
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosePlantOutput | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
@@ -203,6 +207,7 @@ export default function PlantManagerFinal() {
   };
 
   const openModal = (plant: Plant | null = null) => {
+    setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
       setFormData({ ...plant, events: plant.events || [] });
@@ -249,6 +254,27 @@ export default function PlantManagerFinal() {
 
   const deleteWishlistItem = (id: string) => {
     setWishlist(wishlist.filter(item => item.id !== id));
+  };
+
+  // AI Actions
+  const handleDiagnosis = async () => {
+    if (!formData.image) {
+      alert('Por favor, sube una imagen de la planta primero.');
+      return;
+    }
+    setIsDiagnosing(true);
+    setDiagnosisResult(null);
+    try {
+      const result = await diagnosePlant({
+        photoDataUri: formData.image,
+        description: `Nombre: ${formData.name}. Notas: ${formData.notes}`,
+      });
+      setDiagnosisResult(result);
+    } catch (error) {
+      console.error('Error al diagnosticar la planta:', error);
+      alert('Ocurrió un error al intentar obtener el diagnóstico. Por favor, intenta de nuevo.');
+    }
+    setIsDiagnosing(false);
   };
 
 
@@ -354,7 +380,7 @@ export default function PlantManagerFinal() {
             <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
                <div className="aspect-square relative bg-secondary overflow-hidden">
                   {plant.image ? (
-                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw" />
+                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
                   )}
@@ -418,6 +444,9 @@ export default function PlantManagerFinal() {
               <button onClick={() => setActiveTab('details')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Detalles</button>
               <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                 Bitácora <Badge variant="secondary">{formData.events?.length || 0}</Badge>
+              </button>
+               <button onClick={() => setActiveTab('diagnosis')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'diagnosis' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                Diagnóstico IA <Bot size={16} />
               </button>
             </div>
           )}
@@ -581,6 +610,57 @@ export default function PlantManagerFinal() {
                 </div>
               </div>
             )}
+             {activeTab === 'diagnosis' && (
+              <div className="text-center">
+                <Button onClick={handleDiagnosis} disabled={isDiagnosing || !formData.image}>
+                  {isDiagnosing ? 'Analizando...' : <><Bot className="mr-2" /> Analizar Salud de la Planta</>}
+                </Button>
+                
+                {!formData.image && (
+                    <p className="text-sm text-muted-foreground mt-4">Debes tener una foto de la planta para poder analizarla.</p>
+                )}
+
+                {isDiagnosing && (
+                  <div className="mt-6 space-y-2">
+                    <div className="animate-pulse rounded-full bg-muted h-8 w-3/4 mx-auto"></div>
+                    <div className="animate-pulse rounded-md bg-muted h-20 w-full mx-auto"></div>
+                     <div className="animate-pulse rounded-md bg-muted h-20 w-full mx-auto"></div>
+                  </div>
+                )}
+                
+                {diagnosisResult && (
+                  <div className="mt-6 text-left space-y-4">
+                    <Alert variant={diagnosisResult.diagnosis.isHealthy ? 'default' : 'destructive'}>
+                      <AlertTitle className="font-bold flex items-center gap-2">
+                         {diagnosisResult.diagnosis.isHealthy ? <CheckCircle size={20}/> : <AlertCircle size={20}/>}
+                        Veredicto: {diagnosisResult.diagnosis.isHealthy ? 'Planta Sana' : 'Necesita Atención'}
+                      </AlertTitle>
+                      <AlertDescription>
+                        <strong>{diagnosisResult.identification.commonName}</strong> ({diagnosisResult.identification.latinName})
+                      </AlertDescription>
+                    </Alert>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Diagnóstico Detallado</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{diagnosisResult.diagnosis.diagnosis}</p>
+                      </CardContent>
+                    </Card>
+                     <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Recomendaciones</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{diagnosisResult.diagnosis.recommendation}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -589,11 +669,11 @@ export default function PlantManagerFinal() {
       <Dialog open={showWishlist} onOpenChange={setShowWishlist}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Plant Wishlist</DialogTitle>
+            <DialogTitle>Mi Lista de Deseos</DialogTitle>
           </DialogHeader>
           <form onSubmit={addWishlistItem} className="space-y-3">
             <Input 
-              placeholder="New plant name..." 
+              placeholder="Nombre de la nueva planta..." 
               value={newWishlistItem.name} 
               onChange={(e) => setNewWishlistItem({ ...newWishlistItem, name: e.target.value })}
             />
@@ -611,14 +691,14 @@ export default function PlantManagerFinal() {
                 )}
             </div>
             <Textarea 
-              placeholder="Notes (optional)..."
+              placeholder="Notas (dónde la viste, precio, etc.)..."
               value={newWishlistItem.notes}
               onChange={(e) => setNewWishlistItem({ ...newWishlistItem, notes: e.target.value })}
             />
-            <Button type="submit" className="w-full">Add to Wishlist</Button>
+            <Button type="submit" className="w-full">Agregar a la Lista</Button>
           </form>
           <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
-            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Your wishlist is empty.</p>}
+            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tu lista de deseos está vacía.</p>}
             {wishlist.map(item => (
               <div key={item.id} className="flex items-center gap-3 p-2 bg-secondary rounded-md">
                  {item.image ? (
@@ -632,9 +712,16 @@ export default function PlantManagerFinal() {
                     <p className="font-semibold">{item.name}</p>
                     {item.notes && <p className="text-xs text-muted-foreground">{item.notes}</p>}
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => convertWishlistItemToPlant(item)}>
-                  <CheckCircle size={18} />
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => convertWishlistItemToPlant(item)}>
+                        <CheckCircle size={18} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>¡La conseguí! Mover a mi jardín</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteWishlistItem(item.id)}>
                   <Trash2 size={16} />
                 </Button>
@@ -647,3 +734,4 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+

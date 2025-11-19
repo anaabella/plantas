@@ -1,0 +1,80 @@
+
+'use server';
+/**
+ * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta.
+ *
+ * - diagnosePlant: Función que se exporta para ser llamada desde el cliente.
+ * - DiagnosePlantInput: El tipo de entrada para la función `diagnosePlant`.
+ * - DiagnosePlantOutput: El tipo de retorno para la función `diagnosePlant`.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+// Esquema de entrada para el flujo de diagnóstico.
+const DiagnosePlantInputSchema = z.object({
+  photoDataUri: z
+    .string()
+    .describe(
+      "Una foto de una planta, como un data URI que debe incluir un tipo MIME y usar codificación Base64. Formato esperado: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
+  description: z.string().describe('Una breve descripción de la planta, incluyendo su nombre y cualquier nota relevante del usuario.'),
+});
+export type DiagnosePlantInput = z.infer<typeof DiagnosePlantInputSchema>;
+
+// Esquema de salida para el flujo de diagnóstico.
+const DiagnosePlantOutputSchema = z.object({
+  identification: z.object({
+    isPlant: z.boolean().describe('Confirma si la imagen contiene una planta o no.'),
+    commonName: z.string().describe('El nombre común de la planta identificada.'),
+    latinName: z.string().describe('El nombre científico/latino de la planta.'),
+  }),
+  diagnosis: z.object({
+    isHealthy: z.boolean().describe('Un veredicto simple sobre si la planta parece estar sana o no.'),
+    diagnosis: z.string().describe("Un análisis detallado de la salud de la planta. Describe cualquier signo de enfermedad, plaga, estrés o deficiencia de nutrientes que observes. Si la planta está sana, simplemente indícalo."),
+    recommendation: z.string().describe('Pasos accionables y claros que el usuario puede tomar para mejorar la salud de la planta. Si la planta está sana, sugiere cuidados generales para mantenerla así.')
+  }),
+});
+export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
+
+/**
+ * Función exportada que el cliente llamará.
+ * Invoca el flujo de Genkit y devuelve su resultado.
+ */
+export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
+  return diagnosePlantFlow(input);
+}
+
+// Definición del prompt de Genkit.
+const diagnosePlantPrompt = ai.definePrompt({
+  name: 'diagnosePlantPrompt',
+  input: {schema: DiagnosePlantInputSchema},
+  output: {schema: DiagnosePlantOutputSchema},
+  prompt: `Actúa como un botánico experto y amigable. Tu tarea es analizar la imagen y la descripción de una planta proporcionada por un usuario para diagnosticar su estado de salud.
+
+Primero, identifica la planta en la foto. Si no es una planta, indícalo claramente.
+
+Luego, evalúa su salud. Busca signos de enfermedades, plagas, estrés hídrico, quemaduras de sol, o deficiencias nutricionales. Basado en tu análisis, determina si la planta está 'sana' o 'necesita atención'.
+
+Finalmente, proporciona un diagnóstico claro y una recomendación práctica. El diagnóstico debe explicar lo que observas, y la recomendación debe ser una guía paso a paso que el usuario pueda seguir para cuidar mejor de su planta. Responde siempre en español.
+
+Aquí está la información proporcionada por el usuario:
+Descripción: {{{description}}}
+Foto: {{media url=photoDataUri}}`,
+});
+
+// Definición del flujo de Genkit.
+const diagnosePlantFlow = ai.defineFlow(
+  {
+    name: 'diagnosePlantFlow',
+    inputSchema: DiagnosePlantInputSchema,
+    outputSchema: DiagnosePlantOutputSchema,
+  },
+  async input => {
+    const {output} = await diagnosePlantPrompt(input);
+    if (!output) {
+      throw new Error("El modelo no pudo generar un diagnóstico.");
+    }
+    return output;
+  }
+);
