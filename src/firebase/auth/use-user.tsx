@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase/provider';
 
 export interface UseUserResult {
@@ -35,10 +35,13 @@ export function useUser(): UseUserResult {
         const userDoc = await getDoc(userRef);
 
         if (!userDoc.exists()) {
+            // Use setDoc with merge:true to create or update, which is safer.
+            // This also prevents overwriting existing fields if the doc exists but is empty.
             await setDoc(userRef, {
                 displayName: user.displayName,
                 email: user.email,
                 photoURL: user.photoURL,
+                createdAt: serverTimestamp() // Add a creation timestamp
             }, { merge: true });
         }
         setUser(user);
