@@ -9,6 +9,7 @@
  * Data Structure:
  * - /users/{userId}: Stores user profile information.
  * - /users/{userId}/plants/{plantId}: Stores plant information for a given user.
+ * - /users/{userId}/wishlist/{wishlistItemId}: Stores wishlist items for a given user.
  * - /users/{userId}/plants/{plantId}/rootData/{rootDataId}: Stores root data for a given plant.
  * - /users/{userId}/plants/{plantId}/leafData/{leafDataId}: Stores leaf data for a given plant.
  * - /users/{userId}/plants/{plantId}/clippingData/{clippingDataId}: Stores clipping data for a given plant.
@@ -55,6 +56,28 @@ service cloud.firestore {
      * @principle Enforces document ownership for plants.
      */
     match /users/{userId}/plants/{plantId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to wishlist items owned by a user.
+     * @path /users/{userId}/wishlist/{wishlistItemId}
+     * @allow (create, get, list, update, delete) - The owner can manage their wishlist items.
+     * @deny (create, get, list, update, delete) - Others cannot access the wishlist.
+     * @principle Enforces document ownership for wishlist items.
+     */
+    match /users/{userId}/wishlist/{wishlistItemId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
