@@ -30,12 +30,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    // Esto permite las solicitudes de origen cruzado en el entorno de desarrollo.
-    allowedDevOrigins: [
-        'https://*.cloudworkstations.dev',
-    ]
-  }
 };
 
 export default nextConfig;
