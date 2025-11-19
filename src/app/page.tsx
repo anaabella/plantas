@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus, Search, Sprout, Gift, DollarSign, Calendar, Trash2, Camera,
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
-  Sun, Home, BarChart3, Clock, Upload, Download,
+  Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
   ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft
 } from 'lucide-react';
@@ -81,7 +81,6 @@ export default function PlantManagerFinal() {
   const [activeTab, setActiveTab] = useState('details');
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosePlantOutput | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const [currentView, setCurrentView] = useState('community'); // 'community' o 'mine'
@@ -414,42 +413,6 @@ export default function PlantManagerFinal() {
     setIsDiagnosing(false);
   };
 
-
-  // Import/Export
-  const exportData = () => {
-    const userPlants = plants.filter(p => p.ownerId === userId);
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userPlants));
-    const a = document.createElement('a'); a.href = dataStr; a.download = "mi_jardin_final.json"; a.click();
-  };
-
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!firestore || !userId) return;
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { 
-        try { 
-            const importedPlants = JSON.parse(ev.target?.result as string);
-            const plantsCollectionRef = collection(firestore, 'plants'); 
-            if(window.confirm(`¿Importar ${importedPlants.length} plantas a tu colección?`)) {
-                importedPlants.forEach((p: any) => {
-                    const dataToSave = { 
-                      ...p, 
-                      ownerId: userId,
-                      ownerName: user?.displayName,
-                      ownerPhotoURL: user?.photoURL,
-                      createdAt: serverTimestamp() 
-                    };
-                    delete dataToSave.id;
-                    addDocumentNonBlocking(plantsCollectionRef, dataToSave as Plant);
-                });
-            }
-        } catch(e){
-            alert("Error al leer el archivo. Asegúrate de que es un archivo JSON válido.");
-        }
-    };
-    reader.readAsText(file);
-  };
-
   // Stats for the logged-in user
   const userPlants = useMemo(() => plants.filter(p => p.ownerId === userId), [plants, userId]);
   const stats = useMemo(() => ({
@@ -605,8 +568,6 @@ export default function PlantManagerFinal() {
                 <>
                   <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
                   <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
-                  <Button onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon"><Upload size={20}/><input type="file" ref={fileInputRef} onChange={importData} className="hidden" accept=".json"/></Button>
-                  <Button onClick={exportData} variant="ghost" size="icon"><Download size={20}/></Button>
                   <Button onClick={() => openModal()}><Plus size={18}/> <span className="hidden sm:inline">Planta</span></Button>
                   <Button onClick={handleSignOut} variant="outline"><LogOut size={18} /> <span className="hidden sm:inline">Salir</span></Button>
                   {user.photoURL && <Image src={user.photoURL} alt={user.displayName || 'user'} width={32} height={32} className="rounded-full" />}
