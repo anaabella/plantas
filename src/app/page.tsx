@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
+import { getPlantInfo, type PlantInfoOutput, diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
@@ -88,7 +88,7 @@ export default function PlantManagerFinal() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('details');
   const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [diagnosisResult, setDiagnosisResult] = useState<any | null>(null);
+  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosePlantOutput | null>(null);
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const [currentView, setCurrentView] = useState('community'); // 'community' o 'mine'
@@ -445,10 +445,10 @@ export default function PlantManagerFinal() {
     setIsDiagnosing(true);
     setDiagnosisResult(null);
     try {
-      const result = {
-        identification: {isPlant: true, commonName: "Ficus", latinName: "Ficus"},
-        diagnosis: {isHealthy: true, diagnosis: "Healthy", recommendation: "Keep it up"}
-      }
+      const result = await diagnosePlant({
+        photoDataUri: formData.image,
+        description: `El usuario quiere un diagnóstico para su planta llamada ${formData.name}. Notas adicionales: ${formData.notes || 'Ninguna'}.`
+      });
       setDiagnosisResult(result);
     } catch (error) {
       console.error('Error al diagnosticar la planta:', error);
@@ -729,6 +729,9 @@ export default function PlantManagerFinal() {
               <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                 Bitácora <Badge variant="secondary">{formData.events?.length || 0}</Badge>
               </button>
+               <button onClick={() => setActiveTab('diagnosis')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'diagnosis' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                <Bot size={16}/> Diagnóstico IA
+              </button>
             </div>
           )}
 
@@ -922,6 +925,54 @@ export default function PlantManagerFinal() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+             {activeTab === 'diagnosis' && (
+              <div className="text-center">
+                {!formData.image && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Falta la foto</AlertTitle>
+                    <AlertDescription>
+                      Necesitas subir una foto de la planta en la pestaña "Detalles" para poder diagnosticarla.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Button onClick={handleDiagnosis} disabled={isDiagnosing || !formData.image} className="mb-4">
+                  {isDiagnosing ? 'Analizando...' : 'Diagnosticar Planta'}
+                </Button>
+
+                {isDiagnosing && (
+                    <div className="space-y-4 py-4">
+                        <div className="h-4 bg-muted rounded w-1/4 mx-auto animate-pulse"></div>
+                        <div className="h-24 bg-muted rounded-md animate-pulse"></div>
+                        <div className="h-4 bg-muted rounded w-1/3 mx-auto animate-pulse"></div>
+                        <div className="h-12 bg-muted rounded w-full animate-pulse"></div>
+                    </div>
+                )}
+                
+                {diagnosisResult && (
+                  <div className="space-y-4 text-left p-4 bg-secondary rounded-lg animate-in fade-in-50">
+                    <Alert variant={diagnosisResult.identification.isPlant ? 'default' : 'destructive'}>
+                      <AlertTitle>Identificación</AlertTitle>
+                      <AlertDescription>
+                        {diagnosisResult.identification.isPlant 
+                          ? `Creo que es una **${diagnosisResult.identification.commonName}** (*${diagnosisResult.identification.latinName}*).`
+                          : "No parece ser una planta."}
+                      </AlertDescription>
+                    </Alert>
+
+                     <Alert variant={diagnosisResult.diagnosis.isHealthy ? 'default' : 'destructive'}>
+                        <AlertTitle>Diagnóstico de Salud</AlertTitle>
+                        <AlertDescription>{diagnosisResult.diagnosis.diagnosis}</AlertDescription>
+                    </Alert>
+
+                     <Alert>
+                        <AlertTitle>Recomendaciones</AlertTitle>
+                        <AlertDescription>{diagnosisResult.diagnosis.recommendation}</AlertDescription>
+                    </Alert>
+                  </div>
+                )}
               </div>
             )}
           </div>
