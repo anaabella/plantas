@@ -453,6 +453,19 @@ export default function PlantManagerFinal() {
     const w = getWateringStatus(plant.lastWatered);
     const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
     const isOwner = plant.ownerId === userId;
+
+    const daysAlive = useMemo(() => {
+        if (plant.status !== 'fallecida') return null;
+
+        const deathEvent = plant.events?.find(e => e.type === 'fallecio');
+        const acquisitionDate = new Date(plant.date);
+        const deathDate = deathEvent ? new Date(deathEvent.date) : new Date(); // Use today if no death date
+
+        if (isNaN(acquisitionDate.getTime()) || isNaN(deathDate.getTime())) return null;
+
+        const diffTime = Math.abs(deathDate.getTime() - acquisitionDate.getTime());
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }, [plant.status, plant.date, plant.events]);
   
     const handleWishlistClick = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -506,20 +519,21 @@ export default function PlantManagerFinal() {
          <div className="p-3">
              <h3 className="font-bold truncate">{plant.name}</h3>
             {view === 'mine' ? (
-                <>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {plant.status === 'viva' && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color} w-fit`}>
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${w.bg} ${w.color}`}>
                            <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
                         </div>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                       <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
-                       {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
-                       {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
-                       {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
-                       {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
-                    </div>
-                </>
+                     {plant.status === 'fallecida' && daysAlive !== null && (
+                         <Badge variant="destructive">Vivió {daysAlive} días</Badge>
+                     )}
+                    <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
+                    {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
+                    {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
+                    {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
+                    {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
+                </div>
             ) : (
               <button onClick={handleProfileClick} className="flex items-center gap-2 mt-1 group">
                   {plant.ownerPhotoURL && <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={20} height={20} className="rounded-full" />}
@@ -1174,3 +1188,5 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         </Dialog>
     );
 }
+
+    
