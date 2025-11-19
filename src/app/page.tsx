@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,7 @@ type WishlistItem = {
   id: string;
   name: string;
   notes: string;
+  image: string | null;
 }
 
 
@@ -65,6 +66,7 @@ export default function PlantManagerFinal() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('details'); 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
 
   
@@ -90,7 +92,7 @@ export default function PlantManagerFinal() {
 
   // Estado del formulario
   const [formData, setFormData] = useState<Plant>(initialFormData);
-  const [newWishlistItem, setNewWishlistItem] = useState({ name: '', notes: '' });
+  const [newWishlistItem, setNewWishlistItem] = useState<Omit<WishlistItem, 'id'>>({ name: '', notes: '', image: null });
 
   // Estado para nuevo evento
   const [newEvent, setNewEvent] = useState({
@@ -199,6 +201,20 @@ export default function PlantManagerFinal() {
     }
     setShowModal(true);
   };
+  
+  const convertWishlistItemToPlant = (item: WishlistItem) => {
+    setShowWishlist(false);
+    const plantFromWishlist = {
+      ...initialFormData,
+      name: item.name,
+      image: item.image,
+      notes: item.notes,
+    };
+    setFormData(plantFromWishlist);
+    setShowModal(true);
+    // Optionally remove from wishlist
+    deleteWishlistItem(item.id);
+  };
 
   const closeModal = () => setShowModal(false);
   const deletePlant = (id: string) => { if (window.confirm('¿Eliminar esta planta permanentemente?')) { setPlants(plants.filter(p => p.id !== id)); closeModal(); }};
@@ -208,7 +224,16 @@ export default function PlantManagerFinal() {
     e.preventDefault();
     if (newWishlistItem.name.trim()) {
       setWishlist([...wishlist, { ...newWishlistItem, id: Date.now().toString() }]);
-      setNewWishlistItem({ name: '', notes: '' });
+      setNewWishlistItem({ name: '', notes: '', image: null });
+    }
+  };
+
+  const handleWishlistImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setNewWishlistItem(prev => ({ ...prev, image: reader.result as string }));
+      reader.readAsDataURL(file);
     }
   };
 
@@ -252,7 +277,7 @@ export default function PlantManagerFinal() {
       
       {/* Navbar */}
       <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b">
-        <div className="max-w-5xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2 text-primary">
               <Leaf className="fill-primary" size={24} />
@@ -310,7 +335,7 @@ export default function PlantManagerFinal() {
       </div>
 
       {/* Grid */}
-      <div className="max-w-5xl mx-auto p-4 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
           const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate);
@@ -518,24 +543,55 @@ export default function PlantManagerFinal() {
           <DialogHeader>
             <DialogTitle>Plant Wishlist</DialogTitle>
           </DialogHeader>
-          <form onSubmit={addWishlistItem} className="flex gap-2 mb-4">
+          <form onSubmit={addWishlistItem} className="space-y-3">
             <Input 
               placeholder="New plant name..." 
               value={newWishlistItem.name} 
               onChange={(e) => setNewWishlistItem({ ...newWishlistItem, name: e.target.value })}
             />
-            <Button type="submit">Add</Button>
+             <div className="relative w-full h-24 bg-secondary border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary">
+                {newWishlistItem.image ? (
+                    <>
+                        <Image src={newWishlistItem.image} alt="wishlist plant" fill className="object-cover"/>
+                        <Button type="button" onClick={() => setNewWishlistItem({...newWishlistItem, image: null})} variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6"><X size={12}/></Button>
+                    </>
+                ) : (
+                    <>
+                        <Camera className="text-muted-foreground"/>
+                        <input type="file" accept="image/*" ref={wishlistImageInputRef} onChange={handleWishlistImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                    </>
+                )}
+            </div>
+            <Textarea 
+              placeholder="Notes (optional)..."
+              value={newWishlistItem.notes}
+              onChange={(e) => setNewWishlistItem({ ...newWishlistItem, notes: e.target.value })}
+            />
+            <Button type="submit" className="w-full">Add to Wishlist</Button>
           </form>
-          <div className="max-h-64 overflow-y-auto space-y-2">
+          <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
+            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Your wishlist is empty.</p>}
             {wishlist.map(item => (
-              <div key={item.id} className="flex items-center justify-between p-2 bg-secondary rounded-md">
-                <span>{item.name}</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteWishlistItem(item.id)}>
-                  <Trash2 size={14} />
+              <div key={item.id} className="flex items-center gap-3 p-2 bg-secondary rounded-md">
+                 {item.image ? (
+                    <Image src={item.image} alt={item.name} width={40} height={40} className="rounded-md object-cover aspect-square" />
+                 ) : (
+                    <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
+                        <Leaf size={20}/>
+                    </div>
+                 )}
+                <div className="flex-1">
+                    <p className="font-semibold">{item.name}</p>
+                    {item.notes && <p className="text-xs text-muted-foreground">{item.notes}</p>}
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => convertWishlistItemToPlant(item)}>
+                  <CheckCircle size={18} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteWishlistItem(item.id)}>
+                  <Trash2 size={16} />
                 </Button>
               </div>
             ))}
-            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center">Your wishlist is empty.</p>}
           </div>
         </DialogContent>
       </Dialog>
