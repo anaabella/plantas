@@ -1200,6 +1200,17 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         }
     }, [isOpen, plant, info]);
 
+    const getSeason = (date: Date) => {
+      const month = date.getMonth();
+      // South Hemisphere seasons
+      if (month >= 8 && month <= 10) return 'Primavera'; // Sep, Oct, Nov
+      if (month >= 11 || month <= 1) return 'Verano'; // Dec, Jan, Feb
+      if (month >= 2 && month <= 4) return 'Otoño'; // Mar, Apr, May
+      return 'Invierno'; // Jun, Jul, Aug
+    };
+
+    const currentSeason = getSeason(new Date());
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-xl">
@@ -1213,36 +1224,56 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
                         {isLoading && (
                             <div className="space-y-4 py-4">
                                 <div className="h-4 bg-muted rounded w-1/4 animate-pulse"></div>
-                                <div className="flex gap-2">
-                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
-                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
-                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
-                                </div>
-                                <div className="space-y-2">
-                                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
-                                  <div className="h-12 bg-muted rounded w-full animate-pulse"></div>
-                                </div>
-                                <div className="space-y-2">
-                                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
-                                  <div className="h-8 bg-muted rounded w-full animate-pulse"></div>
-                                </div>
+                                <div className="h-24 bg-muted rounded-md animate-pulse"></div>
+                                <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                                <div className="h-12 bg-muted rounded w-full animate-pulse"></div>
+                                <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                                <div className="h-8 bg-muted rounded w-full animate-pulse"></div>
                             </div>
                         )}
 
                         {info && (
-                             <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                             <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
                                 <div>
-                                    <h3 className="font-semibold mb-2">Cuidados Básicos</h3>
+                                    <h3 className="font-semibold mb-3 border-b pb-2">Cuidados Básicos</h3>
                                     <div className="space-y-3 text-sm">
-                                        <div className="flex gap-3 items-start"><Sun className="text-amber-500 mt-0.5" size={18}/> <div><span className="font-medium">Luz:</span> {info.careInfo.light}</div></div>
-                                        <div className="flex gap-3 items-start"><Droplets className="text-blue-500 mt-0.5" size={18}/> <div><span className="font-medium">Riego:</span> {info.careInfo.water}</div></div>
-                                        <div className="flex gap-3 items-start"><Thermometer className="text-red-500 mt-0.5" size={18}/> <div><span className="font-medium">Temperatura:</span> {info.careInfo.temperature}</div></div>
+                                        <div className="flex gap-3 items-start"><Sun className="text-amber-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Luz:</span> {info.careInfo.light}</div></div>
+                                        <div className="flex gap-3 items-start"><Droplets className="text-blue-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Riego:</span> {info.careInfo.water}</div></div>
+                                        <div className="flex gap-3 items-start"><Thermometer className="text-red-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Temperatura:</span> {info.careInfo.temperature}</div></div>
                                     </div>
                                 </div>
+                                
                                 <div>
-                                    <h3 className="font-semibold mb-2">Dato Curioso</h3>
+                                    <h3 className="font-semibold mb-3 border-b pb-2">Consejos de Temporada</h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.fertilize.includes(currentSeason) ? 'bg-green-100 dark:bg-green-900/50' : ''}`}>
+                                            <Beaker className="text-green-600 mt-0.5 flex-shrink-0" size={18}/> 
+                                            <div>
+                                                <span className="font-medium">Fertilizar:</span> {info.seasonalCare.fertilize}
+                                                {info.seasonalCare.fertilize.includes(currentSeason) && <span className="text-xs font-bold text-green-700 dark:text-green-300 ml-2">(¡Ahora!)</span>}
+                                            </div>
+                                        </div>
+                                        <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.prune.includes(currentSeason) ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                                            <Scissors className="text-blue-600 mt-0.5 flex-shrink-0" size={18}/> 
+                                            <div>
+                                               <span className="font-medium">Podar:</span> {info.seasonalCare.prune}
+                                               {info.seasonalCare.prune.includes(currentSeason) && <span className="text-xs font-bold text-blue-700 dark:text-blue-300 ml-2">(¡Ahora!)</span>}
+                                            </div>
+                                        </div>
+                                        <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.repot.includes(currentSeason) ? 'bg-yellow-100 dark:bg-yellow-900/50' : ''}`}>
+                                            <RefreshCcw className="text-yellow-700 mt-0.5 flex-shrink-0" size={18}/> 
+                                            <div>
+                                               <span className="font-medium">Transplantar:</span> {info.seasonalCare.repot}
+                                               {info.seasonalCare.repot.includes(currentSeason) && <span className="text-xs font-bold text-yellow-800 dark:text-yellow-300 ml-2">(¡Ahora!)</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold mb-2 border-b pb-2">Dato Curioso</h3>
                                     <div className="flex gap-3 items-start text-sm">
-                                      <Lightbulb className="text-yellow-500 mt-0.5" size={18}/>
+                                      <Lightbulb className="text-yellow-500 mt-0.5 flex-shrink-0" size={18}/>
                                       <p>{info.funFact}</p>
                                     </div>
                                 </div>

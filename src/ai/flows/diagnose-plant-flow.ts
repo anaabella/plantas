@@ -57,6 +57,11 @@ const PlantInfoOutputSchema = z.object({
         water: z.string().describe('Necesidades de riego.'),
         temperature: z.string().describe('Rango de temperatura ideal.'),
     }),
+    seasonalCare: z.object({
+        fertilize: z.string().describe('La mejor estación o época del año para fertilizar la planta (ej. "Primavera y verano").'),
+        prune: z.string().describe('La mejor estación o época del año para podar la planta (ej. "Finales de invierno").'),
+        repot: z.string().describe('La mejor estación o época del año para transplantar la planta (ej. "Primavera").'),
+    }),
     funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
 });
 export type PlantInfoOutput = z.infer<typeof PlantInfoOutputSchema>;
@@ -72,8 +77,9 @@ const getPlantInfoPrompt = ai.definePrompt({
     input: { schema: PlantInfoInputSchema },
     output: { schema: PlantInfoOutputSchema },
     prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
-    Resume los cuidados básicos en términos de luz, agua y temperatura.
-    Finalmente, añade un dato curioso sobre la planta.
+    - Resume los cuidados básicos en términos de luz, agua y temperatura.
+    - Indica la mejor estación del año para fertilizar, podar y transplantar. Sé breve y directo (ej. "Primavera", "Verano y otoño").
+    - Añade un dato curioso sobre la planta.
     Responde siempre en español.`,
 });
 
