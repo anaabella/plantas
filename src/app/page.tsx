@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3,
-  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle
+  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,9 @@ import { CropRecommenderDialog } from '@/components/crop-recommender-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlantInfoDialog } from '@/components/plant-info-dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { differenceInDays, subDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
+import { useTheme } from 'next-themes';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Tipos
 export type Plant = {
@@ -147,8 +149,9 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'plants'));
-  }, [firestore]);
+    // Excluye las plantas del usuario actual de la vista de comunidad
+    return user ? query(collection(firestore, 'plants'), where('ownerId', '!=', user.uid)) : query(collection(firestore, 'plants'));
+  }, [firestore, user]);
 
   useEffect(() => {
     if (!communityPlantsQuery) {
@@ -344,10 +347,10 @@ export default function GardenApp() {
 
   // -- Computed Data --
   const filteredPlants = useMemo(() => {
-    const source = view === 'my-plants' ? plants : communityPlants.filter(p => p.ownerId !== user?.uid);
+    const source = view === 'my-plants' ? plants : communityPlants;
     if (!searchTerm) return source;
     return source.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [plants, communityPlants, user, view, searchTerm]);
+  }, [plants, communityPlants, view, searchTerm]);
   
   const filteredWishlist = useMemo(() => {
     if (!searchTerm) return wishlist;
@@ -476,6 +479,8 @@ export default function GardenApp() {
 
 // Header Component
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, onOpenCropRecommender, isUserLoading }: any) {
+  const { setTheme } = useTheme();
+  
   const NavButton = ({ activeView, targetView, icon: Icon, children }: any) => (
     <Button
       variant={activeView === targetView ? "secondary" : "ghost"}
@@ -510,20 +515,42 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
             <Skeleton className="h-10 w-24" />
           ) : user ? (
             <Popover>
-              <PopoverTrigger>
-                <Avatar className="h-9 w-9">
+              <PopoverTrigger asChild>
+                <Avatar className="h-9 w-9 cursor-pointer">
                   <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'Usuario'} />
                   <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
               </PopoverTrigger>
-              <PopoverContent className="w-56">
+              <PopoverContent className="w-60">
                 <div className="p-2 text-center">
                   <p className="font-semibold">{user.displayName}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <Separator />
-                <Button variant="ghost" className="w-full justify-start mt-1" onClick={onAddPlant}><Plus className="mr-2 h-4 w-4" />Añadir Planta</Button>
-                <Button variant="destructive" className="w-full justify-start mt-1" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
+                <div className="p-1">
+                    <Button variant="ghost" className="w-full justify-start" onClick={onAddPlant}><Plus className="mr-2 h-4 w-4" />Añadir Planta</Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-start">
+                          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 mr-2" />
+                          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 mr-2" />
+                          Cambiar Tema
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTheme("light")}>
+                          Claro
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme("dark")}>
+                          Oscuro
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme("system")}>
+                          Sistema
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button variant="destructive" className="w-full justify-start mt-1" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
+                </div>
               </PopoverContent>
             </Popover>
           ) : (
@@ -648,7 +675,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
   const [isAiSearchOpen, setIsAiSearchOpen] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const toast = useToast();
+  const { toast } = useToast();
   const { identifyPlant } = require('@/ai/flows/identify-plant-flow');
 
   const handleAiSearchClick = () => {
@@ -669,13 +696,13 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
         const result = await identifyPlant({ photoDataUri });
         if (result.isPlant) {
           onSave({ name: result.commonName, notes: `Nombre científico: ${result.latinName}` });
-          toast.toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
+          toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
         } else {
-          toast.toast({ variant: 'destructive', title: "No es una planta", description: "La IA no pudo identificar una planta en la imagen." });
+          toast({ variant: 'destructive', title: "No es una planta", description: "La IA no pudo identificar una planta en la imagen." });
         }
       } catch (error) {
         console.error("Error identifying plant:", error);
-        toast.toast({ variant: 'destructive', title: "Error de IA", description: "No se pudo identificar la planta." });
+        toast({ variant: 'destructive', title: "Error de IA", description: "No se pudo identificar la planta." });
       } finally {
         setIsAiLoading(false);
       }
