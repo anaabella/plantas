@@ -61,9 +61,9 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
     onSave(plant.id, editedPlant);
   };
   
-  const handleAddEvent = async (event: Omit<PlantEvent, 'id'>) => {
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string }) => {
     if (!firestore || !user || !editedPlant) return;
-    const newEvent = { ...event, id: new Date().getTime().toString() };
+    const newEvent = { ...event, id: new Date().getTime().toString(), note: event.note || '' };
     const updatedEvents = [...(editedPlant.events || []), newEvent];
     
     const plantRef = doc(firestore, 'plants', editedPlant.id);
@@ -72,8 +72,9 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
     if (event.type === 'riego') {
         updatePayload.lastWatered = event.date;
     }
-    if (event.type === 'foto') {
+    if (event.type === 'foto' && event.note) {
         updatePayload.lastPhotoUpdate = event.date;
+        updatePayload.image = event.note;
     }
 
     await updateDoc(plantRef, updatePayload);
@@ -98,12 +99,14 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
         case 'plaga': note = "Se detectó y trató una plaga."; break;
         default: note = "Evento registrado."; break;
     }
-    handleAddEvent({ type, date: new Date().toISOString(), note });
+    handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
   };
 
   const handleAddNoteConfirm = () => {
+    if (!newEventNote) return;
     handleAddEvent({ type: 'nota', date: newEventDate, note: newEventNote });
     setNewEventNote("");
+    setNewEventDate(new Date().toISOString().split('T')[0]);
     setIsNotePopoverOpen(false);
   };
 
@@ -140,7 +143,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
   };
 
 
-  const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'robado'];
+  const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
   const statusOptions: Plant['status'][] = ['viva', 'fallecida', 'intercambiada'];
@@ -184,7 +187,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
                         {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
                         {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
                         {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                         {editedPlant.acquisitionType === 'robado' && <InputGroup label="Robado de" value={editedPlant.stolenFrom} onChange={(e:any) => handleChange('stolenFrom', e.target.value)} placeholder="Ubicación" />}
+                         {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
 
                         <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                     </div>
@@ -204,13 +207,18 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
             
             <TabsContent value="log" className="overflow-y-auto max-h-[70vh] p-1">
                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Eventos Recientes</h3>
+                    <h3 className="font-semibold">Planes de Cuidado</h3>
+                 </div>
+                 <div className="flex gap-2 flex-wrap mb-4">
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
+                </div>
+                 <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Eventos Rápidos</h3>
                     <div className="flex gap-2 flex-wrap">
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
-                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
+                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
                         
                         <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
                             <PopoverTrigger asChild>

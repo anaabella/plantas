@@ -33,7 +33,7 @@ const acquisitionIcons:any = {
   compra: <ShoppingBag className="h-5 w-5" />,
   regalo: <Gift className="h-5 w-5" />,
   intercambio: <RefreshCw className="h-5 w-5" />,
-  robado: <Skull className="h-5 w-5" />,
+  rescatada: <Skull className="h-5 w-5" />,
 };
 
 function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) {
@@ -184,7 +184,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
                 {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
                 {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
                 {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
-                {plant.acquisitionType === 'robado' && <p className="text-sm text-muted-foreground">De: {plant.stolenFrom || '¡Shhh!'}</p>}
+                {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
               </div>
             </div>
           

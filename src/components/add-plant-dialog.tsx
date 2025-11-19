@@ -26,7 +26,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [price, setPrice] = useState('');
   const [giftFrom, setGiftFrom] = useState('');
   const [exchangeSource, setExchangeSource] = useState('');
-  const [stolenFrom, setStolenFrom] = useState('');
+  const [rescuedFrom, setRescuedFrom] = useState('');
   const [notes, setNotes] = useState('');
 
 
@@ -48,7 +48,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
       price: acquisitionType === 'compra' ? price : undefined,
       giftFrom: acquisitionType === 'regalo' ? giftFrom : undefined,
       exchangeSource: acquisitionType === 'intercambio' ? exchangeSource : undefined,
-      stolenFrom: acquisitionType === 'robado' ? stolenFrom : undefined,
+      rescuedFrom: acquisitionType === 'rescatada' ? rescuedFrom : undefined,
       notes,
       events: [],
     };
@@ -65,7 +65,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
     setAcquisitionType('compra');
     setPrice('');
     setGiftFrom('');
-    setStolenFrom('');
+    setRescuedFrom('');
     setExchangeSource('');
     setNotes('');
 
@@ -95,7 +95,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
     </div>
   );
 
-  const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'robado'];
+  const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
 
@@ -117,7 +117,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
                  {acquisitionType === 'compra' && <InputGroup label="Precio" value={price} onChange={(e:any) => setPrice(e.target.value)} placeholder="$0.00" />}
                  {acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={giftFrom} onChange={(e:any) => setGiftFrom(e.target.value)} placeholder="Nombre" />}
                  {acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={exchangeSource} onChange={(e:any) => setExchangeSource(e.target.value)} placeholder="Ej: un esqueje" />}
-                {acquisitionType === 'robado' && <InputGroup label="Robado de" value={stolenFrom} onChange={(e:any) => setStolenFrom(e.target.value)} placeholder="Ubicación" />}
+                {acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={rescuedFrom} onChange={(e:any) => setRescuedFrom(e.target.value)} placeholder="Ubicación" />}
 
              </div>
              <div className="space-y-4">
