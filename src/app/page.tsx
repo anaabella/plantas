@@ -103,8 +103,10 @@ export default function PlantManagerFinal() {
     try {
       await signInWithPopup(auth, provider);
       // The useUser hook will handle the user state update
-    } catch (error) {
-      console.error("Error signing in with Google: ", error);
+    } catch (error: any) {
+        if (error.code !== 'auth/cancelled-popup-request') {
+            console.error("Error signing in with Google: ", error);
+        }
     }
   };
 
@@ -877,4 +879,5 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+
 
