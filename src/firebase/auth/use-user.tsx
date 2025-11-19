@@ -22,14 +22,16 @@ export function useUser(): UseUserResult {
 
   useEffect(() => {
     if (!auth || !firestore) {
-      setIsLoading(false); // Firebase services not ready
+      // If Firebase services are not ready, we are not loading a user.
+      if (auth === null || firestore === null) {
+        setIsLoading(false);
+      }
       return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // User is signed in.
-        // Check if it's a new user by checking if their document exists.
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userRef);
 
@@ -42,7 +44,6 @@ export function useUser(): UseUserResult {
             }, { merge: true });
         }
         setUser(user);
-
       } else {
         // User is signed out.
         setUser(null);

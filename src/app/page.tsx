@@ -87,10 +87,19 @@ export default function PlantManagerFinal() {
   const { user, isLoading: isLoadingUser } = useUser();
   const userId = user?.uid;
 
-  const plantsRef = useMemoFirebase(() => firestore ? collection(firestore, 'plants') : null, [firestore]);
-  const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
+  const plantsRef = useMemoFirebase(() => {
+    if (!firestore || isLoadingUser) return null; // Wait for user loading to finish
+    return collection(firestore, 'plants');
+  }, [firestore, isLoadingUser]);
+  
+  const plantsQuery = useMemoFirebase(() => {
+    if (!plantsRef) return null;
+    return query(plantsRef, orderBy('createdAt', 'desc'));
+  }, [plantsRef]);
+  
   const { data: plantsData, isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
   const plants = plantsData || [];
+
 
   const wishlistRef = useMemoFirebase(() => userId ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId]);
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
