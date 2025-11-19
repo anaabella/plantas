@@ -435,7 +435,7 @@ export default function PlantManagerFinal() {
   const filteredPlants = useMemo(() => {
     const sourcePlants = currentView === 'mine' 
       ? plants.filter(p => p.ownerId === userId) 
-      : plants.filter(p => p.ownerId !== userId);
+      : plants.filter(p => p.ownerId !== userId && p.ownerName);
 
     return sourcePlants.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1167,5 +1167,3 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         </Dialog>
     );
 }
-
-    
