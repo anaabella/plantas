@@ -26,15 +26,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart } from 'lucide-react';
+import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart, Skull } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
 import type { Plant, PlantEvent } from '@/app/page';
-import { PlantDetailDialog } from './plant-detail-dialog';
-import { PlantInfoDisplay } from '@/app/page';
+import { PlantInfoDisplay } from '@/components/plant-info-display';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, onAddEvent, onRemoveEvent, onQuickAddEvent, onFetchInfo }: any) {
+export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
+  const firestore = useFirestore();
+  const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
   const [newEventNote, setNewEventNote] = useState("");
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
@@ -43,22 +46,65 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
   const [isInfoLoading, setIsInfoLoading] = useState(false);
-
-
+  
   useEffect(() => {
     setEditedPlant(plant);
     setDiagnoseResult(null); // Reset diagnosis on new plant
     setPlantInfo(null); // Reset info on new plant
   }, [plant]);
-
+  
   const handleChange = (field: keyof Plant, value: any) => {
     setEditedPlant({ ...editedPlant, [field]: value });
   };
   
+  const handleSave = () => {
+    onSave(plant.id, editedPlant);
+  };
+  
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id'>) => {
+    if (!firestore || !user || !editedPlant) return;
+    const newEvent = { ...event, id: new Date().getTime().toString() };
+    const updatedEvents = [...(editedPlant.events || []), newEvent];
+    
+    const plantRef = doc(firestore, 'plants', editedPlant.id);
+    const updatePayload: Partial<Plant> = { events: updatedEvents };
+
+    if (event.type === 'riego') {
+        updatePayload.lastWatered = event.date;
+    }
+    if (event.type === 'foto') {
+        updatePayload.lastPhotoUpdate = event.date;
+    }
+
+    await updateDoc(plantRef, updatePayload);
+    setEditedPlant({ ...editedPlant, ...updatePayload });
+  };
+  
+  const handleRemoveEvent = async (eventId: string) => {
+    if (!firestore || !user || !editedPlant) return;
+    const updatedEvents = editedPlant.events.filter((e: PlantEvent) => e.id !== eventId);
+    const plantRef = doc(firestore, 'plants', editedPlant.id);
+    await updateDoc(plantRef, { events: updatedEvents });
+    setEditedPlant({ ...editedPlant, events: updatedEvents });
+  };
+
+  const handleQuickAddEvent = (type: PlantEvent['type']) => {
+    let note = "";
+    switch (type) {
+        case 'riego': note = "Agua añadida."; break;
+        case 'poda': note = "Poda de mantenimiento realizada."; break;
+        case 'transplante': note = "Movida a una maceta más grande."; break;
+        case 'fertilizante': note = "Nutrientes añadidos."; break;
+        case 'plaga': note = "Se detectó y trató una plaga."; break;
+        default: note = "Evento registrado."; break;
+    }
+    handleAddEvent({ type, date: new Date().toISOString(), note });
+  };
+
   const handleAddNoteConfirm = () => {
-      onAddEvent(plant.id, { type: 'nota', date: newEventDate, note: newEventNote });
-      setNewEventNote("");
-      setIsNotePopoverOpen(false);
+    handleAddEvent({ type: 'nota', date: newEventDate, note: newEventNote });
+    setNewEventNote("");
+    setIsNotePopoverOpen(false);
   };
 
   const handleDiagnose = async () => {
@@ -99,7 +145,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
   const statusOptions: Plant['status'][] = ['viva', 'fallecida', 'intercambiada'];
 
-  const eventIcons = {
+  const eventIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
     riego: <Droplets className="h-4 w-4 text-blue-500" />,
     poda: <Scissors className="h-4 w-4 text-gray-500" />,
     transplante: <Shovel className="h-4 w-4 text-orange-500" />,
@@ -123,7 +169,6 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
                 <TabsList>
                     <TabsTrigger value="details">Detalles</TabsTrigger>
                     <TabsTrigger value="log">Bitácora</TabsTrigger>
-                    <TabsTrigger value="gallery">Galería</TabsTrigger>
                     <TabsTrigger value="ai-diag">Diagnóstico IA</TabsTrigger>
                     <TabsTrigger value="ai-info">Info IA</TabsTrigger>
                 </TabsList>
@@ -134,7 +179,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
                     {/* Columna Izquierda */}
                     <div className="space-y-4">
                         <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
-                        <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date} onChange={(e:any) => handleChange('date', e.target.value)} />
+                        <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
                         <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                         {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
                         {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
@@ -160,12 +205,12 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
             <TabsContent value="log" className="overflow-y-auto max-h-[70vh] p-1">
                  <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Eventos Recientes</h3>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
-                         <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
+                    <div className="flex gap-2 flex-wrap">
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
+                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
                         
                         <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
                             <PopoverTrigger asChild>
@@ -198,17 +243,13 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
                                     <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemoveEvent(event.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveEvent(event.id)}>
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
                     ))}
-                    {editedPlant.events?.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
+                    {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
                 </div>
-            </TabsContent>
-            
-            <TabsContent value="gallery">
-                 <PlantDetailDialog plant={plant} isOpen={false} setIsOpen={()=>{}} onUpdatePlant={()=>{}} />
             </TabsContent>
 
             <TabsContent value="ai-diag" className="p-1">
@@ -223,7 +264,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
                 {diagnoseResult && <AIDiagnosisResult result={diagnoseResult} />}
             </TabsContent>
 
-             <TabsContent value="ai-info" className="p-1">
+             <TabsContent value="ai-info" className="overflow-y-auto max-h-[70vh] p-1">
                 <div className="text-center p-4 rounded-lg bg-secondary/50">
                     <h3 className="font-semibold">Obtener Info con IA</h3>
                     <p className="text-sm text-muted-foreground mb-4">Obtén información detallada sobre tu planta, como cuidados, datos curiosos y más.</p>
@@ -255,7 +296,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, on
             </AlertDialogContent>
           </AlertDialog>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-          <Button onClick={() => onSave(plant.id, editedPlant)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

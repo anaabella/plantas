@@ -42,7 +42,7 @@ const recommendCropsPrompt = ai.definePrompt({
   name: 'recommendCropsPrompt',
   input: { schema: CropRecommenderInputSchema },
   output: { schema: CropRecommenderOutputSchema },
-  prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas, verduras o frutas adecuadas para plantar.
+  prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
 
 Para cada recomendación, proporciona:
 1.  El nombre común.

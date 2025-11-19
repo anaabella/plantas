@@ -4,10 +4,12 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogFooter
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import type { Plant } from '@/app/page';
-import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home } from 'lucide-react';
+import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, Download } from 'lucide-react';
 
 export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const stats = useMemo(() => {
@@ -26,6 +28,42 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
 
     return { total, alive, deceased, traded, acquisition, location };
   }, [plants]);
+
+  const exportToCsv = () => {
+    const headers = [
+        "ID", "Nombre", "Fecha Adquisicion", "Estado", "Ultimo Riego", "Tipo Comienzo", 
+        "Ubicacion", "Tipo Adquisicion", "Precio", "Regalo De", "Robado De", 
+        "Fuente Intercambio", "Destino Intercambio", "Ultima Foto", "Notas"
+    ];
+    
+    const rows = plants.map((p: Plant) => [
+        p.id,
+        `"${p.name?.replace(/"/g, '""')}"`,
+        p.date,
+        p.status,
+        p.lastWatered || "",
+        p.startType,
+        p.location,
+        p.acquisitionType,
+        p.price || "",
+        p.giftFrom || "",
+        p.stolenFrom || "",
+        p.exchangeSource || "",
+        p.exchangeDest || "",
+        p.lastPhotoUpdate || "",
+        `"${p.notes?.replace(/"/g, '""') || ""}"`
+    ].join(','));
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "plantas.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   const StatCard = ({ icon: Icon, label, value, color }: any) => (
     <div className="p-4 bg-background rounded-lg border flex items-center gap-4">
@@ -53,6 +91,12 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
           <StatCard icon={Sun} label="Exterior" value={stats.location.exterior || 0} color="bg-orange-500" />
           <StatCard icon={Home} label="Interior" value={stats.location.interior || 0} color="bg-indigo-500" />
         </div>
+        <DialogFooter>
+            <Button variant="outline" onClick={exportToCsv}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar a CSV
+            </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

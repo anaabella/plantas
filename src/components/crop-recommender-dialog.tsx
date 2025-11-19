@@ -38,7 +38,7 @@ export function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, 
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Asistente de Huerta</DialogTitle>
-                    <DialogDescription>Describe tu espacio (ej. "balcón soleado", "patio con sombra") y la IA te recomendará qué plantar.</DialogDescription>
+                    <DialogDescription>Describe tu espacio (ej. "balcón soleado", "patio con sombra") y la IA te recomendará qué frutas y hortalizas plantar.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                     <Textarea 

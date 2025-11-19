@@ -2,20 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Search, Sprout, Gift, DollarSign, Calendar as CalendarIcon,
-  Leaf, HeartCrack, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3
+  Plus, Search, Sprout, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3,
+  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,14 +21,13 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import {
-  signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   signOut,
   getRedirectResult,
-  signInWithRedirect
 } from 'firebase/auth';
-import { useUser, useAuth, useFirestore } from '@/firebase';
-import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
+import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
@@ -48,7 +39,9 @@ import { CalendarDialog } from '@/components/calendar-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { CropRecommenderDialog } from '@/components/crop-recommender-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-
+import { PlantInfoDialog } from '@/components/plant-info-dialog';
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { differenceInDays, subDays } from 'date-fns';
 
 // Tipos
 export type Plant = {
@@ -90,8 +83,7 @@ export type WishlistItem = {
   image?: string;
 };
 
-type View = 'my-plants' | 'community' | 'wishlist' | 'stats';
-
+type View = 'my-plants' | 'community' | 'wishlist';
 
 // Componente Principal
 export default function GardenApp() {
@@ -123,96 +115,113 @@ export default function GardenApp() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   const [isCropRecommenderOpen, setIsCropRecommenderOpen] = useState(false);
-
+  
   const [isPlantInfoOpen, setIsPlantInfoOpen] = useState(false);
   const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
   const [isPlantInfoLoading, setIsPlantInfoLoading] = useState(false);
   const [currentPlantInfoName, setCurrentPlantInfoName] = useState("");
 
-
-  // -- Efectos para carga de datos --
-  useEffect(() => {
-    if (user && firestore) {
-      setIsLoading(true);
-      const plantsQuery = query(collection(firestore, 'plants'), where('ownerId', '==', user.uid));
-      const unsubscribe = onSnapshot(plantsQuery, snapshot => {
-        const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-        setPlants(userPlants);
-        setIsLoading(false);
-      }, error => {
-        console.error("Error fetching user plants:", error);
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setPlants([]);
-    }
+  // -- Data fetching effects --
+  const userPlantsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'plants'), where('ownerId', '==', user.uid));
   }, [user, firestore]);
   
   useEffect(() => {
-    if (firestore) {
-      setIsCommunityLoading(true);
-      const communityQuery = query(collection(firestore, 'plants'));
-      const unsubscribe = onSnapshot(communityQuery, snapshot => {
-        const allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-        setCommunityPlants(allPlants);
-        setIsCommunityLoading(false);
-      }, error => {
-        console.error("Error fetching community plants:", error);
-        setIsCommunityLoading(false);
-      });
-      return () => unsubscribe();
+    if (!userPlantsQuery) {
+      setPlants([]);
+      setIsLoading(false);
+      return;
     }
+    setIsLoading(true);
+    const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
+      const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      setPlants(userPlants);
+      setIsLoading(false);
+    }, error => {
+      console.error("Error fetching user plants:", error);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [userPlantsQuery]);
+
+  const communityPlantsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'plants'));
   }, [firestore]);
 
   useEffect(() => {
-    if (user && firestore) {
-      const wishlistQuery = collection(firestore, `users/${user.uid}/wishlist`);
-      const unsubscribe = onSnapshot(wishlistQuery, snapshot => {
-        const userWishlist = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WishlistItem));
-        setWishlist(userWishlist);
-      }, error => {
-        console.error("Error fetching wishlist:", error);
-      });
-      return () => unsubscribe();
-    } else {
-      setWishlist([]);
+    if (!communityPlantsQuery) {
+        setCommunityPlants([]);
+        setIsCommunityLoading(false);
+        return;
     }
+    setIsCommunityLoading(true);
+    const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
+      const allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      setCommunityPlants(allPlants);
+      setIsCommunityLoading(false);
+    }, error => {
+      console.error("Error fetching community plants:", error);
+      setIsCommunityLoading(false);
+    });
+    return () => unsubscribe();
+  }, [communityPlantsQuery]);
+
+  const wishlistQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, `users/${user.uid}/wishlist`);
   }, [user, firestore]);
 
+  useEffect(() => {
+    if (!wishlistQuery) {
+        setWishlist([]);
+        return;
+    }
+    const unsubscribe = onSnapshot(wishlistQuery, snapshot => {
+      const userWishlist = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WishlistItem));
+      setWishlist(userWishlist);
+    }, error => {
+      console.error("Error fetching wishlist:", error);
+    });
+    return () => unsubscribe();
+  }, [wishlistQuery]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (!auth) return;
     getRedirectResult(auth)
       .catch((error) => {
         console.error("Firebase redirect error:", error);
-        toast({
-          variant: "destructive",
-          title: "Error de inicio de sesión",
-          description: "No se pudo completar el inicio de sesión. Si el problema persiste, asegúrate de que este dominio esté autorizado en la configuración de Firebase.",
-        });
+        if (error.code === 'auth/unauthorized-domain') {
+          toast({
+            variant: "destructive",
+            title: "Dominio no autorizado",
+            description: "El dominio de esta aplicación no está autorizado para el inicio de sesión. Por favor, añádelo en la configuración de autenticación de tu proyecto de Firebase.",
+            duration: 10000,
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error de inicio de sesión",
+            description: "No se pudo completar el inicio de sesión. Revisa la consola para más detalles.",
+          });
+        }
       });
   }, [auth, toast]);
 
-  // -- Handlers de Autenticación --
+  // -- Auth Handlers --
   const handleLogin = async () => {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
     try {
-        if (isMobile) {
-            await signInWithRedirect(auth, provider);
-        } else {
-            await signInWithPopup(auth, provider);
-        }
+      await signInWithRedirect(auth, provider);
     } catch (error) {
-        console.error("Error during sign-in:", error);
-        toast({
-            variant: "destructive",
-            title: "Error al iniciar sesión",
-            description: "No se pudo conectar con Google. Por favor, intenta de nuevo.",
-        });
+      console.error("Error initiating sign-in redirect:", error);
+      toast({
+        variant: "destructive",
+        title: "Error al iniciar sesión",
+        description: "No se pudo iniciar el proceso de autenticación con Google.",
+      });
     }
   };
 
@@ -222,7 +231,7 @@ export default function GardenApp() {
     toast({ title: "Has cerrado sesión." });
   };
 
-  // -- Handlers de Plantas --
+  // -- Plant Handlers --
   const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'>) => {
     if (!user || !firestore) return;
     try {
@@ -242,7 +251,7 @@ export default function GardenApp() {
   };
 
   const handleUpdatePlant = async (plantId: string, updatedData: Partial<Plant>) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     try {
       const plantRef = doc(firestore, 'plants', plantId);
       await updateDoc(plantRef, updatedData);
@@ -256,7 +265,7 @@ export default function GardenApp() {
   };
 
   const handleDeletePlant = async (plantId: string) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
       toast({ title: "Planta eliminada" });
@@ -266,35 +275,7 @@ export default function GardenApp() {
     }
   };
 
-  const handleAddEvent = (plantId: string, event: Omit<PlantEvent, 'id'>) => {
-    if (!editingPlant) return;
-    const newEvent = { ...event, id: new Date().getTime().toString() };
-    const updatedEvents = [...(editingPlant.events || []), newEvent];
-    setEditingPlant({ ...editingPlant, events: updatedEvents });
-  };
-  
-  const handleRemoveEvent = (eventId: string) => {
-    if (!editingPlant) return;
-    const updatedEvents = editingPlant.events.filter(e => e.id !== eventId);
-    setEditingPlant({ ...editingPlant, events: updatedEvents });
-  };
-  
-  const handleQuickAddEvent = (type: PlantEvent['type']) => {
-    if (!editingPlant) return;
-    let note = "";
-    switch (type) {
-        case 'riego': note = "Agua añadida."; break;
-        case 'poda': note = "Poda de mantenimiento realizada."; break;
-        case 'transplante': note = "Movida a una maceta más grande."; break;
-        case 'fertilizante': note = "Nutrientes añadidos."; break;
-        case 'plaga': note = "Se detectó y trató una plaga."; break;
-        default: note = "Evento registrado."; break;
-    }
-    handleAddEvent(editingPlant.id, { type, date: new Date().toISOString(), note });
-  };
-  
-
-  // -- Handlers de Wishlist --
+  // -- Wishlist Handlers --
   const handleSaveWishlistItem = async (itemData: Omit<WishlistItem, 'id'>, id?: string) => {
     if (!user || !firestore) return;
     try {
@@ -324,7 +305,7 @@ export default function GardenApp() {
     }
   };
 
-  // -- Handlers de UI --
+  // -- UI Handlers --
   const openPlantDetails = (plant: Plant) => {
     setSelectedPlant(plant);
     setIsDetailOpen(true);
@@ -355,14 +336,13 @@ export default function GardenApp() {
               title: "Error de IA",
               description: "No se pudo obtener la información de la planta."
           });
-          setPlantInfo(null); // Limpiar en caso de error
+          setPlantInfo(null);
       } finally {
           setIsPlantInfoLoading(false);
       }
   };
-  
 
-  // -- Filtrado y Renderizado --
+  // -- Computed Data --
   const filteredPlants = useMemo(() => {
     const source = view === 'my-plants' ? plants : communityPlants.filter(p => p.ownerId !== user?.uid);
     if (!searchTerm) return source;
@@ -374,7 +354,19 @@ export default function GardenApp() {
     return wishlist.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [wishlist, searchTerm]);
 
-  // -- Renderizado del componente --
+  const plantsNeedingAttention = useMemo(() => {
+    const today = new Date();
+    return plants
+        .filter(plant => plant.status === 'viva')
+        .map(plant => {
+            const needsWatering = !plant.lastWatered || differenceInDays(today, new Date(plant.lastWatered)) > 7;
+            const needsPhoto = !plant.lastPhotoUpdate || differenceInDays(today, new Date(plant.lastPhotoUpdate)) > 30;
+            return { plant, needsWatering, needsPhoto };
+        })
+        .filter(item => item.needsWatering || item.needsPhoto);
+  }, [plants]);
+
+  // -- Main Render --
   return (
     <div className="min-h-screen bg-secondary/50 font-body text-foreground">
       <Header
@@ -402,6 +394,10 @@ export default function GardenApp() {
             />
           </div>
         </div>
+        
+        {view === 'my-plants' && plantsNeedingAttention.length > 0 && (
+            <AttentionSection plantsNeedingAttention={plantsNeedingAttention} onPlantClick={openPlantEditor} />
+        )}
 
         {view === 'my-plants' && (
           <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} />
@@ -417,12 +413,13 @@ export default function GardenApp() {
             items={filteredWishlist}
             onEdit={openWishlistForm}
             onDelete={handleDeleteWishlistItem}
-            onAddNew={() => openWishlistForm()}
+            onAddNew={() => openWishlistForm(undefined)}
+            onSave={handleSaveWishlistItem}
           />
         )}
       </main>
       
-      {/* Diálogos */}
+      {/* Dialogs */}
       <AddPlantDialog
         isOpen={isAddDialogOpen}
         setIsOpen={setIsAddDialogOpen}
@@ -433,28 +430,25 @@ export default function GardenApp() {
           plant={editingPlant}
           isOpen={isEditDialogOpen}
           setIsOpen={setIsEditDialogOpen}
-          onSave={(id, data) => handleUpdatePlant(id, data)}
+          onSave={handleUpdatePlant}
           onDelete={handleDeletePlant}
-          onAddEvent={handleAddEvent}
-          onRemoveEvent={handleRemoveEvent}
-          onQuickAddEvent={handleQuickAddEvent}
-          onFetchInfo={handleFetchPlantInfo}
         />
       )}
-      <PlantDetailDialog
+       <PlantDetailDialog
         plant={selectedPlant}
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
+        onUpdatePlant={(id, data) => handleUpdatePlant(id, data)}
       />
-       {isPlantInfoOpen && (
-            <PlantInfoDialog
-                isOpen={isPlantInfoOpen}
-                setIsOpen={setIsPlantInfoOpen}
-                plantName={currentPlantInfoName}
-                info={plantInfo}
-                isLoading={isPlantInfoLoading}
-            />
-        )}
+      {isPlantInfoOpen && (
+        <PlantInfoDialog
+            isOpen={isPlantInfoOpen}
+            setIsOpen={setIsPlantInfoOpen}
+            plantName={currentPlantInfoName}
+            info={plantInfo}
+            isLoading={isPlantInfoLoading}
+        />
+      )}
       <WishlistFormDialog
         isOpen={isWishlistFormOpen}
         setIsOpen={setIsWishlistFormOpen}
@@ -480,7 +474,7 @@ export default function GardenApp() {
   );
 }
 
-// Header
+// Header Component
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, onOpenCropRecommender, isUserLoading }: any) {
   const NavButton = ({ activeView, targetView, icon: Icon, children }: any) => (
     <Button
@@ -541,8 +535,57 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
   );
 }
 
+// Attention Section
+function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
+    return (
+        <div className="mb-8">
+            <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
+                <AlertCircle className="mr-2 h-6 w-6 text-yellow-500" />
+                Necesitan Atención
+            </h2>
+            <Carousel opts={{ align: "start", loop: false }} className="w-full">
+                <CarouselContent className="-ml-4">
+                    {plantsNeedingAttention.map(({ plant, needsWatering, needsPhoto }: any) => (
+                        <CarouselItem key={plant.id} className="pl-4 md:basis-1/3 lg:basis-1/4">
+                            <div className="p-1">
+                                <div onClick={() => onPlantClick(plant)} className="cursor-pointer group">
+                                    <div className="relative overflow-hidden rounded-lg border">
+                                        <Image
+                                            src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                                            alt={plant.name}
+                                            width={400}
+                                            height={500}
+                                            className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                                        />
+                                        <div className="absolute top-0 right-0 m-2 flex flex-col gap-2">
+                                            {needsWatering && (
+                                                <div className="p-2 rounded-full bg-blue-500/80 text-white" title="Necesita Riego">
+                                                    <Droplets className="h-5 w-5" />
+                                                </div>
+                                            )}
+                                            {needsPhoto && (
+                                                <div className="p-2 rounded-full bg-purple-500/80 text-white" title="Necesita Foto">
+                                                    <Camera className="h-5 w-5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                                            <h3 className="font-headline text-lg font-bold text-white truncate">{plant.name}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+            </Carousel>
+            <Separator className="mt-8"/>
+        </div>
+    );
+}
 
-// Grid de Plantas
+
+// Plants Grid
 function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: any) {
   if (isLoading) {
     return (
@@ -552,7 +595,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
     );
   }
 
-  if (plants.length === 0) {
+  if (plants.length === 0 && !isLoading) {
     return (
       <div className="text-center py-16">
         <Leaf className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -600,23 +643,73 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   );
 }
 
-function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
-  if (items.length === 0) {
+// Wishlist Grid
+function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
+  const [isAiSearchOpen, setIsAiSearchOpen] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const toast = useToast();
+  const { identifyPlant } = require('@/ai/flows/identify-plant-flow');
+
+  const handleAiSearchClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const photoDataUri = e.target?.result as string;
+      if (!photoDataUri) return;
+      
+      setIsAiLoading(true);
+      try {
+        const result = await identifyPlant({ photoDataUri });
+        if (result.isPlant) {
+          onSave({ name: result.commonName, notes: `Nombre científico: ${result.latinName}` });
+          toast.toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
+        } else {
+          toast.toast({ variant: 'destructive', title: "No es una planta", description: "La IA no pudo identificar una planta en la imagen." });
+        }
+      } catch (error) {
+        console.error("Error identifying plant:", error);
+        toast.toast({ variant: 'destructive', title: "Error de IA", description: "No se pudo identificar la planta." });
+      } finally {
+        setIsAiLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  if (items.length === 0 && !isAiLoading) {
     return (
       <div className="text-center py-16">
         <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" />
         <h3 className="mt-4 text-lg font-semibold">Tu lista de deseos está vacía</h3>
         <p className="mt-1 text-sm text-muted-foreground">Añade las plantas que te gustaría tener.</p>
-        <Button className="mt-6" onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
+        <div className="mt-6 flex justify-center gap-4">
+            <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
+            <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
+                <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}
+            </Button>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="text-right">
-        <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
+      <div className="text-right flex justify-end gap-4">
+        <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
+        <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
+            <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}
+        </Button>
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
       </div>
+       {isAiLoading && <p className="text-center text-muted-foreground">Identificando planta con IA...</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item: WishlistItem) => (
           <div key={item.id} className="p-4 bg-background rounded-lg border flex flex-col">
@@ -645,103 +738,4 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
       </div>
     </div>
   );
-}
-
-export function PlantInfoDialog({ isOpen, setIsOpen, plantName, info, isLoading }: any) {
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle className="font-headline text-2xl">Información de: {plantName}</DialogTitle>
-                    <DialogDescription>
-                        Aquí tienes detalles y consejos de cuidado para tu planta, generados por IA.
-                    </DialogDescription>
-                </DialogHeader>
-                {isLoading ? (
-                    <div className="space-y-4 py-4">
-                        <Skeleton className="h-8 w-1/2" />
-                        <Skeleton className="h-16 w-full" />
-                        <Skeleton className="h-8 w-1/2" />
-                        <Skeleton className="h-24 w-full" />
-                    </div>
-                ) : info ? (
-                    <PlantInfoDisplay info={info} />
-                ) : (
-                    <div className="py-8 text-center">
-                        <p>No se pudo cargar la información.</p>
-                    </div>
-                )}
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export function PlantInfoDisplay({ info }: { info: PlantInfoOutput }) {
-    const { Lightbulb, Calendar: CalendarIcon, Info, Sparkles } = require('lucide-react');
-    const { Badge } = require('@/components/ui/badge');
-    const { format, es } = require('date-fns');
-
-    const currentMonth = format(new Date(), 'MMMM', { locale: es });
-
-    const isCareSeason = (season: string) => {
-        if (!season) return false;
-        const lowerSeason = season.toLowerCase();
-        const monthMap: { [key: string]: string[] } = {
-            'invierno': ['diciembre', 'enero', 'febrero'],
-            'primavera': ['marzo', 'abril', 'mayo'],
-            'verano': ['junio', 'julio', 'agosto'],
-            'otoño': ['septiembre', 'octubre', 'noviembre'],
-        };
-        for (const s of Object.keys(monthMap)) {
-            if (lowerSeason.includes(s) && monthMap[s].includes(currentMonth)) {
-                return true;
-            }
-        }
-        return false;
-    };
-    
-    return (
-        <div className="space-y-4 py-4 text-sm">
-            <div className="p-3 rounded-lg border">
-                <h4 className="font-semibold font-headline flex items-center"><Lightbulb className="mr-2 h-4 w-4 text-primary" />Cuidados Básicos</h4>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-                    <li><strong>Luz:</strong> {info.careInfo.light}</li>
-                    <li><strong>Riego:</strong> {info.careInfo.water}</li>
-                    <li><strong>Temperatura:</strong> {info.careInfo.temperature}</li>
-                </ul>
-            </div>
-            <div className="p-3 rounded-lg border">
-                <h4 className="font-semibold font-headline flex items-center"><CalendarIcon className="mr-2 h-4 w-4 text-primary" />Cuidados Estacionales</h4>
-                <div className="mt-2 space-y-2">
-                    <div className={`p-2 rounded-md ${isCareSeason(info.seasonalCare.fertilize) ? 'bg-primary/20 border border-primary' : ''}`}>
-                         <strong>Fertilizar:</strong> {info.seasonalCare.fertilize}
-                         {isCareSeason(info.seasonalCare.fertilize) && <Badge className="ml-2">Ahora</Badge>}
-                    </div>
-                     <div className={`p-2 rounded-md ${isCareSeason(info.seasonalCare.prune) ? 'bg-primary/20 border border-primary' : ''}`}>
-                         <strong>Podar:</strong> {info.seasonalCare.prune}
-                          {isCareSeason(info.seasonalCare.prune) && <Badge className="ml-2">Ahora</Badge>}
-                    </div>
-                     <div className={`p-2 rounded-md ${isCareSeason(info.seasonalCare.repot) ? 'bg-primary/20 border border-primary' : ''}`}>
-                         <strong>Transplantar:</strong> {info.seasonalCare.repot}
-                         {isCareSeason(info.seasonalCare.repot) && <Badge className="ml-2">Ahora</Badge>}
-                    </div>
-                </div>
-            </div>
-             <div className="p-3 rounded-lg border">
-                <h4 className="font-semibold font-headline flex items-center"><Info className="mr-2 h-4 w-4 text-primary" />Info General</h4>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-                    <li><strong>Altura Máxima:</strong> {info.generalInfo.maxHeight}</li>
-                    <li><strong>Época de Floración:</strong> {info.generalInfo.bloomSeason}</li>
-                    <li><strong>Colores de Flores:</strong> {info.generalInfo.flowerColors}</li>
-                </ul>
-            </div>
-             <div className="p-3 rounded-lg bg-accent/10 border border-accent/30 text-accent-foreground">
-                <h4 className="font-semibold font-headline flex items-center"><Sparkles className="mr-2 h-4 w-4 text-accent" />Dato Curioso</h4>
-                <p className="mt-1 text-sm">{info.funFact}</p>
-            </div>
-        </div>
-    );
 }
