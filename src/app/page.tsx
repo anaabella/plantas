@@ -134,12 +134,20 @@ export default function PlantManagerFinal() {
   };
 
   const needsPhotoUpdate = (lastUpdate: string | undefined) => {
-    if (!lastUpdate) return true; // If never updated, it needs one.
+    if (!lastUpdate) {
+        // If there's no update date, it doesn't need an update unless it's an old plant without this field.
+        // For simplicity, we'll say new plants without a photo don't need an update reminder.
+        return false;
+    }
     const last = new Date(lastUpdate);
     const now = new Date();
-    const diffDays = Math.ceil((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays > 90; // 90 days = ~3 months
-  };
+    // Add a day to the last update to ensure we don't trigger on the same day
+    last.setDate(last.getDate() + 1); 
+    const diffTime = now.getTime() - last.getTime();
+    if (diffTime < 0) return false; // Photo was taken today or in the future
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 90;
+};
 
   const formatCurrency = (val: number | string | undefined) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(val) || 0);
 
@@ -567,8 +575,7 @@ export default function PlantManagerFinal() {
               value={newWishlistItem.notes}
               onChange={(e) => setNewWishlistItem({ ...newWishlistItem, notes: e.target.value })}
             />
-            <Button type="submit" className="w-full">Add to Wishlist</Button>
-          </form>
+            <Button type="submit" className="w-full">Add to Wishlist</Button>          </form>
           <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
             {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Your wishlist is empty.</p>}
             {wishlist.map(item => (
