@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal, Carrot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getPlantInfo, type PlantInfoOutput, diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
+import { recommendVegetables, type VegetableRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
@@ -86,6 +87,7 @@ export default function PlantManagerFinal() {
   const [showWishlist, setShowWishlist] = useState(false);
   const [showPlantInfo, setShowPlantInfo] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showVeggieRecommender, setShowVeggieRecommender] = useState(false);
   const [selectedPlantInfo, setSelectedPlantInfo] = useState<Plant | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -626,6 +628,7 @@ export default function PlantManagerFinal() {
               </Button>
               {user ? (
                 <>
+                  <Button onClick={() => setShowVeggieRecommender(true)} variant="ghost" size="icon"><Carrot size={20}/></Button>
                   <Button onClick={() => setShowCalendar(true)} variant="ghost" size="icon"><CalendarIcon size={20}/></Button>
                   <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
                   <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
@@ -1063,6 +1066,12 @@ export default function PlantManagerFinal() {
         isOpen={showPlantInfo}
         onOpenChange={setShowPlantInfo}
       />
+
+       {/* Vegetable Recommender Dialog */}
+       <VegetableRecommenderDialog
+        isOpen={showVeggieRecommender}
+        onOpenChange={setShowVeggieRecommender}
+      />
     </div>
   );
 }
@@ -1467,7 +1476,92 @@ function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean,
         </DialogContent>
       </Dialog>
     );
-  }
+}
+
+function VegetableRecommenderDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (open: boolean) => void; }) {
+    const [query, setQuery] = useState('');
+    const [result, setResult] = useState<VegetableRecommenderOutput | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleRecommendation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!query.trim()) return;
+
+        setIsLoading(true);
+        setResult(null);
+        try {
+            const recommendations = await recommendVegetables({ userQuery: query });
+            setResult(recommendations);
+        } catch (error) {
+            console.error("Error getting vegetable recommendations:", error);
+            alert('Hubo un error al obtener las recomendaciones. Intenta de nuevo.');
+        }
+        setIsLoading(false);
+    };
+    
+    // Reset state when closing dialog
+    useEffect(() => {
+      if (!isOpen) {
+        setQuery('');
+        setResult(null);
+        setIsLoading(false);
+      }
+    }, [isOpen]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Asistente de Huerta</DialogTitle>
+                    <p className="text-sm text-muted-foreground pt-1">
+                        Describe tu espacio y la IA te recomendará qué plantar.
+                    </p>
+                </DialogHeader>
+
+                <form onSubmit={handleRecommendation} className="flex items-start gap-2">
+                    <Textarea 
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Ej: Tengo un balcón pequeño con sol por la mañana..."
+                        rows={2}
+                        required
+                    />
+                    <Button type="submit" disabled={isLoading} className="self-stretch">
+                        {isLoading ? 'Pensando...' : 'Recomendar'}
+                    </Button>
+                </form>
+
+                <div className="max-h-80 overflow-y-auto space-y-4 pt-4">
+                    {isLoading && (
+                       <div className="space-y-4">
+                            {[...Array(3)].map((_, i) => (
+                               <div key={i} className="p-4 border rounded-lg animate-pulse">
+                                   <div className="h-5 w-1/3 bg-muted rounded-md mb-2"></div>
+                                   <div className="h-4 w-full bg-muted rounded-md mb-1"></div>
+                                   <div className="h-4 w-3/4 bg-muted rounded-md"></div>
+                               </div>
+                            ))}
+                       </div>
+                    )}
+                    {result && result.recommendations.map((rec, index) => (
+                        <Card key={index} className="animate-in fade-in-50">
+                           <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Carrot size={20} className="text-primary"/>
+                                {rec.name}
+                            </CardTitle>
+                           </CardHeader>
+                           <CardContent className="space-y-2 text-sm">
+                               <p><span className="font-semibold">Cosecha en:</span> {rec.timeToHarvest}</p>
+                               <p><span className="font-semibold">Ideal para:</span> {rec.plantingLocation}</p>
+                           </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
   
   
   
