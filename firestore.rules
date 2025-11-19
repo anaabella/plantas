@@ -1,0 +1,138 @@
+/**
+ * @fileoverview Firestore Security Rules for the Plant Tracker application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user can only access
+ * their own profile data and the plants and associated data they own. All data
+ * is nested under /users/{userId} to simplify authorization.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/plants/{plantId}: Stores plant information for a given user.
+ * - /users/{userId}/plants/{plantId}/rootData/{rootDataId}: Stores root data for a given plant.
+ * - /users/{userId}/plants/{plantId}/leafData/{leafDataId}: Stores leaf data for a given plant.
+ * - /users/{userId}/plants/{plantId}/clippingData/{clippingDataId}: Stores clipping data for a given plant.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data.
+ * - No public listing of users is allowed.
+ * - Path-based ownership is enforced for all data.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) - User with UID 'user_abc' can create their profile document at /users/user_abc if the document ID matches their UID.
+     * @allow (get, update, delete) - User with UID 'user_abc' can read, update, and delete their profile document at /users/user_abc.
+     * @deny  (create) - User with UID 'user_xyz' cannot create a profile document at /users/user_abc.
+     * @deny  (get, update, delete) - User with UID 'user_xyz' cannot read, update, or delete the profile document at /users/user_abc.
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      // Verify that the document ID matches the authenticated user's UID.
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Prevent listing of all users.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to plant documents owned by a user.
+     * @path /users/{userId}/plants/{plantId}
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete plants under /users/user_abc/plants/{plantId}.
+     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete plants under /users/user_abc/plants/{plantId}.
+     * @principle Enforces document ownership for plants.
+     */
+    match /users/{userId}/plants/{plantId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to root data documents for a plant owned by a user.
+     * @path /users/{userId}/plants/{plantId}/rootData/{rootDataId}
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete root data under /users/user_abc/plants/{plantId}/rootData/{rootDataId}.
+     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete root data under /users/user_abc/plants/{plantId}/rootData/{rootDataId}.
+     * @principle Enforces document ownership for root data.
+     */
+    match /users/{userId}/plants/{plantId}/rootData/{rootDataId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to leaf data documents for a plant owned by a user.
+     * @path /users/{userId}/plants/{plantId}/leafData/{leafDataId}
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete leaf data under /users/user_abc/plants/{plantId}/leafData/{leafDataId}.
+     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete leaf data under /users/user_abc/plants/{plantId}/leafData/{leafDataId}.
+     * @principle Enforces document ownership for leaf data.
+     */
+    match /users/{userId}/plants/{plantId}/leafData/{leafDataId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to clipping data documents for a plant owned by a user.
+     * @path /users/{userId}/plants/{plantId}/clippingData/{clippingDataId}
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete clipping data under /users/user_abc/plants/{plantId}/clippingData/{clippingDataId}.
+     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete clipping data under /users/user_abc/plants/{plantId}/clippingData/{clippingDataId}.
+     * @principle Enforces document ownership for clipping data.
+     */
+    match /users/{userId}/plants/{plantId}/clippingData/{clippingDataId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
