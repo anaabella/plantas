@@ -123,21 +123,27 @@ export default function PlantManagerFinal() {
     if (!lastWateredDate) return { color: 'text-stone-400', text: 'Sin registro', days: 0 };
     const last = new Date(lastWateredDate);
     const now = new Date();
-    const diffDays = Math.ceil(Math.abs(now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)); 
+    const diffDays = Math.ceil((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)); 
     if (diffDays <= 3) return { color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/50', days: diffDays };
     if (diffDays <= 7) return { color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/50', days: diffDays };
     return { color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/50', days: diffDays };
   };
 
-  const needsPhotoUpdate = (lastUpdate: string | undefined) => {
+  const needsPhotoUpdate = (lastUpdate: string | undefined, acquisitionDate: string) => {
     if (!lastUpdate) return false;
     const last = new Date(lastUpdate);
     const now = new Date();
+    const acqDate = new Date(acquisitionDate);
+  
+    // Don't ask for an update if the plant is less than 90 days old
+    const ageInDays = (now.getTime() - acqDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (ageInDays < 90) return false;
+  
     const diffTime = now.getTime() - last.getTime();
-    if (diffTime < 0) return false; 
+    if (diffTime < 0) return false;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 90;
-};
+  };
 
   const formatCurrency = (val: number | string | undefined) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(val) || 0);
 
@@ -161,7 +167,7 @@ export default function PlantManagerFinal() {
     if (formData.id) {
       setPlants(plants.map(p => p.id === formData.id ? formData : p));
     } else {
-      setPlants([{ ...formData, id: Date.now().toString(), events: [], lastPhotoUpdate: new Date().toISOString().split('T')[0], status: 'viva' }, ...plants]);
+      setPlants([{ ...formData, id: Date.now().toString(), lastPhotoUpdate: new Date().toISOString().split('T')[0], status: 'viva' }, ...plants]);
     }
     closeModal();
   };
@@ -342,13 +348,13 @@ export default function PlantManagerFinal() {
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
-          const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate);
+          const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
           
           return (
             <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
                <div className="aspect-square relative bg-secondary overflow-hidden">
                   {plant.image ? (
-                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} />
+                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
                   )}
@@ -423,7 +429,7 @@ export default function PlantManagerFinal() {
                      <div className="relative w-full sm:w-32 h-32 bg-secondary border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary">
                         {formData.image ? (
                           <>
-                            <Image src={formData.image} alt="plant" fill className="object-cover"/>
+                            <Image src={formData.image} alt="plant" fill className="object-cover" sizes="128px"/>
                             <Button type="button" onClick={() => setFormData({...formData, image: null})} variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6"><X size={12}/></Button>
                           </>
                         ) : (
@@ -594,7 +600,7 @@ export default function PlantManagerFinal() {
              <div className="relative w-full h-24 bg-secondary border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary">
                 {newWishlistItem.image ? (
                     <>
-                        <Image src={newWishlistItem.image} alt="wishlist plant" fill className="object-cover"/>
+                        <Image src={newWishlistItem.image} alt="wishlist plant" fill className="object-cover" sizes="100vw" />
                         <Button type="button" onClick={() => setNewWishlistItem({...newWishlistItem, image: null})} variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6"><X size={12}/></Button>
                     </>
                 ) : (
@@ -609,7 +615,8 @@ export default function PlantManagerFinal() {
               value={newWishlistItem.notes}
               onChange={(e) => setNewWishlistItem({ ...newWishlistItem, notes: e.target.value })}
             />
-            <Button type="submit" className="w-full">Add to Wishlist</Button>          </form>
+            <Button type="submit" className="w-full">Add to Wishlist</Button>
+          </form>
           <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
             {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Your wishlist is empty.</p>}
             {wishlist.map(item => (
