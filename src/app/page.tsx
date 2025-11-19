@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -7,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import { useTheme } from 'next-themes';
 
 // Types
 type PlantEvent = {
@@ -47,16 +47,26 @@ type Plant = {
   lastPhotoUpdate?: string;
 };
 
+type WishlistItem = {
+  id: string;
+  name: string;
+  notes: string;
+}
+
 
 export default function PlantManagerFinal() {
   // --- Estados ---
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('details'); 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { theme, setTheme } = useTheme();
+
   
   const initialFormData: Plant = {
     id: '',
@@ -80,6 +90,7 @@ export default function PlantManagerFinal() {
 
   // Estado del formulario
   const [formData, setFormData] = useState<Plant>(initialFormData);
+  const [newWishlistItem, setNewWishlistItem] = useState({ name: '', notes: '' });
 
   // Estado para nuevo evento
   const [newEvent, setNewEvent] = useState({
@@ -94,11 +105,20 @@ export default function PlantManagerFinal() {
     if (savedPlants) {
       setPlants(JSON.parse(savedPlants));
     }
+    const savedWishlist = localStorage.getItem('my-garden-wishlist');
+    if (savedWishlist) {
+      setWishlist(JSON.parse(savedWishlist));
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('my-garden-final', JSON.stringify(plants));
   }, [plants]);
+
+  useEffect(() => {
+    localStorage.setItem('my-garden-wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
+
 
   // --- Helpers ---
   const getWateringStatus = (lastWateredDate: string | undefined) => {
@@ -106,9 +126,9 @@ export default function PlantManagerFinal() {
     const last = new Date(lastWateredDate);
     const now = new Date();
     const diffDays = Math.ceil(Math.abs(now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)); 
-    if (diffDays <= 3) return { color: 'text-blue-500', bg: 'bg-blue-50', days: diffDays };
-    if (diffDays <= 7) return { color: 'text-amber-500', bg: 'bg-amber-50', days: diffDays };
-    return { color: 'text-red-500', bg: 'bg-red-50', days: diffDays };
+    if (diffDays <= 3) return { color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/50', days: diffDays };
+    if (diffDays <= 7) return { color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/50', days: diffDays };
+    return { color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/50', days: diffDays };
   };
 
   const needsPhotoUpdate = (lastUpdate: string | undefined) => {
@@ -183,6 +203,20 @@ export default function PlantManagerFinal() {
   const closeModal = () => setShowModal(false);
   const deletePlant = (id: string) => { if (window.confirm('¿Eliminar esta planta permanentemente?')) { setPlants(plants.filter(p => p.id !== id)); closeModal(); }};
   
+  // Wishlist Actions
+  const addWishlistItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newWishlistItem.name.trim()) {
+      setWishlist([...wishlist, { ...newWishlistItem, id: Date.now().toString() }]);
+      setNewWishlistItem({ name: '', notes: '' });
+    }
+  };
+
+  const deleteWishlistItem = (id: string) => {
+    setWishlist(wishlist.filter(item => item.id !== id));
+  };
+
+
   // Import/Export
   const exportData = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(plants));
@@ -224,7 +258,13 @@ export default function PlantManagerFinal() {
               <Leaf className="fill-primary" size={24} />
               <h1 className="text-xl font-bold">Mi Jardín</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
+              <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="ghost" size="icon">
+                <SunDim className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+              <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
               <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
               <Button onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon"><Upload size={20}/><input type="file" ref={fileInputRef} onChange={importData} className="hidden" accept=".json"/></Button>
               <Button onClick={exportData} variant="ghost" size="icon"><Download size={20}/></Button>
@@ -236,15 +276,15 @@ export default function PlantManagerFinal() {
             <div className="mb-3 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
                <Card className="text-center">
                  <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Inversión</CardTitle></CardHeader>
-                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-700">{formatCurrency(stats.spent)}</p></CardContent>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(stats.spent)}</p></CardContent>
                </Card>
                <Card className="text-center">
                  <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Hijos Dados</CardTitle></CardHeader>
-                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-indigo-600">{stats.offspring}</p></CardContent>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{stats.offspring}</p></CardContent>
                </Card>
                <Card className="text-center">
                  <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Vivas</CardTitle></CardHeader>
-                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-600">{stats.alive}</p></CardContent>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.alive}</p></CardContent>
                </Card>
             </div>
           )}
@@ -313,9 +353,9 @@ export default function PlantManagerFinal() {
                      <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
                         {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
-                        {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600">De: {plant.giftFrom}</Badge>}
-                        {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600">Por: {plant.exchangeSource}</Badge>}
-                        {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600">De: {plant.stolenFrom}</Badge>}
+                        {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
+                        {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
+                        {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
                      </div>
                   </div>
 
@@ -335,7 +375,7 @@ export default function PlantManagerFinal() {
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
           <DialogHeader className="p-4 border-b flex-row justify-between items-center">
             <DialogTitle>{formData.id ? formData.name : 'Nueva Planta'}</DialogTitle>
-             <Button onClick={closeModal} variant="ghost" size="icon" className="rounded-full"><X size={20}/></Button>
+             <Button onClick={closeModal} variant="ghost" size="icon" className="rounded-full flex-shrink-0"><X size={20}/></Button>
           </DialogHeader>
 
           {formData.id && (
@@ -369,7 +409,7 @@ export default function PlantManagerFinal() {
                         
                         <div className="grid grid-cols-2 gap-2">
                           <Select name="status" value={formData.status} onValueChange={(v) => handleInputChange({target: {name: 'status', value: v}} as any)}>
-                            <SelectTrigger className={formData.status === 'intercambiada' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : ''}>
+                            <SelectTrigger className={formData.status === 'intercambiada' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/50 dark:border-indigo-700 dark:text-indigo-400' : ''}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -388,7 +428,7 @@ export default function PlantManagerFinal() {
                         </div>
                         
                         {formData.status === 'intercambiada' && (
-                          <div className="text-xs text-indigo-600 bg-indigo-50 p-2 rounded-md">
+                          <div className="text-xs text-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 dark:text-indigo-400 p-2 rounded-md">
                              Solo usa esto si ya no tienes la planta. Si solo diste un gajo, déjala en "Viva" y anótalo en la Bitácora.
                           </div>
                         )}
@@ -468,6 +508,34 @@ export default function PlantManagerFinal() {
                 </div>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Wishlist Modal */}
+      <Dialog open={showWishlist} onOpenChange={setShowWishlist}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Plant Wishlist</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={addWishlistItem} className="flex gap-2 mb-4">
+            <Input 
+              placeholder="New plant name..." 
+              value={newWishlistItem.name} 
+              onChange={(e) => setNewWishlistItem({ ...newWishlistItem, name: e.target.value })}
+            />
+            <Button type="submit">Add</Button>
+          </form>
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {wishlist.map(item => (
+              <div key={item.id} className="flex items-center justify-between p-2 bg-secondary rounded-md">
+                <span>{item.name}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteWishlistItem(item.id)}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            ))}
+            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center">Your wishlist is empty.</p>}
           </div>
         </DialogContent>
       </Dialog>
