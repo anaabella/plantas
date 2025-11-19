@@ -45,7 +45,7 @@ type Plant = {
   date: string;
   status: 'viva' | 'fallecida' | 'intercambiada';
   exchangeDest?: string;
-  startType: 'planta' | 'gajo' | 'raiz';
+  startType: 'planta' | 'gajo' | 'raiz' | 'semilla';
   location: 'interior' | 'exterior';
   lastWatered: string;
   notes?: string;
@@ -581,6 +581,7 @@ export default function PlantManagerFinal() {
                                 <SelectItem value="planta">Planta Completa</SelectItem>
                                 <SelectItem value="gajo">Gajo / Esqueje</SelectItem>
                                 <SelectItem value="raiz">Raíz / Bulbo</SelectItem>
+                                <SelectItem value="semilla">Semilla</SelectItem>
                             </SelectContent>
                         </Select>
                         <Select name="acquisitionType" value={formData.acquisitionType} onValueChange={(v) => handleInputChange({target: {name: 'acquisitionType', value: v}} as any)}>
@@ -803,7 +804,3 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
-
-
-
-    

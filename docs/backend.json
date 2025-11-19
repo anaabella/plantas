@@ -14,7 +14,7 @@
         "date": { "type": "string", "format": "date" },
         "status": { "type": "string", "enum": ["viva", "fallecida", "intercambiada"] },
         "exchangeDest": { "type": "string", "description": "Destination of exchange if applicable." },
-        "startType": { "type": "string", "enum": ["planta", "gajo", "raiz"] },
+        "startType": { "type": "string", "enum": ["planta", "gajo", "raiz", "semilla"] },
         "location": { "type": "string", "enum": ["interior", "exterior"] },
         "lastWatered": { "type": "string", "format": "date" },
         "notes": { "type": "string" },
@@ -111,5 +111,3 @@
     ]
   }
 }
-
-    
