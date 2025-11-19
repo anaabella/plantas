@@ -8,7 +8,7 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
@@ -16,10 +16,12 @@ service cloud.firestore {
     }
     
     match /plants/{plantId} {
-      // Permitir que cualquiera lea las plantas.
-      allow read: if true;
-      // Solo permitir crear, actualizar y borrar al dueño autenticado.
-      allow create, update, delete: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      // Permitir que cualquier usuario autenticado lea las plantas.
+      allow read: if isAuthenticated();
+      // Permitir crear solo si el ownerId coincide con el uid del solicitante.
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      // Permitir actualizar o borrar solo si el ownerId del documento existente coincide.
+      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
     match /users/{userId}/wishlist/{wishlistItemId} {
