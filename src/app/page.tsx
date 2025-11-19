@@ -473,7 +473,7 @@ export default function PlantManagerFinal() {
   const filteredPlants = useMemo(() => {
     const sourcePlants = currentView === 'mine' 
       ? plants.filter(p => p.ownerId === userId) 
-      : plants.filter(p => p.ownerId !== userId && p.ownerName);
+      : plants.filter(p => p.ownerName); // Only show plants from users with a name
 
     return sourcePlants.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -774,7 +774,7 @@ export default function PlantManagerFinal() {
                           ) : (
                              <Input value="🌱 Viva" disabled className="bg-muted"/>
                           )}
-                           <Select name="location" value={formData.location} onValueChange={(v) => handleInputChange({target: {name: 'location', value: v}} as any)}>
+                           <Select name="location" value={formData.location} onValueChange={(v) => handleInputChange({target: {name: 'location', value: v}}as any)}>
                             <SelectTrigger><SelectValue/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="interior">🏠 Interior</SelectItem>
