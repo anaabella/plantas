@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
+import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
@@ -76,6 +76,8 @@ export default function PlantManagerFinal() {
   const [showModal, setShowModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
+  const [showPlantInfo, setShowPlantInfo] = useState(false);
+  const [selectedPlantInfo, setSelectedPlantInfo] = useState<Plant | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('details');
@@ -152,7 +154,7 @@ export default function PlantManagerFinal() {
     }
   };
   
-  const initialFormData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'> = {
+  const initialFormData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'ownerName' | 'ownerPhotoURL'> = {
     name: '',
     image: null,
     acquisitionType: 'compra',
@@ -282,7 +284,7 @@ export default function PlantManagerFinal() {
         ownerPhotoURL: user?.photoURL,
         createdAt: serverTimestamp() 
       };
-      addDocumentNonBlocking(plantsCollectionRef, dataToSave as Plant);
+      addDocumentNonBlocking(plantsCollectionRef, dataToSave as Omit<Plant, 'id'>);
     }
     closeModal();
   };
@@ -318,6 +320,15 @@ export default function PlantManagerFinal() {
     updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
 
+  const handlePlantClick = (plant: Plant) => {
+    if (plant.ownerId === userId) {
+      openModal(plant);
+    } else {
+      setSelectedPlantInfo(plant);
+      setShowPlantInfo(true);
+    }
+  };
+
   const openModal = (plant: Partial<Plant> | null = null) => {
     if (!userId) {
       alert("Por favor, inicia sesión para añadir o editar plantas.");
@@ -326,10 +337,6 @@ export default function PlantManagerFinal() {
     setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
-      if (plant.ownerId !== userId && currentView !== 'community') {
-        alert("Solo puedes editar las plantas que te pertenecen.");
-        return;
-      }
       setFormData({ ...plant, events: plant.events || [] });
     } else {
       setFormData(initialFormData);
@@ -385,6 +392,8 @@ export default function PlantManagerFinal() {
     addDocumentNonBlocking(wishlistRef, item);
      alert(`${plant.name} añadido a tu lista de deseos!`);
   };
+
+
 
   const deleteWishlistItem = (id: string) => {
     if (wishlistRef) {
@@ -455,7 +464,7 @@ export default function PlantManagerFinal() {
     }
   
     return (
-      <Card onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
+      <Card onClick={() => handlePlantClick(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
          <div className="aspect-square relative bg-secondary overflow-hidden">
             {plant.image ? (
               <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
@@ -936,6 +945,13 @@ export default function PlantManagerFinal() {
             </div>
         </DialogContent>
       </Dialog>
+
+      {/* Plant Info Dialog */}
+      <PlantInfoDialog 
+        plant={selectedPlantInfo}
+        isOpen={showPlantInfo}
+        onOpenChange={setShowPlantInfo}
+      />
     </div>
   );
 }
@@ -1054,6 +1070,101 @@ function UserProfileView({ profile, allPlants, firestore, currentUserId, onBack 
             </div>
 
         </div>
+    );
+}
+
+
+function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    const [info, setInfo] = useState<PlantInfoOutput | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && plant && !info) {
+            const fetchInfo = async () => {
+                setIsLoading(true);
+                try {
+                    const result = await getPlantInfo({ plantName: plant.name });
+                    setInfo(result);
+                } catch (error) {
+                    console.error("Error fetching plant info:", error);
+                    // Optionally show an error message in the dialog
+                }
+                setIsLoading(false);
+            };
+            fetchInfo();
+        } else if (!isOpen) {
+            // Reset state when dialog is closed
+            setInfo(null);
+            setIsLoading(false);
+        }
+    }, [isOpen, plant, info]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-xl">
+                {plant && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl">{plant.name}</DialogTitle>
+                             <p className="text-sm text-muted-foreground">De: {plant.ownerName}</p>
+                        </DialogHeader>
+                        
+                        {isLoading && (
+                            <div className="space-y-4 py-4">
+                                <div className="h-4 bg-muted rounded w-1/4 animate-pulse"></div>
+                                <div className="flex gap-2">
+                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
+                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
+                                  <div className="h-24 w-24 bg-muted rounded-md animate-pulse"></div>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                                  <div className="h-12 bg-muted rounded w-full animate-pulse"></div>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                                  <div className="h-8 bg-muted rounded w-full animate-pulse"></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {info && (
+                            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                                <div>
+                                    <h3 className="font-semibold mb-2">Imágenes de Referencia</h3>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {info.imageUrls.map((url, index) => (
+                                            <div key={index} className="aspect-square relative rounded-md overflow-hidden bg-muted">
+                                                <Image src={url} alt={`${plant.name} ${index + 1}`} fill className="object-cover" sizes="150px" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-2">Cuidados Básicos</h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex gap-3 items-start"><Sun className="text-amber-500 mt-0.5" size={18}/> <div><span className="font-medium">Luz:</span> {info.careInfo.light}</div></div>
+                                        <div className="flex gap-3 items-start"><Droplets className="text-blue-500 mt-0.5" size={18}/> <div><span className="font-medium">Riego:</span> {info.careInfo.water}</div></div>
+                                        <div className="flex gap-3 items-start"><Thermometer className="text-red-500 mt-0.5" size={18}/> <div><span className="font-medium">Temperatura:</span> {info.careInfo.temperature}</div></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-2">Dato Curioso</h3>
+                                    <div className="flex gap-3 items-start text-sm">
+                                      <Lightbulb className="text-yellow-500 mt-0.5" size={18}/>
+                                      <p>{info.funFact}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 

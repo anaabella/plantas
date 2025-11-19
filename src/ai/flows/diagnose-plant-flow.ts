@@ -1,11 +1,10 @@
 
 'use server';
 /**
- * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta.
+ * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta y obtener información general.
  *
- * - diagnosePlant: Función que se exporta para ser llamada desde el cliente.
- * - DiagnosePlantInput: El tipo de entrada para la función `diagnosePlant`.
- * - DiagnosePlantOutput: El tipo de retorno para la función `diagnosePlant`.
+ * - diagnosePlant: Función para diagnosticar la salud de una planta.
+ * - getPlantInfo: Función para obtener información general de una planta.
  */
 
 import {ai} from '@/ai/genkit';
@@ -38,14 +37,66 @@ const DiagnosePlantOutputSchema = z.object({
 export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
 
 /**
- * Función exportada que el cliente llamará.
+ * Función exportada que el cliente llamará para diagnosticar.
  * Invoca el flujo de Genkit y devuelve su resultado.
  */
 export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
   return diagnosePlantFlow(input);
 }
 
-// Definición del prompt de Genkit.
+
+// ----------- Flujo para Información General de la Planta -----------
+
+const PlantInfoInputSchema = z.object({
+  plantName: z.string().describe('El nombre de la planta sobre la que se busca información.'),
+});
+export type PlantInfoInput = z.infer<typeof PlantInfoInputSchema>;
+
+const PlantInfoOutputSchema = z.object({
+  careInfo: z.object({
+      light: z.string().describe('Condiciones de luz ideales para la planta.'),
+      water: z.string().describe('Necesidades de riego.'),
+      temperature: z.string().describe('Rango de temperatura ideal.'),
+  }),
+  funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
+  imageUrls: z.array(z.string().url()).describe('Un array de 3 URLs de imágenes de alta calidad que muestren la planta.'),
+});
+export type PlantInfoOutput = z.infer<typeof PlantInfoOutputSchema>;
+
+
+export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutput> {
+    return getPlantInfoFlow(input);
+}
+
+
+const getPlantInfoPrompt = ai.definePrompt({
+    name: 'getPlantInfoPrompt',
+    input: { schema: PlantInfoInputSchema },
+    output: { schema: PlantInfoOutputSchema },
+    prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
+    Busca en internet 3 URLs de imágenes de alta calidad que muestren claramente la planta.
+    Resume los cuidados básicos en términos de luz, agua y temperatura.
+    Finalmente, añade un dato curioso sobre la planta.
+    Responde siempre en español.`,
+});
+
+const getPlantInfoFlow = ai.defineFlow(
+    {
+        name: 'getPlantInfoFlow',
+        inputSchema: PlantInfoInputSchema,
+        outputSchema: PlantInfoOutputSchema,
+    },
+    async (input) => {
+        const { output } = await getPlantInfoPrompt(input);
+        if (!output) {
+            throw new Error("El modelo no pudo generar la información de la planta.");
+        }
+        return output;
+    }
+);
+
+
+// Definición del prompt de Genkit para diagnóstico.
 const diagnosePlantPrompt = ai.definePrompt({
   name: 'diagnosePlantPrompt',
   input: {schema: DiagnosePlantInputSchema},
@@ -63,7 +114,7 @@ Descripción: {{{description}}}
 Foto: {{media url=photoDataUri}}`,
 });
 
-// Definición del flujo de Genkit.
+// Definición del flujo de Genkit para diagnóstico.
 const diagnosePlantFlow = ai.defineFlow(
   {
     name: 'diagnosePlantFlow',
