@@ -212,14 +212,6 @@ export default function PlantManagerFinal() {
     updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
 
-  const waterPlantDirectly = (e: React.MouseEvent, plant: Plant) => {
-    e.stopPropagation();
-    if (!plantsRef) return;
-    const today = new Date().toISOString().split('T')[0];
-    const plantDocRef = doc(plantsRef, plant.id);
-    updateDocumentNonBlocking(plantDocRef, { lastWatered: today });
-  };
-
   const openModal = (plant: Partial<Plant> | null = null) => {
     setDiagnosisResult(null);
     setActiveTab('details');
@@ -469,11 +461,6 @@ export default function PlantManagerFinal() {
                      </div>
                   </div>
 
-                  {plant.status === 'viva' && (
-                    <Button onClick={(e) => waterPlantDirectly(e, plant)} variant="secondary" size="sm" className="mt-3 w-full">
-                       <Droplets size={14}/> Regar Hoy
-                    </Button>
-                  )}
                </div>
             </Card>
           );
@@ -784,5 +771,3 @@ export default function PlantManagerFinal() {
   );
 }
 
-
-    
