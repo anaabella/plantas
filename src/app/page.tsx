@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -94,7 +95,8 @@ export default function PlantManagerFinal() {
 
   const wishlistRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'wishlist') : null, [firestore, user]);
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
-  const { data: wishlist = [], isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
+  const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
+  const wishlist = wishlistData || [];
   
   const initialFormData: Omit<Plant, 'id' | 'createdAt'> = {
     name: '',
@@ -788,3 +790,5 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+
+    
