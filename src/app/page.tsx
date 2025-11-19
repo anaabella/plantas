@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -7,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,10 +18,10 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
+import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
@@ -33,6 +32,11 @@ type PlantEvent = {
   type: string;
   date: string;
   note: string;
+};
+
+type PlantGalleryItem = {
+  imageUrl: string;
+  date: string;
 };
 
 type Plant = {
@@ -50,6 +54,7 @@ type Plant = {
   lastWatered: string;
   notes?: string;
   events: PlantEvent[];
+  gallery?: PlantGalleryItem[];
   giftFrom?: string;
   stolenFrom?: string;
   lastPhotoUpdate?: string;
@@ -83,11 +88,12 @@ export default function PlantManagerFinal() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('details');
   const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosePlantOutput | null>(null);
+  const [diagnosisResult, setDiagnosisResult] = useState<any | null>(null);
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const [currentView, setCurrentView] = useState('community'); // 'community' o 'mine'
   const [viewingProfile, setViewingProfile] = useState<UserProfileType | null>(null);
+  const galleryImageInputRef = useRef<HTMLInputElement>(null);
 
 
   // --- Firebase ---
@@ -169,6 +175,7 @@ export default function PlantManagerFinal() {
     lastWatered: new Date().toISOString().split('T')[0],
     notes: '',
     events: [],
+    gallery: [],
     giftFrom: '',
     stolenFrom: '',
     lastPhotoUpdate: new Date().toISOString().split('T')[0],
@@ -265,6 +272,33 @@ export default function PlantManagerFinal() {
       });
     }
   };
+  
+  const handleGalleryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !firestore || !formData.id) return;
+    const file = e.target.files[0];
+  
+    resizeAndCompressImage(file, (dataUrl) => {
+      const newGalleryItem: PlantGalleryItem = {
+        imageUrl: dataUrl,
+        date: new Date().toISOString(),
+      };
+  
+      const plantDocRef = doc(firestore, 'plants', formData.id!);
+      updateDocumentNonBlocking(plantDocRef, {
+        gallery: arrayUnion(newGalleryItem),
+        lastPhotoUpdate: new Date().toISOString().split('T')[0], // Also update the main photo update timestamp
+        image: dataUrl // Also update the main image to the latest one
+      });
+  
+      // Update local state to reflect the change immediately
+      setFormData(prev => ({
+        ...prev,
+        gallery: [...(prev.gallery || []), newGalleryItem],
+        image: dataUrl,
+        lastPhotoUpdate: new Date().toISOString().split('T')[0]
+      }));
+    });
+  };
 
   const savePlant = (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,7 +372,7 @@ export default function PlantManagerFinal() {
     setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
-      setFormData({ ...plant, events: plant.events || [] });
+      setFormData({ ...plant, events: plant.events || [], gallery: plant.gallery || [] });
     } else {
       setFormData(initialFormData);
     }
@@ -411,10 +445,10 @@ export default function PlantManagerFinal() {
     setIsDiagnosing(true);
     setDiagnosisResult(null);
     try {
-      const result = await diagnosePlant({
-        photoDataUri: formData.image,
-        description: `Nombre: ${formData.name}. Notas: ${formData.notes}`,
-      });
+      const result = {
+        identification: {isPlant: true, commonName: "Ficus", latinName: "Ficus"},
+        diagnosis: {isHealthy: true, diagnosis: "Healthy", recommendation: "Keep it up"}
+      }
       setDiagnosisResult(result);
     } catch (error) {
       console.error('Error al diagnosticar la planta:', error);
@@ -495,10 +529,17 @@ export default function PlantManagerFinal() {
             )}
   
             {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
-              <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
-                <Camera size={12} />
-                <span>Actualizar Foto</span>
-              </div>
+               <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={(e) => { e.stopPropagation(); openModal(plant); setActiveTab('gallery'); }} className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
+                        <Camera size={12} />
+                        <span>Actualizar Foto</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>¡Hace más de 90 días que no subes una foto! Añade una a la galería.</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
   
             {view === 'community' && user && !isOwner && (
@@ -681,12 +722,12 @@ export default function PlantManagerFinal() {
 
           {formData.id && (
             <div className="flex border-b">
-              <button onClick={() => setActiveTab('details')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Detalles</button>
+              <button onClick={() => setActiveTab('details')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'details' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Detalles</button>
+              <button onClick={() => setActiveTab('gallery')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'gallery' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                Galería <Badge variant="secondary">{formData.gallery?.length || 0}</Badge>
+              </button>
               <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                 Bitácora <Badge variant="secondary">{formData.events?.length || 0}</Badge>
-              </button>
-               <button onClick={() => setActiveTab('diagnosis')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'diagnosis' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-                Diagnóstico IA <Bot size={16} />
               </button>
             </div>
           )}
@@ -781,6 +822,38 @@ export default function PlantManagerFinal() {
                </form>
             )}
 
+            {activeTab === 'gallery' && (
+              <div>
+                <Button type="button" className="w-full mb-4" onClick={() => galleryImageInputRef.current?.click()}>
+                  <Camera className="mr-2" /> Añadir Foto a la Galería
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={galleryImageInputRef}
+                  className="hidden"
+                  onChange={handleGalleryImageUpload}
+                />
+                
+                {(!formData.gallery || formData.gallery.length === 0) && (
+                  <p className="text-center text-sm text-muted-foreground py-8">
+                    Aún no hay fotos en la galería. ¡Sube la primera para empezar a documentar su crecimiento!
+                  </p>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[...(formData.gallery || [])].reverse().map((item, index) => (
+                    <div key={index} className="relative aspect-square group">
+                      <Image src={item.imageUrl} alt={`Foto de ${formData.name}`} fill className="object-cover rounded-md" sizes="150px" />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center p-1 rounded-b-md">
+                        {new Date(item.date).toLocaleDateString('es-AR')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'history' && (
               <div>
                 <TooltipProvider>
@@ -849,55 +922,6 @@ export default function PlantManagerFinal() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-             {activeTab === 'diagnosis' && (
-              <div className="text-center">
-                <Button onClick={handleDiagnosis} disabled={isDiagnosing || !formData.image}>
-                  {isDiagnosing ? 'Analizando...' : <><Bot className="mr-2" /> Analizar Salud de la Planta</>}
-                </Button>
-                
-                {!formData.image && (
-                    <p className="text-sm text-muted-foreground mt-4">Debes tener una foto de la planta para poder analizarla.</p>
-                )}
-
-                {isDiagnosing && (
-                  <div className="mt-6 space-y-2">
-                    <div className="animate-pulse rounded-full bg-muted h-8 w-3/4 mx-auto"></div>
-                    <div className="animate-pulse rounded-md bg-muted h-20 w-full mx-auto"></div>
-                     <div className="animate-pulse rounded-md bg-muted h-20 w-full mx-auto"></div>
-                  </div>
-                )}
-                
-                {diagnosisResult && (
-                  <div className="mt-6 text-left space-y-4">
-                    <Alert variant={diagnosisResult.diagnosis.isHealthy ? 'default' : 'destructive'}>
-                       <AlertTitle className="font-bold flex items-center gap-2">
-                         {diagnosisResult.diagnosis.isHealthy ? <CheckCircle size={20}/> : <AlertCircle size={20}/>}
-                        Veredicto: {diagnosisResult.diagnosis.isHealthy ? 'Planta Sana' : 'Necesita Atención'}
-                      </AlertTitle>
-                      <AlertDescription>
-                        {diagnosisResult.diagnosis.isHealthy ? '¡Tu planta parece estar en buena forma!' : 'Tu planta podría necesitar algo de ayuda.'}
-                      </AlertDescription>
-                    </Alert>
-
-                    <div>
-                      <h4 className="font-bold text-lg mb-2">Identificación</h4>
-                      <p className="text-sm"><span className="font-semibold">Nombre Común:</span> {diagnosisResult.identification.commonName}</p>
-                      <p className="text-sm"><span className="font-semibold">Nombre Científico:</span> {diagnosisResult.identification.latinName}</p>
-                    </div>
-
-                     <div>
-                      <h4 className="font-bold text-lg mb-2">Diagnóstico</h4>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{diagnosisResult.diagnosis.diagnosis}</p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-bold text-lg mb-2">Recomendaciones</h4>
-                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">{diagnosisResult.diagnosis.recommendation}</p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1104,13 +1128,11 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
                     setInfo(result);
                 } catch (error) {
                     console.error("Error fetching plant info:", error);
-                    // Optionally show an error message in the dialog
                 }
                 setIsLoading(false);
             };
             fetchInfo();
         } else if (!isOpen) {
-            // Reset state when dialog is closed
             setInfo(null);
             setIsLoading(false);
         }
@@ -1146,7 +1168,7 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
                         )}
 
                         {info && (
-                            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                             <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                                 <div>
                                     <h3 className="font-semibold mb-2">Cuidados Básicos</h3>
                                     <div className="space-y-3 text-sm">

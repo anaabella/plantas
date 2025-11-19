@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta y obtener información general.
@@ -53,12 +52,12 @@ const PlantInfoInputSchema = z.object({
 export type PlantInfoInput = z.infer<typeof PlantInfoInputSchema>;
 
 const PlantInfoOutputSchema = z.object({
-  careInfo: z.object({
-      light: z.string().describe('Condiciones de luz ideales para la planta.'),
-      water: z.string().describe('Necesidades de riego.'),
-      temperature: z.string().describe('Rango de temperatura ideal.'),
-  }),
-  funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
+    careInfo: z.object({
+        light: z.string().describe('Condiciones de luz ideales para la planta.'),
+        water: z.string().describe('Necesidades de riego.'),
+        temperature: z.string().describe('Rango de temperatura ideal.'),
+    }),
+    funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
 });
 export type PlantInfoOutput = z.infer<typeof PlantInfoOutputSchema>;
 
