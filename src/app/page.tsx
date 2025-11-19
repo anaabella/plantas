@@ -18,6 +18,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 // Types
 type PlantEvent = {
@@ -94,13 +96,6 @@ export default function PlantManagerFinal() {
   const [formData, setFormData] = useState<Plant>(initialFormData);
   const [newWishlistItem, setNewWishlistItem] = useState<Omit<WishlistItem, 'id'>>({ name: '', notes: '', image: null });
 
-  // Estado para nuevo evento
-  const [newEvent, setNewEvent] = useState({
-    type: 'poda',
-    date: new Date().toISOString().split('T')[0],
-    note: ''
-  });
-
   // --- Efectos ---
   useEffect(() => {
     const savedPlants = localStorage.getItem('my-garden-final');
@@ -134,17 +129,11 @@ export default function PlantManagerFinal() {
   };
 
   const needsPhotoUpdate = (lastUpdate: string | undefined) => {
-    if (!lastUpdate) {
-        // If there's no update date, it doesn't need an update unless it's an old plant without this field.
-        // For simplicity, we'll say new plants without a photo don't need an update reminder.
-        return false;
-    }
+    if (!lastUpdate) return false;
     const last = new Date(lastUpdate);
     const now = new Date();
-    // Add a day to the last update to ensure we don't trigger on the same day
-    last.setDate(last.getDate() + 1); 
     const diffTime = now.getTime() - last.getTime();
-    if (diffTime < 0) return false; // Photo was taken today or in the future
+    if (diffTime < 0) return false; 
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 90;
 };
@@ -176,14 +165,20 @@ export default function PlantManagerFinal() {
     closeModal();
   };
 
-  const addEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    const eventToAdd = { ...newEvent, id: Date.now() };
-    let updatedFormData = { ...formData, events: [eventToAdd, ...(formData.events || [])] };
+  const addEvent = (type: string, note?: string) => {
+    const eventToAdd = { 
+      type,
+      note: note || `Evento de ${type} registrado.`,
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0]
+    };
+    const updatedEvents = [eventToAdd, ...(formData.events || [])];
+    const updatedFormData = { ...formData, events: updatedEvents };
     
     setFormData(updatedFormData);
-    if (formData.id) setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
-    setNewEvent({ ...newEvent, note: '' });
+    if (formData.id) {
+      setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
+    }
   };
 
   const deleteEvent = (eventId: number) => {
@@ -507,24 +502,58 @@ export default function PlantManagerFinal() {
 
             {activeTab === 'history' && (
               <div>
-                <form onSubmit={addEvent} className="mb-4 space-y-2 p-3 bg-secondary rounded-lg">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select name="type" value={newEvent.type} onValueChange={(v) => setNewEvent({...newEvent, type: v})}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="poda">✂️ Poda</SelectItem>
-                            <SelectItem value="plaga">🐞 Plaga</SelectItem>
-                            <SelectItem value="transplante">🪴 Transplante</SelectItem>
-                            <SelectItem value="hijito">👶 Hijito</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})} />
+                <TooltipProvider>
+                  <div className="mb-6 p-3 bg-secondary rounded-lg">
+                      <p className="text-sm font-medium text-center mb-3 text-muted-foreground">Registro Rápido de Eventos</p>
+                      <div className="grid grid-cols-5 gap-2 text-center">
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('poda', 'Poda realizada')}>
+                                      <Scissors size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Poda</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('plaga', 'Tratamiento de plaga')}>
+                                      <Bug size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Plaga</p></TooltipContent>
+                          </Tooltip>
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('transplante', 'Planta transplantada')}>
+                                      <Shovel size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Transplante</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('hijito', 'Nuevo hijito separado')}>
+                                      <Baby size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Hijito</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('florecio', 'La planta ha florecido')}>
+                                      <Flower2 size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Floreció</p></TooltipContent>
+                          </Tooltip>
+                      </div>
                   </div>
-                  <Textarea value={newEvent.note} onChange={(e) => setNewEvent({...newEvent, note: e.target.value})} placeholder="Nota del evento..."/>
-                  <Button type="submit" className="w-full">Añadir a Bitácora</Button>
-                </form>
-                
+                </TooltipProvider>
+
                 <div className="space-y-2">
+                  {formData.events.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-4">No hay eventos registrados.</p>
+                  )}
                   {formData.events.map(event => (
                     <div key={event.id} className="flex items-start gap-3 p-2 border-b">
                       <div className="text-xs text-center text-muted-foreground">
@@ -606,3 +635,5 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+
+    
