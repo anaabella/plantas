@@ -97,7 +97,8 @@ export default function PlantManagerFinal() {
   }, [auth]);
 
   const plantsRef = useMemoFirebase(() => {
-    if (!firestore || isLoadingUser) return null; // Wait for user loading to complete
+    // Only create the collection ref if firestore is available and user loading is complete
+    if (!firestore || isLoadingUser) return null;
     return collection(firestore, 'plants');
   }, [firestore, isLoadingUser]);
   
@@ -110,7 +111,7 @@ export default function PlantManagerFinal() {
   const plants = plantsData || [];
 
 
-  const wishlistRef = useMemoFirebase(() => userId && !isLoadingUser ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId, isLoadingUser]);
+  const wishlistRef = useMemoFirebase(() => (userId && !isLoadingUser) ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId, isLoadingUser]);
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
   const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   const wishlist = wishlistData || [];
