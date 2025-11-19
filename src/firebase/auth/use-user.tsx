@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User, updateProfile, getAdditionalUserInfo } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase/provider';
 
 export interface UseUserResult {
@@ -30,11 +29,12 @@ export function useUser(): UseUserResult {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // User is signed in.
-        // Check if it's a new user from Google Sign-In to save their profile.
-        const additionalUserInfo = getAdditionalUserInfo(user.metadata.creationTime ? {metadata: user.metadata, providerId: user.providerData[0]?.providerId || null} as any : user);
+        // Check if it's a new user by checking if their document exists.
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
 
-        if (additionalUserInfo?.isNewUser) {
-            const userRef = doc(firestore, 'users', user.uid);
+        if (!userDoc.exists()) {
+            // New user, create their profile document.
             await setDoc(userRef, {
                 displayName: user.displayName,
                 email: user.email,
