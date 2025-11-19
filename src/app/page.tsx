@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +79,8 @@ export default function PlantManagerFinal() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
+  const [currentView, setCurrentView] = useState('community'); // 'community' o 'mine'
+
 
   // --- Firebase ---
   const { firestore, auth } = useFirebase();
@@ -97,10 +99,9 @@ export default function PlantManagerFinal() {
   }, [auth]);
 
   const plantsRef = useMemoFirebase(() => {
-    // Only create the collection ref if firestore is available and user loading is complete
-    if (!firestore || isLoadingUser) return null;
+    if (!firestore) return null;
     return collection(firestore, 'plants');
-  }, [firestore, isLoadingUser]);
+  }, [firestore]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -432,14 +433,88 @@ export default function PlantManagerFinal() {
   }), [userPlants]);
 
   // --- Render ---
-  const filteredPlants = plants.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    let matchFilter = true;
-    if (filterStatus === 'viva') matchFilter = p.status === 'viva';
-    if (filterStatus === 'fallecida') matchFilter = p.status === 'fallecida';
-    if (filterStatus === 'intercambiada') matchFilter = p.status === 'intercambiada';
-    return matchSearch && matchFilter;
-  });
+  const filteredPlants = useMemo(() => {
+    const sourcePlants = currentView === 'mine' 
+      ? plants.filter(p => p.ownerId === userId) 
+      : plants.filter(p => p.ownerId !== userId);
+
+    return sourcePlants.filter(p => {
+        const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+        let matchFilter = true;
+        if (filterStatus === 'viva') matchFilter = p.status === 'viva';
+        if (filterStatus === 'fallecida') matchFilter = p.status === 'fallecida';
+        if (filterStatus === 'intercambiada') matchFilter = p.status === 'intercambiada';
+        return matchSearch && matchFilter;
+    });
+  }, [plants, currentView, userId, searchTerm, filterStatus]);
+
+
+  const PlantCard = ({ plant }: { plant: Plant }) => {
+      const w = getWateringStatus(plant.lastWatered);
+      const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
+      const isOwner = plant.ownerId === userId;
+
+      return (
+        <Card onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
+           <div className="aspect-square relative bg-secondary overflow-hidden">
+              {plant.image ? (
+                <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
+              )}
+              
+              <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
+                {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
+              </div>
+
+               {plant.ownerPhotoURL && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="absolute top-2 left-2 rounded-full border-2 border-background shadow-md" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>De: {plant.ownerName || 'Anónimo'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
+                <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
+                  <Camera size={12} />
+                  <span>Actualizar Foto</span>
+                </div>
+              )}
+
+              {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
+              {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
+           </div>
+           
+           <div className="p-3">
+              <div className="flex justify-between items-start">
+                 <h3 className="font-bold truncate">{plant.name}</h3>
+                 {plant.status === 'viva' && (
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color}`}>
+                       <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
+                    </div>
+                 )}
+              </div>
+              
+              <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                 <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
+                    {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
+                    {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
+                    {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
+                    {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
+                 </div>
+              </div>
+
+           </div>
+        </Card>
+      );
+  };
 
   if (isLoadingUser) {
     return (
@@ -457,7 +532,7 @@ export default function PlantManagerFinal() {
       
       {/* Navbar */}
       <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 pt-3">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2 text-primary">
               <Leaf className="fill-primary" size={24} />
@@ -520,85 +595,46 @@ export default function PlantManagerFinal() {
             </Select>
           </div>
         </div>
+        <div className="flex justify-center border-b mt-4">
+            <button onClick={() => setCurrentView('community')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${currentView === 'community' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:bg-accent/50'}`}>
+                <Users size={16} /> Jardín Comunitario
+            </button>
+            {user && (
+                <button onClick={() => setCurrentView('mine')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${currentView === 'mine' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:bg-accent/50'}`}>
+                    <User size={16} /> Mis Plantas
+                </button>
+            )}
+        </div>
       </div>
 
       {/* Grid */}
-      <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {(isLoadingPlants && plants.length === 0) && Array.from({length: 10}).map((_, i) => (
-             <Card key={i} className="overflow-hidden">
-                 <div className="aspect-square relative bg-secondary animate-pulse"></div>
-                 <div className="p-3">
-                     <div className="h-5 w-3/4 bg-secondary animate-pulse rounded-md"></div>
-                     <div className="mt-2 h-4 w-1/2 bg-secondary animate-pulse rounded-md"></div>
-                 </div>
-             </Card>
-        ))}
-        {filteredPlants.map(plant => {
-          const w = getWateringStatus(plant.lastWatered);
-          const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
-          const isOwner = plant.ownerId === userId;
-          
-          return (
-            <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
-               <div className="aspect-square relative bg-secondary overflow-hidden">
-                  {plant.image ? (
-                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
-                  )}
-                  
-                  <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
-                    {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
-                  </div>
-
-                   {plant.ownerPhotoURL && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="absolute top-2 left-2 rounded-full border-2 border-background shadow-md" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>De: {plant.ownerName || 'Anónimo'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-
-                  {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
-                    <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
-                      <Camera size={12} />
-                      <span>Actualizar Foto</span>
+      <div className="max-w-7xl mx-auto p-4">
+        {(isLoadingPlants && filteredPlants.length === 0) && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {Array.from({length: 10}).map((_, i) => (
+                <Card key={i} className="overflow-hidden">
+                    <div className="aspect-square relative bg-secondary animate-pulse"></div>
+                    <div className="p-3">
+                        <div className="h-5 w-3/4 bg-secondary animate-pulse rounded-md"></div>
+                        <div className="mt-2 h-4 w-1/2 bg-secondary animate-pulse rounded-md"></div>
                     </div>
-                  )}
+                </Card>
+            ))}
+            </div>
+        )}
+        
+        {(!isLoadingPlants && filteredPlants.length === 0) && (
+            <div className="text-center py-20">
+                <p className="text-muted-foreground">{currentView === 'mine' ? 'Aún no has añadido ninguna planta.' : 'Nadie en la comunidad ha añadido plantas aún.'}</p>
+                 {currentView === 'mine' && user && (
+                    <Button onClick={() => openModal()} className="mt-4"><Plus size={18}/> Añadir mi primera planta</Button>
+                 )}
+            </div>
+        )}
 
-                  {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
-                  {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
-               </div>
-               
-               <div className="p-3">
-                  <div className="flex justify-between items-start">
-                     <h3 className="font-bold truncate">{plant.name}</h3>
-                     {plant.status === 'viva' && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color}`}>
-                           <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
-                        </div>
-                     )}
-                  </div>
-                  
-                  <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
-                     <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
-                        {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
-                        {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
-                        {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
-                        {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
-                     </div>
-                  </div>
-
-               </div>
-            </Card>
-          );
-        })}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredPlants.map(plant => <PlantCard key={plant.id} plant={plant} />)}
+        </div>
       </div>
 
       {/* Modal */}
