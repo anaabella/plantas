@@ -473,9 +473,13 @@ export default function PlantManagerFinal() {
 
   // --- Render ---
   const filteredPlants = useMemo(() => {
-    const sourcePlants = currentView === 'mine' 
-      ? plants.filter(p => p.ownerId === userId) 
-      : plants.filter(p => p.ownerName); // Only show plants from users with a name
+    let sourcePlants: Plant[];
+
+    if (currentView === 'mine') {
+        sourcePlants = plants.filter(p => p.ownerId === userId);
+    } else {
+        sourcePlants = plants.filter(p => p.ownerId !== userId && p.ownerName);
+    }
 
     return sourcePlants.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -485,7 +489,7 @@ export default function PlantManagerFinal() {
         if (filterStatus === 'intercambiada') matchFilter = p.status === 'intercambiada';
         return matchSearch && matchFilter;
     });
-  }, [plants, currentView, userId, searchTerm, filterStatus]);
+}, [plants, currentView, userId, searchTerm, filterStatus]);
 
 
   const PlantCard = ({ plant, view }: { plant: Plant, view: 'mine' | 'community' }) => {
