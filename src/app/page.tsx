@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Plus, Search, Sprout, Gift, DollarSign, Calendar, Trash2, Camera,
+  Plus, Search, Sprout, Gift, DollarSign, Calendar as CalendarIcon, Trash2, Camera,
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
@@ -24,7 +24,9 @@ import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } fr
 import { collection, doc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-
+import { Calendar } from "@/components/ui/calendar"
+import { format, parseISO, isSameDay, startOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Types
 type PlantEvent = {
@@ -83,6 +85,7 @@ export default function PlantManagerFinal() {
   const [showStats, setShowStats] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
   const [showPlantInfo, setShowPlantInfo] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [selectedPlantInfo, setSelectedPlantInfo] = useState<Plant | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -623,6 +626,7 @@ export default function PlantManagerFinal() {
               </Button>
               {user ? (
                 <>
+                  <Button onClick={() => setShowCalendar(true)} variant="ghost" size="icon"><CalendarIcon size={20}/></Button>
                   <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
                   <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
                   <Button onClick={() => openModal()}><Plus size={18}/> <span className="hidden sm:inline">Planta</span></Button>
@@ -1037,6 +1041,13 @@ export default function PlantManagerFinal() {
             </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Calendar Dialog */}
+      <CalendarDialog 
+        isOpen={showCalendar}
+        onOpenChange={setShowCalendar}
+        userPlants={userPlants}
+      />
 
       {/* Plant Info Dialog */}
       <PlantInfoDialog 
@@ -1247,3 +1258,107 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         </Dialog>
     );
 }
+
+function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean, onOpenChange: (open: boolean) => void, userPlants: Plant[] }) {
+    const [date, setDate] = useState<Date | undefined>(new Date());
+  
+    const allEvents = useMemo(() => {
+      return userPlants.flatMap(plant => 
+        (plant.events || []).map(event => ({
+          ...event,
+          plantName: plant.name,
+          plantImage: plant.image,
+        }))
+      );
+    }, [userPlants]);
+  
+    const eventsByDate = useMemo(() => {
+      const grouped: { [key: string]: typeof allEvents } = {};
+      allEvents.forEach(event => {
+        const eventDate = format(parseISO(event.date), 'yyyy-MM-dd');
+        if (!grouped[eventDate]) {
+          grouped[eventDate] = [];
+        }
+        grouped[eventDate].push(event);
+      });
+      return grouped;
+    }, [allEvents]);
+  
+    const selectedDayEvents = useMemo(() => {
+      if (!date) return [];
+      const selectedDateStr = format(date, 'yyyy-MM-dd');
+      return eventsByDate[selectedDateStr] || [];
+    }, [date, eventsByDate]);
+  
+    const eventDays = useMemo(() => {
+      return Object.keys(eventsByDate).map(dateStr => parseISO(dateStr));
+    }, [eventsByDate]);
+  
+    const getIconForEvent = (type: string) => {
+        switch (type) {
+            case 'poda': return <Scissors size={16} className="text-gray-500"/>;
+            case 'plaga': return <Bug size={16} className="text-red-500"/>;
+            case 'transplante': return <Shovel size={16} className="text-yellow-700"/>;
+            case 'hijito': return <Baby size={16} className="text-green-500"/>;
+            case 'florecio': return <Flower2 size={16} className="text-pink-500"/>;
+            default: return <Sprout size={16} className="text-gray-400"/>;
+        }
+    }
+  
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Calendario de Cuidados</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              className="rounded-md border justify-center"
+              locale={es}
+              modifiers={{
+                event: eventDays,
+              }}
+              modifiersStyles={{
+                event: {
+                  border: `2px solid hsl(var(--primary))`,
+                  borderRadius: '9999px',
+                },
+              }}
+            />
+            <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
+              <h3 className="font-bold text-lg border-b pb-2">
+                Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : '...'}
+              </h3>
+              {selectedDayEvents.length > 0 ? (
+                selectedDayEvents.map(event => (
+                  <div key={event.id} className="flex gap-4 items-start bg-secondary p-3 rounded-lg">
+                    {event.plantImage && <Image src={event.plantImage} alt={event.plantName} width={48} height={48} className="rounded-md object-cover" />}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                         {getIconForEvent(event.type)}
+                         <span className="font-semibold capitalize">{event.type}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        En <span className="font-medium">{event.plantName}</span>
+                      </p>
+                       <p className="text-sm mt-1">{event.note}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-10">
+                  No se registraron eventos para este día.
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  
+  
+  
