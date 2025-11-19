@@ -19,7 +19,7 @@ import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getPlantInfo, type PlantInfoOutput, diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
-import { recommendVegetables, type VegetableRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
+import { recommendCrops, type CropRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
@@ -1072,7 +1072,7 @@ export default function PlantManagerFinal() {
       />
 
        {/* Vegetable Recommender Dialog */}
-       <VegetableRecommenderDialog
+       <CropRecommenderDialog
         isOpen={showVeggieRecommender}
         onOpenChange={setShowVeggieRecommender}
       />
@@ -1482,9 +1482,9 @@ function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean,
     );
 }
 
-function VegetableRecommenderDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (open: boolean) => void; }) {
+function CropRecommenderDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (open: boolean) => void; }) {
     const [query, setQuery] = useState('');
-    const [result, setResult] = useState<VegetableRecommenderOutput | null>(null);
+    const [result, setResult] = useState<CropRecommenderOutput | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleRecommendation = async (e: React.FormEvent) => {
@@ -1494,10 +1494,10 @@ function VegetableRecommenderDialog({ isOpen, onOpenChange }: { isOpen: boolean;
         setIsLoading(true);
         setResult(null);
         try {
-            const recommendations = await recommendVegetables({ userQuery: query });
+            const recommendations = await recommendCrops({ userQuery: query });
             setResult(recommendations);
         } catch (error) {
-            console.error("Error getting vegetable recommendations:", error);
+            console.error("Error getting crop recommendations:", error);
             alert('Hubo un error al obtener las recomendaciones. Intenta de nuevo.');
         }
         setIsLoading(false);
@@ -1518,7 +1518,7 @@ function VegetableRecommenderDialog({ isOpen, onOpenChange }: { isOpen: boolean;
                 <DialogHeader>
                     <DialogTitle>Asistente de Huerta</DialogTitle>
                     <p className="text-sm text-muted-foreground pt-1">
-                        Describe tu espacio y la IA te recomendará qué plantar.
+                        Describe tu espacio y la IA te recomendará qué frutas y verduras plantar.
                     </p>
                 </DialogHeader>
 

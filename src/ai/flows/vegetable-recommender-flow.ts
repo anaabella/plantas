@@ -1,50 +1,50 @@
 'use server';
 /**
- * @fileOverview Flujo de Genkit para recomendar hortalizas para una huerta.
+ * @fileOverview Flujo de Genkit para recomendar hortalizas y frutas para una huerta.
  *
- * - recommendVegetables: Función para obtener recomendaciones de hortalizas.
- * - VegetableRecommenderInput: El tipo de entrada para la función.
- * - VegetableRecommenderOutput: El tipo de retorno para la función.
+ * - recommendCrops: Función para obtener recomendaciones de hortalizas y frutas.
+ * - CropRecommenderInput: El tipo de entrada para la función.
+ * - CropRecommenderOutput: El tipo de retorno para la función.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 // Esquema de entrada para la descripción del usuario.
-const VegetableRecommenderInputSchema = z.object({
+const CropRecommenderInputSchema = z.object({
   userQuery: z.string().describe('La descripción del usuario sobre el espacio disponible para la huerta (ej. "balcón soleado", "patio con sombra").'),
 });
-export type VegetableRecommenderInput = z.infer<typeof VegetableRecommenderInputSchema>;
+export type CropRecommenderInput = z.infer<typeof CropRecommenderInputSchema>;
 
-// Esquema para una recomendación individual de hortaliza.
-const VegetableRecommendationSchema = z.object({
-  name: z.string().describe('El nombre de la hortaliza recomendada.'),
-  timeToHarvest: z.string().describe('El tiempo estimado desde la siembra hasta la cosecha (ej. "60-70 días").'),
+// Esquema para una recomendación individual.
+const CropRecommendationSchema = z.object({
+  name: z.string().describe('El nombre de la hortaliza o fruta recomendada.'),
+  timeToHarvest: z.string().describe('El tiempo estimado desde la siembra hasta la cosecha (ej. "60-70 días", "2-3 años").'),
   plantingLocation: z.string().describe('Una recomendación de dónde plantarla (ej. "Pleno sol, en maceta grande o directo en tierra").'),
 });
 
 // Esquema de salida que contiene una lista de recomendaciones.
-const VegetableRecommenderOutputSchema = z.object({
-  recommendations: z.array(VegetableRecommendationSchema).describe('Una lista de hortalizas recomendadas para plantar.'),
+const CropRecommenderOutputSchema = z.object({
+  recommendations: z.array(CropRecommendationSchema).describe('Una lista de hortalizas o frutas recomendadas para plantar.'),
 });
-export type VegetableRecommenderOutput = z.infer<typeof VegetableRecommenderOutputSchema>;
+export type CropRecommenderOutput = z.infer<typeof CropRecommenderOutputSchema>;
 
 
 /**
  * Función exportada que el cliente llamará para obtener recomendaciones.
  */
-export async function recommendVegetables(input: VegetableRecommenderInput): Promise<VegetableRecommenderOutput> {
-  return vegetableRecommenderFlow(input);
+export async function recommendCrops(input: CropRecommenderInput): Promise<CropRecommenderOutput> {
+  return cropRecommenderFlow(input);
 }
 
 // Definición del prompt de Genkit.
-const recommendVegetablesPrompt = ai.definePrompt({
-  name: 'recommendVegetablesPrompt',
-  input: { schema: VegetableRecommenderInputSchema },
-  output: { schema: VegetableRecommenderOutputSchema },
-  prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda 3 a 5 hortalizas o verduras adecuadas para plantar.
+const recommendCropsPrompt = ai.definePrompt({
+  name: 'recommendCropsPrompt',
+  input: { schema: CropRecommenderInputSchema },
+  output: { schema: CropRecommenderOutputSchema },
+  prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas, verduras o frutas adecuadas para plantar.
 
-Para cada hortaliza, proporciona:
+Para cada recomendación, proporciona:
 1.  El nombre común.
 2.  El tiempo aproximado que tardará en estar lista para la cosecha.
 3.  Una recomendación clave sobre dónde plantarla (ej: necesita pleno sol, ideal para macetas, prefiere sombra parcial, etc.).
@@ -56,16 +56,16 @@ Sé claro y conciso en tus recomendaciones. Responde siempre en español.`,
 
 
 // Definición del flujo de Genkit.
-const vegetableRecommenderFlow = ai.defineFlow(
+const cropRecommenderFlow = ai.defineFlow(
   {
-    name: 'vegetableRecommenderFlow',
-    inputSchema: VegetableRecommenderInputSchema,
-    outputSchema: VegetableRecommenderOutputSchema,
+    name: 'cropRecommenderFlow',
+    inputSchema: CropRecommenderInputSchema,
+    outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const { output } = await recommendVegetablesPrompt(input);
+    const { output } = await recommendCropsPrompt(input);
     if (!output) {
-      throw new Error("El modelo no pudo generar recomendaciones de hortalizas.");
+      throw new Error("El modelo no pudo generar recomendaciones.");
     }
     return output;
   }
