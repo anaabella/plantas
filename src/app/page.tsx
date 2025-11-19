@@ -17,303 +17,450 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { initialPlants } from '@/lib/data';
-import type { Plant } from '@/types';
-import { format } from 'date-fns';
 import Image from 'next/image';
 
-const PlantManager = () => {
+// Types
+type PlantEvent = {
+  id: number;
+  type: string;
+  date: string;
+  note: string;
+};
+
+type Plant = {
+  id: string;
+  name: string;
+  image: string | null;
+  acquisitionType: 'compra' | 'regalo' | 'intercambio' | 'robado';
+  exchangeSource?: string;
+  price?: string;
+  date: string;
+  status: 'viva' | 'fallecida' | 'intercambiada';
+  exchangeDest?: string;
+  startType: 'planta' | 'gajo' | 'raiz';
+  location: 'interior' | 'exterior';
+  lastWatered: string;
+  notes?: string;
+  events: PlantEvent[];
+  giftFrom?: string;
+  stolenFrom?: string;
+};
+
+
+export default function PlantManagerFinal() {
+  // --- Estados ---
   const [plants, setPlants] = useState<Plant[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState('details'); 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const initialFormData: Plant = {
+    id: '',
+    name: '',
+    image: null,
+    acquisitionType: 'compra', // compra, regalo, intercambio, robado
+    exchangeSource: '', // "Llegó a cambio de X"
+    price: '',
+    date: new Date().toISOString().split('T')[0],
+    status: 'viva', // viva, fallecida, intercambiada
+    exchangeDest: '', // "Se fue a cambio de Y" (Solo si se fue toda la planta)
+    startType: 'planta',
+    location: 'interior',
+    lastWatered: new Date().toISOString().split('T')[0],
+    notes: '',
+    events: [],
+    giftFrom: '',
+    stolenFrom: '',
+  };
 
+  // Estado del formulario
+  const [formData, setFormData] = useState<Plant>(initialFormData);
+
+  // Estado para nuevo evento
+  const [newEvent, setNewEvent] = useState({
+    type: 'riego',
+    date: new Date().toISOString().split('T')[0],
+    note: ''
+  });
+
+  // --- Efectos ---
   useEffect(() => {
-    const savedPlants = localStorage.getItem('plant-pal-plants');
+    const savedPlants = localStorage.getItem('my-garden-final');
     if (savedPlants) {
-      setPlants(JSON.parse(savedPlants).map((p: any) => ({ ...p, acquisitionDate: new Date(p.acquisitionDate) })));
-    } else {
-      setPlants(initialPlants);
+      setPlants(JSON.parse(savedPlants));
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('plant-pal-plants', JSON.stringify(plants));
+    localStorage.setItem('my-garden-final', JSON.stringify(plants));
   }, [plants]);
 
-  const handlePlantClick = (plant: Plant) => {
-    setSelectedPlant(plant);
-    setIsDetailOpen(true);
-  };
-  
-  const handlePlantAdd = (newPlant: Plant) => {
-    setPlants(prevPlants => [newPlant, ...prevPlants]);
-  };
-  
-  const handleUpdatePlant = (updatedPlant: Plant) => {
-    setPlants(prevPlants =>
-      prevPlants.map(p => p.id === updatedPlant.id ? updatedPlant : p)
-    );
-    if(selectedPlant?.id === updatedPlant.id) {
-      setSelectedPlant(updatedPlant);
-    }
-  };
-
-  const getWateringStatus = (lastWateredDate: Date | string | undefined) => {
-    if (!lastWateredDate) return { color: 'text-stone-400', text: 'No record', days: 0 };
+  // --- Helpers ---
+  const getWateringStatus = (lastWateredDate: string | undefined) => {
+    if (!lastWateredDate) return { color: 'text-stone-400', text: 'Sin registro', days: 0 };
     const last = new Date(lastWateredDate);
     const now = new Date();
-    const diffDays = Math.ceil(Math.abs(now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(Math.abs(now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)); 
     if (diffDays <= 3) return { color: 'text-blue-500', bg: 'bg-blue-50', days: diffDays };
     if (diffDays <= 7) return { color: 'text-amber-500', bg: 'bg-amber-50', days: diffDays };
     return { color: 'text-red-500', bg: 'bg-red-50', days: diffDays };
   };
 
-  const formatCurrency = (val: number | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
+  const formatCurrency = (val: number | string | undefined) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(val) || 0);
 
-  const stats = {
-    spent: plants.filter(p => p.acquisitionType === 'purchased').reduce((a, b) => a + (b.price || 0), 0),
-    alive: plants.filter(p => !p.isDeceased).length,
+  // --- Acciones ---
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setFormData(prev => ({ ...prev, image: reader.result as string }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const savePlant = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.id) {
+      setPlants(plants.map(p => p.id === formData.id ? formData : p));
+    } else {
+      setPlants([{ ...formData, id: Date.now().toString(), events: [] }, ...plants]);
+    }
+    closeModal();
+  };
+
+  const addEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    const eventToAdd = { ...newEvent, id: Date.now() };
+    let updatedFormData = { ...formData, events: [eventToAdd, ...(formData.events || [])] };
+    
+    if (newEvent.type === 'riego') updatedFormData.lastWatered = newEvent.date;
+    
+    setFormData(updatedFormData);
+    if (formData.id) setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
+    setNewEvent({ ...newEvent, note: '' });
+  };
+
+  const deleteEvent = (eventId: number) => {
+    const updatedEvents = formData.events.filter(ev => ev.id !== eventId);
+    const updatedFormData = { ...formData, events: updatedEvents };
+    setFormData(updatedFormData);
+    if (formData.id) setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
+  };
+
+  const waterPlantDirectly = (e: React.MouseEvent, plant: Plant) => {
+    e.stopPropagation();
+    const today = new Date().toISOString().split('T')[0];
+    const newEvent: PlantEvent = { id: Date.now(), type: 'riego', date: today, note: 'Riego rápido' };
+    const updatedPlant = { ...plant, lastWatered: today, events: [newEvent, ...(plant.events || [])]};
+    setPlants(plants.map(p => p.id === plant.id ? updatedPlant : p));
+  };
+
+  const openModal = (plant: Plant | null = null) => {
+    setActiveTab('details');
+    if (plant) {
+      setFormData({ ...plant, events: plant.events || [] });
+    } else {
+      setFormData(initialFormData);
+    }
+    setShowModal(true);
+  };
+
+  const closeModal = () => setShowModal(false);
+  const deletePlant = (id: string) => { if (window.confirm('¿Eliminar esta planta permanentemente?')) { setPlants(plants.filter(p => p.id !== id)); closeModal(); }};
+  
+  // Import/Export
+  const exportData = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(plants));
+    const a = document.createElement('a'); a.href = dataStr; a.download = "mi_jardin_final.json"; a.click();
+  };
+  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { try { const imp = JSON.parse(ev.target?.result as string); if(window.confirm(`¿Cargar ${imp.length} plantas?`)) setPlants(imp); } catch(e){alert("Error archivo");}};
+    reader.readAsText(file);
+  };
+
+  // Stats
+  const stats = {
+    spent: plants.filter(p => p.acquisitionType === 'compra').reduce((a, b) => a + parseFloat(b.price || '0'), 0),
+    alive: plants.filter(p => p.status === 'viva').length,
+    offspring: plants.reduce((acc, curr) => acc + (curr.events?.filter(e => e.type === 'hijito').length || 0), 0),
+    total: plants.length
+  };
+
+  // --- Render ---
   const filteredPlants = plants.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     let matchFilter = true;
-    if (filterStatus === 'alive') matchFilter = !p.isDeceased;
-    if (filterStatus === 'dead') matchFilter = p.isDeceased;
+    if (filterStatus === 'viva') matchFilter = p.status === 'viva';
+    if (filterStatus === 'fallecida') matchFilter = p.status === 'fallecida';
+    if (filterStatus === 'intercambiada') matchFilter = p.status === 'intercambiada';
     return matchSearch && matchFilter;
   });
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-          <div className="mr-4 flex items-center">
-            <Sprout className="h-6 w-6 text-primary" />
-            <h1 className="ml-2 font-headline text-xl font-bold">PlantPal</h1>
-          </div>
-          <div className="flex flex-1 items-center justify-end space-x-2">
-             <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon"><BarChart3 size={20}/></Button>
-             <Button onClick={() => alert("Export/Import not implemented yet")} variant="ghost" size="icon"><Upload size={20}/></Button>
-             <Button onClick={() => alert("Export/Import not implemented yet")} variant="ghost" size="icon"><Download size={20}/></Button>
-             <Button onClick={() => setIsDetailOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Plant
-            </Button>
-          </div>
-        </div>
-        {showStats && (
-            <div className="container pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                 <Card>
-                   <CardHeader className="pb-2">
-                     <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-                   </CardHeader>
-                   <CardContent>
-                     <p className="text-2xl font-bold">{formatCurrency(stats.spent)}</p>
-                   </CardContent>
-                 </Card>
-                 <Card>
-                   <CardHeader className="pb-2">
-                     <CardTitle className="text-sm font-medium">Living Plants</CardTitle>
-                   </CardHeader>
-                   <CardContent>
-                      <p className="text-2xl font-bold">{stats.alive}</p>
-                   </CardContent>
-                 </Card>
-              </div>
+      
+      {/* Navbar */}
+      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b">
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2 text-primary">
+              <Leaf className="fill-primary" size={24} />
+              <h1 className="text-xl font-bold">Mi Jardín</h1>
             </div>
-        )}
-        <div className="container pb-4">
             <div className="flex gap-2">
-                <div className="relative flex-1">
-                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                   <Input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search plants..." className="w-full pl-9"/>
-                </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Plants</SelectItem>
-                    <SelectItem value="alive">🌱 Living</SelectItem>
-                    <SelectItem value="dead">🥀 Deceased</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
+              <Button onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon"><Upload size={20}/><input type="file" ref={fileInputRef} onChange={importData} className="hidden" accept=".json"/></Button>
+              <Button onClick={exportData} variant="ghost" size="icon"><Download size={20}/></Button>
+              <Button onClick={() => openModal()}><Plus size={18}/> <span className="hidden sm:inline">Planta</span></Button>
             </div>
+          </div>
+          
+          {showStats && (
+            <div className="mb-3 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
+               <Card className="text-center">
+                 <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Inversión</CardTitle></CardHeader>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-700">{formatCurrency(stats.spent)}</p></CardContent>
+               </Card>
+               <Card className="text-center">
+                 <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Hijos Dados</CardTitle></CardHeader>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-indigo-600">{stats.offspring}</p></CardContent>
+               </Card>
+               <Card className="text-center">
+                 <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Vivas</CardTitle></CardHeader>
+                 <CardContent className="p-2 pt-0"><p className="text-lg font-bold text-green-600">{stats.alive}</p></CardContent>
+               </Card>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+               <Input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="pl-9"/>
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-auto">
+                <SelectValue placeholder="Filtrar" />
+              </SelectTrigger>
+              <SelectContent>
+                 <SelectItem value="all">Todas</SelectItem>
+                 <SelectItem value="viva">🌱 Vivas</SelectItem>
+                 <SelectItem value="intercambiada">🚫 Ya no la tengo</SelectItem>
+                 <SelectItem value="fallecida">🥀 Memoria</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredPlants.map((plant) => {
-            const w = getWateringStatus(new Date());
-
-            return (
-              <Card
-                key={plant.id}
-                className="cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-accent/20 hover:shadow-xl hover:-translate-y-1"
-                onClick={() => handlePlantClick(plant)}
-              >
-                <div className="relative aspect-[4/5] w-full">
-                  <Image
-                    src={plant.imageUrl}
-                    alt={`Image of ${plant.name}`}
-                    fill
-                    className={`object-cover ${plant.isDeceased ? 'grayscale' : ''}`}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    data-ai-hint={plant.imageHint}
-                  />
-                  {plant.isDeceased && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <HeartCrack className="h-12 w-12 text-white/80" />
-                    </div>
+      {/* Grid */}
+      <div className="max-w-5xl mx-auto p-4 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredPlants.map(plant => {
+          const w = getWateringStatus(plant.lastWatered);
+          const hijitosCount = plant.events?.filter(e => e.type === 'hijito').length || 0;
+          
+          return (
+            <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
+               <div className="aspect-square relative bg-secondary overflow-hidden">
+                  {plant.image ? (
+                    <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
                   )}
-                </div>
-                <CardHeader>
-                  <CardTitle className="font-headline truncate">{plant.name}</CardTitle>
-                  <div className="flex justify-between items-center">
-                     {plant.isDeceased ? (
-                        <Badge variant="destructive" className="w-fit bg-accent/80 text-accent-foreground">At Rest</Badge>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Acquired: {format(plant.acquisitionDate, 'MMM d, yyyy')}
-                        </p>
-                      )}
-                      {!plant.isDeceased && (
+                  
+                  <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
+                    {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
+                  </div>
+
+                  {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
+                  {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
+               </div>
+               
+               <div className="p-3">
+                  <div className="flex justify-between items-start">
+                     <h3 className="font-bold truncate">{plant.name}</h3>
+                     {plant.status === 'viva' && (
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color}`}>
-                           <Clock size={10}/> {w.days === 0 ? 'TODAY' : `${w.days}d`}
+                           <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
                         </div>
                      )}
                   </div>
-                </CardHeader>
-              </Card>
-            )
-          })}
-        </div>
-      </main>
+                  
+                  <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                     <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
+                        {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
+                        {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600">De: {plant.giftFrom}</Badge>}
+                        {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600">Por: {plant.exchangeSource}</Badge>}
+                        {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600">De: {plant.stolenFrom}</Badge>}
+                     </div>
+                  </div>
 
-       <PlantDetailDialog
-        plant={selectedPlant}
-        isOpen={isDetailOpen}
-        setIsOpen={setIsDetailOpen}
-        onUpdatePlant={handleUpdatePlant}
-      />
-    </div>
-  );
-};
-
-function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) {
-  if (!children) return null;
-  return (
-    <div className="flex items-start space-x-3">
-      <div className="flex-shrink-0 text-muted-foreground pt-1">{icon}</div>
-      <div>
-        <h4 className="font-semibold font-headline">{title}</h4>
-        <p className="text-sm text-muted-foreground">{children}</p>
+                  {plant.status === 'viva' && (
+                    <Button onClick={(e) => waterPlantDirectly(e, plant)} variant="secondary" size="sm" className="mt-3 w-full">
+                       <Droplets size={14}/> Regar Hoy
+                    </Button>
+                  )}
+               </div>
+            </Card>
+          );
+        })}
       </div>
-    </div>
-  );
-}
 
-const acquisitionIcons = {
-  purchased: <DollarSign className="h-5 w-5" />,
-  gifted: <Gift className="h-5 w-5" />,
-  traded: <RefreshCcw className="h-5 w-5" />,
-};
+      {/* Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-4 border-b flex-row justify-between items-center">
+            <DialogTitle>{formData.id ? formData.name : 'Nueva Planta'}</DialogTitle>
+             <Button onClick={closeModal} variant="ghost" size="icon" className="rounded-full"><X size={20}/></Button>
+          </DialogHeader>
 
+          {formData.id && (
+            <div className="flex border-b">
+              <button onClick={() => setActiveTab('details')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Detalles</button>
+              <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                Bitácora <Badge variant="secondary">{formData.events?.length || 0}</Badge>
+              </button>
+            </div>
+          )}
 
-function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: { plant: Plant | null, isOpen: boolean, setIsOpen: (isOpen: boolean) => void, onUpdatePlant: (plant: Plant) => void }) {
-  if (!plant) return null;
+          <div className="overflow-y-auto p-5 flex-1">
+            {activeTab === 'details' && (
+               <form onSubmit={savePlant} className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                     <div className="relative w-full sm:w-32 h-32 bg-secondary border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary">
+                        {formData.image ? (
+                          <>
+                            <Image src={formData.image} alt="plant" fill className="object-cover"/>
+                            <Button type="button" onClick={() => setFormData({...formData, image: null})} variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6"><X size={12}/></Button>
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="text-muted-foreground"/>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                          </>
+                        )}
+                     </div>
+                     <div className="flex-1 space-y-2">
+                        <Input required name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre de la planta" />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <Select name="status" value={formData.status} onValueChange={(v) => handleInputChange({target: {name: 'status', value: v}} as any)}>
+                            <SelectTrigger className={formData.status === 'intercambiada' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : ''}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="viva">🌱 Viva</SelectItem>
+                                <SelectItem value="intercambiada">🚫 Se fue toda</SelectItem>
+                                <SelectItem value="fallecida">🥀 Fallecida</SelectItem>
+                            </SelectContent>
+                          </Select>
+                           <Select name="location" value={formData.location} onValueChange={(v) => handleInputChange({target: {name: 'location', value: v}} as any)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="interior">🏠 Interior</SelectItem>
+                                <SelectItem value="exterior">☀️ Exterior</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {formData.status === 'intercambiada' && (
+                          <div className="text-xs text-indigo-600 bg-indigo-50 p-2 rounded-md">
+                             Solo usa esto si ya no tienes la planta. Si solo diste un gajo, déjala en "Viva" y anótalo en la Bitácora.
+                          </div>
+                        )}
+                     </div>
+                  </div>
 
-  const handleDeceasedToggle = () => {
-    onUpdatePlant({ ...plant, isDeceased: !plant.isDeceased });
-    setIsOpen(false);
-  };
+                   <div>
+                    <label className="text-sm font-medium text-muted-foreground">Origen</label>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Select name="startType" value={formData.startType} onValueChange={(v) => handleInputChange({target: {name: 'startType', value: v}} as any)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="planta">Planta Completa</SelectItem>
+                                <SelectItem value="gajo">Gajo / Esqueje</SelectItem>
+                                <SelectItem value="raiz">Raíz / Bulbo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select name="acquisitionType" value={formData.acquisitionType} onValueChange={(v) => handleInputChange({target: {name: 'acquisitionType', value: v}} as any)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="compra">Comprado</SelectItem>
+                                <SelectItem value="regalo">Regalo</SelectItem>
+                                <SelectItem value="intercambio">Intercambio</SelectItem>
+                                <SelectItem value="robado">Robado</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                  </div>
 
-  const Icon = acquisitionIcons[plant.acquisitionType];
+                  {formData.acquisitionType === 'compra' && <Input name="price" value={formData.price} onChange={handleInputChange} placeholder="Precio (ARS)" type="number" />}
+                  {formData.acquisitionType === 'regalo' && <Input name="giftFrom" value={formData.giftFrom} onChange={handleInputChange} placeholder="Regalo de..." />}
+                  {formData.acquisitionType === 'intercambio' && <Input name="exchangeSource" value={formData.exchangeSource} onChange={handleInputChange} placeholder="A cambio de..." />}
+                  {formData.acquisitionType === 'robado' && <Input name="stolenFrom" value={formData.stolenFrom} onChange={handleInputChange} placeholder="Robado de..." />}
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4">
-            <Image
-              src={plant.imageUrl}
-              alt={`Image of ${plant.name}`}
-              fill
-              className="object-cover"
-              data-ai-hint={plant.imageHint}
-            />
-            {plant.isDeceased && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <div className="flex flex-col items-center text-white">
-                  <HeartCrack className="h-16 w-16" />
-                  <p className="mt-2 text-lg font-bold font-headline">At Rest</p>
+                  <Textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Notas generales sobre la planta..."/>
+
+                  <DialogFooter>
+                    {formData.id && <Button type="button" variant="destructive" onClick={() => deletePlant(formData.id!)}>Eliminar</Button>}
+                    <Button type="submit">Guardar</Button>
+                  </DialogFooter>
+               </form>
+            )}
+
+            {activeTab === 'history' && (
+              <div>
+                <form onSubmit={addEvent} className="mb-4 space-y-2 p-3 bg-secondary rounded-lg">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select name="type" value={newEvent.type} onValueChange={(v) => setNewEvent({...newEvent, type: v})}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="riego">💧 Riego</SelectItem>
+                            <SelectItem value="fertilizante">🧪 Fertilizante</SelectItem>
+                            <SelectItem value="poda">✂️ Poda</SelectItem>
+                            <SelectItem value="plaga">🐞 Plaga</SelectItem>
+                            <SelectItem value="transplante">🪴 Transplante</SelectItem>
+                            <SelectItem value="hijito">👶 Hijito</SelectItem>
+                            <SelectItem value="otro">🗒️ Otro</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})} />
+                  </div>
+                  <Textarea value={newEvent.note} onChange={(e) => setNewEvent({...newEvent, note: e.target.value})} placeholder="Nota del evento..."/>
+                  <Button type="submit" className="w-full">Añadir a Bitácora</Button>
+                </form>
+                
+                <div className="space-y-2">
+                  {formData.events.map(event => (
+                    <div key={event.id} className="flex items-start gap-3 p-2 border-b">
+                      <div className="text-xs text-center text-muted-foreground">
+                          {new Date(event.date).toLocaleDateString('es-AR', {day:'numeric'})}<br/>
+                          {new Date(event.date).toLocaleDateString('es-AR', {month:'short'})}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium capitalize">{event.type}</p>
+                        <p className="text-sm text-muted-foreground">{event.note}</p>
+                      </div>
+                      <Button onClick={() => deleteEvent(event.id)} variant="ghost" size="icon" className="h-6 w-6"><Trash2 size={12}/></Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
-          <DialogTitle className="text-3xl font-bold font-headline">{plant.name}</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Acquired on {format(plant.acquisitionDate, 'MMMM d, yyyy')}
-          </p>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
-            <div className="text-primary">{Icon}</div>
-            <div>
-              <p className="font-semibold capitalize">{plant.acquisitionType}</p>
-              {plant.acquisitionType === 'purchased' && plant.price && (
-                <p className="text-sm text-muted-foreground">${plant.price.toFixed(2)}</p>
-              )}
-              {plant.acquisitionType === 'traded' && (
-                <p className="text-sm text-muted-foreground">{plant.tradeReason}</p>
-              )}
-               {plant.acquisitionType === 'gifted' && (
-                <p className="text-sm text-muted-foreground">A lovely gift!</p>
-              )}
-            </div>
-          </div>
-        
-          <Separator />
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-4">
-            <InfoSection icon={<Leaf className="h-5 w-5" />} title="Leaf Details">
-              {plant.leafInfo}
-            </InfoSection>
-            <InfoSection icon={<Droplets className="h-5 w-5" />} title="Root Details">
-              {plant.rootInfo}
-            </InfoSection>
-            <InfoSection icon={<Scissors className="h-5 w-5" />} title="Clipping Details">
-              {plant.clippingInfo}
-            </InfoSection>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Close</Button>
-          <Button
-            variant={plant.isDeceased ? 'default' : 'destructive'}
-            onClick={handleDeceasedToggle}
-            className={!plant.isDeceased ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : ''}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {plant.isDeceased ? 'Revive Plant' : 'Mark as Deceased'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
-
-export default PlantManager;
-
-
-    
