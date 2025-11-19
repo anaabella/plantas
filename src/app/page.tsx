@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -98,9 +97,9 @@ export default function PlantManagerFinal() {
   }, [auth]);
 
   const plantsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isLoadingUser) return null; // Wait for user loading to complete
     return collection(firestore, 'plants');
-  }, [firestore]);
+  }, [firestore, isLoadingUser]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -895,5 +894,3 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
-
-    
