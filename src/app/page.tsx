@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus, Search, Sprout, Gift, DollarSign, Calendar, Trash2, Camera,
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
@@ -15,18 +14,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 // Types
 type PlantEvent = {
-  id: number;
+  id: string;
   type: string;
   date: string;
   note: string;
@@ -50,6 +52,7 @@ type Plant = {
   giftFrom?: string;
   stolenFrom?: string;
   lastPhotoUpdate?: string;
+  createdAt: any;
 };
 
 type WishlistItem = {
@@ -62,8 +65,6 @@ type WishlistItem = {
 
 export default function PlantManagerFinal() {
   // --- Estados ---
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
@@ -76,9 +77,25 @@ export default function PlantManagerFinal() {
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
 
+  // --- Firebase ---
+  const { auth, firestore } = useFirebase();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [isUserLoading, user, auth]);
+
+  const plantsRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'plants') : null, [firestore, user]);
+  const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
+  const { data: plants = [], isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
+
+  const wishlistRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'wishlist') : null, [firestore, user]);
+  const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
+  const { data: wishlist = [], isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   
-  const initialFormData: Plant = {
-    id: '',
+  const initialFormData: Omit<Plant, 'id' | 'createdAt'> = {
     name: '',
     image: null,
     acquisitionType: 'compra', // compra, regalo, intercambio, robado
@@ -98,28 +115,8 @@ export default function PlantManagerFinal() {
   };
 
   // Estado del formulario
-  const [formData, setFormData] = useState<Plant>(initialFormData);
+  const [formData, setFormData] = useState<Partial<Plant>>(initialFormData);
   const [newWishlistItem, setNewWishlistItem] = useState<Omit<WishlistItem, 'id'>>({ name: '', notes: '', image: null });
-
-  // --- Efectos ---
-  useEffect(() => {
-    const savedPlants = localStorage.getItem('my-garden-final');
-    if (savedPlants) {
-      setPlants(JSON.parse(savedPlants));
-    }
-    const savedWishlist = localStorage.getItem('my-garden-wishlist');
-    if (savedWishlist) {
-      setWishlist(JSON.parse(savedWishlist));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('my-garden-final', JSON.stringify(plants));
-  }, [plants]);
-
-  useEffect(() => {
-    localStorage.setItem('my-garden-wishlist', JSON.stringify(wishlist));
-  }, [wishlist]);
 
 
   // --- Helpers ---
@@ -137,6 +134,9 @@ export default function PlantManagerFinal() {
     if (!lastUpdate) return false;
     const last = new Date(lastUpdate);
     const now = new Date();
+    
+    // Check if acquisitionDate is a valid date string before creating a Date object
+    if (!acquisitionDate || isNaN(new Date(acquisitionDate).getTime())) return false;
     const acqDate = new Date(acquisitionDate);
   
     // Don't ask for an update if the plant is less than 90 days old
@@ -147,7 +147,7 @@ export default function PlantManagerFinal() {
     if (diffTime < 0) return false;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 90;
-  };
+};
 
   const formatCurrency = (val: number | string | undefined) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(val) || 0);
 
@@ -168,45 +168,63 @@ export default function PlantManagerFinal() {
 
   const savePlant = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!plantsRef) return;
+
     if (formData.id) {
-      setPlants(plants.map(p => p.id === formData.id ? formData : p));
+       const plantDocRef = doc(plantsRef, formData.id);
+       const dataToUpdate = { ...formData };
+       delete dataToUpdate.id; // Don't save id inside the document
+       updateDocumentNonBlocking(plantDocRef, dataToUpdate);
     } else {
-      setPlants([{ ...formData, id: Date.now().toString(), lastPhotoUpdate: new Date().toISOString().split('T')[0], status: 'viva' }, ...plants]);
+      const dataToSave = { 
+        ...formData, 
+        status: 'viva',
+        lastPhotoUpdate: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp() 
+      };
+      addDocumentNonBlocking(plantsRef, dataToSave);
     }
     closeModal();
   };
-
+  
   const addEvent = (type: string, note?: string) => {
-    const eventToAdd = { 
+    if (!formData.id || !plantsRef) return;
+  
+    const eventToAdd = {
       type,
       note: note || `Evento de ${type} registrado.`,
-      id: Date.now(),
+      id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0]
     };
+  
     const updatedEvents = [eventToAdd, ...(formData.events || [])];
     const updatedFormData = { ...formData, events: updatedEvents };
-    
+  
     setFormData(updatedFormData);
-    if (formData.id) {
-      setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
-    }
+    const plantDocRef = doc(plantsRef, formData.id);
+    updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
-
-  const deleteEvent = (eventId: number) => {
-    const updatedEvents = formData.events.filter(ev => ev.id !== eventId);
+  
+  const deleteEvent = (eventId: string) => {
+    if (!formData.id || !plantsRef) return;
+  
+    const updatedEvents = formData.events?.filter(ev => ev.id !== eventId);
     const updatedFormData = { ...formData, events: updatedEvents };
+  
     setFormData(updatedFormData);
-    if (formData.id) setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
+    const plantDocRef = doc(plantsRef, formData.id);
+    updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
 
   const waterPlantDirectly = (e: React.MouseEvent, plant: Plant) => {
     e.stopPropagation();
+    if (!plantsRef) return;
     const today = new Date().toISOString().split('T')[0];
-    const updatedPlant = { ...plant, lastWatered: today };
-    setPlants(plants.map(p => p.id === plant.id ? updatedPlant : p));
+    const plantDocRef = doc(plantsRef, plant.id);
+    updateDocumentNonBlocking(plantDocRef, { lastWatered: today });
   };
 
-  const openModal = (plant: Plant | null = null) => {
+  const openModal = (plant: Partial<Plant> | null = null) => {
     setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
@@ -228,17 +246,22 @@ export default function PlantManagerFinal() {
     setFormData(plantFromWishlist);
     setShowModal(true);
     // Optionally remove from wishlist
-    deleteWishlistItem(item.id);
+    if (item.id) deleteWishlistItem(item.id);
   };
 
   const closeModal = () => setShowModal(false);
-  const deletePlant = (id: string) => { if (window.confirm('¿Eliminar esta planta permanentemente?')) { setPlants(plants.filter(p => p.id !== id)); closeModal(); }};
+  const deletePlant = (id: string) => { 
+    if (window.confirm('¿Eliminar esta planta permanentemente?') && plantsRef) { 
+      deleteDocumentNonBlocking(doc(plantsRef, id));
+      closeModal(); 
+    }
+  };
   
   // Wishlist Actions
   const addWishlistItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newWishlistItem.name.trim()) {
-      setWishlist([...wishlist, { ...newWishlistItem, id: Date.now().toString() }]);
+    if (newWishlistItem.name.trim() && wishlistRef) {
+      addDocumentNonBlocking(wishlistRef, newWishlistItem);
       setNewWishlistItem({ name: '', notes: '', image: null });
     }
   };
@@ -253,7 +276,9 @@ export default function PlantManagerFinal() {
   };
 
   const deleteWishlistItem = (id: string) => {
-    setWishlist(wishlist.filter(item => item.id !== id));
+    if (wishlistRef) {
+        deleteDocumentNonBlocking(doc(wishlistRef, id));
+    }
   };
 
   // AI Actions
@@ -284,9 +309,26 @@ export default function PlantManagerFinal() {
     const a = document.createElement('a'); a.href = dataStr; a.download = "mi_jardin_final.json"; a.click();
   };
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!plantsRef) return;
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => { try { const imp = JSON.parse(ev.target?.result as string); if(window.confirm(`¿Cargar ${imp.length} plantas?`)) setPlants(imp); } catch(e){alert("Error archivo");}};
+    reader.onload = (ev) => { 
+        try { 
+            const importedPlants = JSON.parse(ev.target?.result as string); 
+            if(window.confirm(`¿Importar ${importedPlants.length} plantas? Esto sobreescribirá tus plantas actuales.`)) {
+                // Not a great way to do this, but for MVP it's fine.
+                // A better way would be a batch write.
+                plants.forEach(p => deleteDocumentNonBlocking(doc(plantsRef, p.id)));
+                importedPlants.forEach((p: any) => {
+                    const dataToSave = { ...p, createdAt: serverTimestamp() };
+                    delete dataToSave.id;
+                    addDocumentNonBlocking(plantsRef, dataToSave);
+                });
+            }
+        } catch(e){
+            alert("Error al leer el archivo. Asegúrate de que es un archivo JSON válido.");
+        }
+    };
     reader.readAsText(file);
   };
 
@@ -307,6 +349,17 @@ export default function PlantManagerFinal() {
     if (filterStatus === 'intercambiada') matchFilter = p.status === 'intercambiada';
     return matchSearch && matchFilter;
   });
+
+  if (isUserLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+            <div className="flex items-center gap-2 text-primary">
+                <Sprout className="animate-spin" size={32} />
+                <p className="text-xl font-bold">Cargando tu jardín...</p>
+            </div>
+        </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
@@ -591,10 +644,10 @@ export default function PlantManagerFinal() {
                 </TooltipProvider>
 
                 <div className="space-y-2">
-                  {formData.events.length === 0 && (
+                  {formData.events?.length === 0 && (
                     <p className="text-center text-sm text-muted-foreground py-4">No hay eventos registrados.</p>
                   )}
-                  {formData.events.map(event => (
+                  {formData.events?.map(event => (
                     <div key={event.id} className="flex items-start gap-3 p-2 border-b">
                       <div className="text-xs text-center text-muted-foreground">
                           {new Date(event.date).toLocaleDateString('es-AR', {day:'numeric'})}<br/>
@@ -735,3 +788,4 @@ export default function PlantManagerFinal() {
   );
 }
 
+    

@@ -6,53 +6,49 @@
       "type": "object",
       "description": "Represents a plant owned by a user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Plant entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Plant)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the plant."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of the image of the plant.",
-          "format": "uri"
-        },
-        "acquisitionDate": {
-          "type": "string",
-          "description": "The date the plant was acquired.",
-          "format": "date-time"
-        },
-        "acquisitionType": {
-          "type": "string",
-          "description": "How the plant was acquired (e.g., purchased, gifted, traded)."
-        },
-        "acquisitionCost": {
-          "type": "number",
-          "description": "The price paid to acquire the plant."
-        },
-        "tradeReason": {
-          "type": "string",
-          "description": "The stated reason for trading the plant, if applicable."
-        },
-        "isDeceased": {
-          "type": "boolean",
-          "description": "Indicates whether the plant is deceased."
+        "name": { "type": "string", "description": "The name of the plant." },
+        "image": { "type": "string", "description": "URL of the image of the plant.", "format": "uri" },
+        "acquisitionType": { "type": "string", "enum": ["compra", "regalo", "intercambio", "robado"] },
+        "exchangeSource": { "type": "string", "description": "Reason for exchange if applicable." },
+        "price": { "type": "string", "description": "Price of the plant if purchased." },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["viva", "fallecida", "intercambiada"] },
+        "exchangeDest": { "type": "string", "description": "Destination of exchange if applicable." },
+        "startType": { "type": "string", "enum": ["planta", "gajo", "raiz"] },
+        "location": { "type": "string", "enum": ["interior", "exterior"] },
+        "lastWatered": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "giftFrom": { "type": "string" },
+        "stolenFrom": { "type": "string" },
+        "lastPhotoUpdate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "date": { "type": "string", "format": "date" },
+              "note": { "type": "string" }
+            },
+            "required": ["id", "type", "date", "note"]
+          }
         }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "acquisitionDate",
-        "acquisitionType",
-        "isDeceased"
-      ]
+      "required": ["name", "date", "status", "createdAt"]
+    },
+    "WishlistItem": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "WishlistItem",
+        "type": "object",
+        "description": "Represents an item in the user's wishlist.",
+        "properties": {
+            "name": { "type": "string" },
+            "notes": { "type": "string" },
+            "image": { "type": "string", "format": "uri" }
+        },
+        "required": ["name"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -71,126 +67,25 @@
         }
       },
       "required": [
-        "id",
-        "email"
-      ]
-    },
-    "RootData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "RootData",
-      "type": "object",
-      "description": "Tracks data pertaining to a plant's roots",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the RootData entity."
-        },
-        "plantId": {
-          "type": "string",
-          "description": "Reference to Plant. (Relationship: Plant 1:N RootData)"
-        },
-        "rootCondition": {
-          "type": "string",
-          "description": "The condition of the roots"
-        },
-        "dateChecked": {
-          "type": "string",
-          "description": "The date the root data was entered.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "plantId",
-        "rootCondition",
-        "dateChecked"
-      ]
-    },
-    "LeafData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "LeafData",
-      "type": "object",
-      "description": "Tracks data pertaining to a plant's leaves",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the LeafData entity."
-        },
-        "plantId": {
-          "type": "string",
-          "description": "Reference to Plant. (Relationship: Plant 1:N LeafData)"
-        },
-        "leafCondition": {
-          "type": "string",
-          "description": "The condition of the leaves"
-        },
-        "dateChecked": {
-          "type": "string",
-          "description": "The date the leaf data was entered.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "plantId",
-        "leafCondition",
-        "dateChecked"
-      ]
-    },
-    "ClippingData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ClippingData",
-      "type": "object",
-      "description": "Tracks data pertaining to a plant's clippings",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ClippingData entity."
-        },
-        "plantId": {
-          "type": "string",
-          "description": "Reference to Plant. (Relationship: Plant 1:N ClippingData)"
-        },
-        "clippingSize": {
-          "type": "string",
-          "description": "The size of the clipping"
-        },
-        "dateChecked": {
-          "type": "string",
-          "description": "The date the clipping data was entered.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "plantId",
-        "clippingSize",
-        "dateChecked"
+        "id"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
   "firestore": {
     "structure": [
-      {
+       {
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles.  Accessible only by the authenticated user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
+          "description": "Stores user profiles. Accessible only by the authenticated user."
         }
       },
       {
@@ -200,92 +95,21 @@
           "schema": {
             "$ref": "#/backend/entities/Plant"
           },
-          "description": "Stores plants owned by a specific user. Path-based ownership enforced by `userId` in the path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "plantId",
-              "description": "The unique identifier for the plant."
-            }
-          ]
+          "description": "Stores plants owned by a specific user."
         }
       },
       {
-        "path": "/users/{userId}/plants/{plantId}/rootData/{rootDataId}",
+        "path": "/users/{userId}/wishlist/{wishlistItemId}",
         "definition": {
-          "entityName": "RootData",
+          "entityName": "WishlistItem",
           "schema": {
-            "$ref": "#/backend/entities/RootData"
+            "$ref": "#/backend/entities/WishlistItem"
           },
-          "description": "Stores root data for a specific plant owned by a user. Path-based ownership enforced by `userId` and `plantId` in the path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "plantId",
-              "description": "The unique identifier for the plant."
-            },
-            {
-              "name": "rootDataId",
-              "description": "The unique identifier for the root data entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/plants/{plantId}/leafData/{leafDataId}",
-        "definition": {
-          "entityName": "LeafData",
-          "schema": {
-            "$ref": "#/backend/entities/LeafData"
-          },
-          "description": "Stores leaf data for a specific plant owned by a user. Path-based ownership enforced by `userId` and `plantId` in the path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "plantId",
-              "description": "The unique identifier for the plant."
-            },
-            {
-              "name": "leafDataId",
-              "description": "The unique identifier for the leaf data entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/plants/{plantId}/clippingData/{clippingDataId}",
-        "definition": {
-          "entityName": "ClippingData",
-          "schema": {
-            "$ref": "#/backend/entities/ClippingData"
-          },
-          "description": "Stores clipping data for a specific plant owned by a user. Path-based ownership enforced by `userId` and `plantId` in the path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "plantId",
-              "description": "The unique identifier for the plant."
-            },
-            {
-              "name": "clippingDataId",
-              "description": "The unique identifier for the clipping data entry."
-            }
-          ]
+          "description": "Stores wishlist items for a specific user."
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, Clarity of Intent, and support secure list operations (QAPs). It leverages path-based ownership for `User` and `Plant` relationships. Denormalization is used to avoid `get()` calls in security rules. \n\nThe structure consists of:\n\n1.  `/users/{userId}`: Stores user profiles. Path-based ownership ensures only the authenticated user can access their profile.\n2.  `/users/{userId}/plants/{plantId}`: Stores plants owned by a specific user. This parent-child relationship is secured by path-based ownership. `userId` is embedded in the path, enabling secure rules without `get()` calls.\n3.  `/users/{userId}/plants/{plantId}/rootData/{rootDataId}`: Stores data relating to the plant's roots. This uses the parent-child relationship from plants, with `userId` and `plantId` embedded in the path, enabling secure rules without `get()` calls.\n4.  `/users/{userId}/plants/{plantId}/leafData/{leafDataId}`: Stores data relating to the plant's leaves. This uses the parent-child relationship from plants, with `userId` and `plantId` embedded in the path, enabling secure rules without `get()` calls.\n5.  `/users/{userId}/plants/{plantId}/clippingData/{clippingDataId}`: Stores data relating to the plant's clippings. This uses the parent-child relationship from plants, with `userId` and `plantId` embedded in the path, enabling secure rules without `get()` calls.\n\nThis structure supports secure list operations because each collection is homogenous and its security rules are solely dependent on the user's authentication state and the path. There are no dependencies on data stored in other documents, simplifying security rules and preventing rule-based filtering."
+    ]
   }
 }
+
+    
