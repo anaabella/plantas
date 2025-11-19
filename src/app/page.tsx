@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -154,12 +155,52 @@ export default function PlantManagerFinal() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeAndCompressImage = (file: File, callback: (dataUrl: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement('img');
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+  
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Comprimir a JPEG con calidad 0.7
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        callback(dataUrl);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (data: any) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, image: reader.result as string, lastPhotoUpdate: new Date().toISOString().split('T')[0] }));
-      reader.readAsDataURL(file);
+      resizeAndCompressImage(file, (dataUrl) => {
+        if(setter === setFormData) {
+           setter((prev: any) => ({ ...prev, image: dataUrl, lastPhotoUpdate: new Date().toISOString().split('T')[0] }));
+        } else {
+           setter((prev: any) => ({ ...prev, image: dataUrl }));
+        }
+      });
     }
   };
 
@@ -252,15 +293,6 @@ export default function PlantManagerFinal() {
     if (newWishlistItem.name.trim() && wishlistRef) {
       addDocumentNonBlocking(wishlistRef, newWishlistItem);
       setNewWishlistItem({ name: '', notes: '', image: null });
-    }
-  };
-
-  const handleWishlistImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setNewWishlistItem(prev => ({ ...prev, image: reader.result as string }));
-      reader.readAsDataURL(file);
     }
   };
 
@@ -501,7 +533,7 @@ export default function PlantManagerFinal() {
                         ) : (
                           <>
                             <Camera className="text-muted-foreground"/>
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setFormData)} className="absolute inset-0 opacity-0 cursor-pointer"/>
                           </>
                         )}
                      </div>
@@ -723,7 +755,7 @@ export default function PlantManagerFinal() {
                 ) : (
                     <>
                         <Camera className="text-muted-foreground"/>
-                        <input type="file" accept="image/*" ref={wishlistImageInputRef} onChange={handleWishlistImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                        <input type="file" accept="image/*" ref={wishlistImageInputRef} onChange={(e) => handleImageUpload(e, setNewWishlistItem)} className="absolute inset-0 opacity-0 cursor-pointer"/>
                     </>
                 )}
             </div>
