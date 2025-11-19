@@ -21,7 +21,7 @@ import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirebase, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -79,15 +79,16 @@ export default function PlantManagerFinal() {
 
   // --- Firebase ---
   const { firestore } = useFirebase();
-  const userId = 'single-user-id'; // Hardcoded user ID
+  const { user, isLoading: isLoadingUser } = useUser();
+  const userId = user?.uid;
 
-  const plantsRef = useMemoFirebase(() => collection(firestore, 'users', userId, 'plants'), [firestore]);
-  const plantsQuery = useMemoFirebase(() => query(plantsRef, orderBy('createdAt', 'desc')), [plantsRef]);
+  const plantsRef = useMemoFirebase(() => userId ? collection(firestore, 'users', userId, 'plants') : null, [firestore, userId]);
+  const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
   const { data: plantsData, isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
   const plants = plantsData || [];
 
-  const wishlistRef = useMemoFirebase(() => collection(firestore, 'users', userId, 'wishlist'), [firestore]);
-  const wishlistQuery = useMemoFirebase(() => query(wishlistRef, orderBy('name')), [wishlistRef]);
+  const wishlistRef = useMemoFirebase(() => userId ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId]);
+  const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
   const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   const wishlist = wishlistData || [];
   
@@ -338,7 +339,7 @@ export default function PlantManagerFinal() {
     return matchSearch && matchFilter;
   });
 
-  if (isLoadingPlants) {
+  if (isLoadingPlants || isLoadingUser) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex items-center gap-2 text-primary">
@@ -771,3 +772,6 @@ export default function PlantManagerFinal() {
   );
 }
 
+
+
+    

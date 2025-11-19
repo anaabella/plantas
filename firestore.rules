@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Firestore Security Rules for the Plant Tracker application.
  *
@@ -27,6 +28,11 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
+
+    // Helper function to check if the authenticated user owns the data.
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
     
     /**
      * @description Controls access to user profile documents.
@@ -35,7 +41,7 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(userId);
       allow list: if false; // Prevent listing of all users.
     }
 
@@ -46,7 +52,7 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(userId);
     }
 
     /**
@@ -56,7 +62,7 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/wishlist/{wishlistItemId} {
-       allow read, write: if isAuthenticated();
+       allow read, write: if isOwner(userId);
     }
 
     /**
@@ -66,7 +72,7 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/rootData/{rootDataId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(userId);
     }
 
     /**
@@ -76,7 +82,7 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/leafData/{leafDataId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(userId);
     }
 
     /**
@@ -86,7 +92,9 @@ service cloud.firestore {
      * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/clippingData/{clippingDataId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(userId);
     }
   }
 }
+
+    
