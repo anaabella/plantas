@@ -16,11 +16,11 @@ service cloud.firestore {
     }
     
     match /plants/{plantId} {
-      // Permitir que cualquier usuario (autenticado o no) lea las plantas.
-      allow read: if true;
-      // Permitir crear solo si el ownerId coincide con el uid del solicitante.
+      // Permite que la app lea los datos incluso si el usuario aun no se ha logueado.
+      allow read: if true; 
+      
+      // Mantiene la seguridad para que solo los dueños editen sus plantas.
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      // Permitir actualizar o borrar solo si el ownerId del documento existente coincide.
       allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
