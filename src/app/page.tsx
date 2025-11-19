@@ -459,7 +459,9 @@ export default function PlantManagerFinal() {
 
         const deathEvent = plant.events?.find(e => e.type === 'fallecio');
         const acquisitionDate = new Date(plant.date);
-        const deathDate = deathEvent ? new Date(deathEvent.date) : new Date(); // Use today if no death date
+        
+        // Use death event date if available, otherwise use today as approximation if no death event found
+        const deathDate = deathEvent ? new Date(deathEvent.date) : new Date();
 
         if (isNaN(acquisitionDate.getTime()) || isNaN(deathDate.getTime())) return null;
 
@@ -1114,10 +1116,6 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         }
     }, [isOpen, plant, info]);
 
-    const validImageUrls = useMemo(() => {
-        return info?.imageUrls.filter(url => url && url.startsWith('https://images.unsplash.com')) || [];
-    }, [info]);
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-xl">
@@ -1149,18 +1147,6 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
 
                         {info && (
                             <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                                {validImageUrls.length > 0 && (
-                                    <div>
-                                        <h3 className="font-semibold mb-2">Imágenes de Referencia</h3>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {validImageUrls.map((url, index) => (
-                                                <div key={index} className="aspect-square relative rounded-md overflow-hidden bg-muted">
-                                                    <Image src={url} alt={`${plant.name} ${index + 1}`} fill className="object-cover" sizes="150px" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                                 <div>
                                     <h3 className="font-semibold mb-2">Cuidados Básicos</h3>
                                     <div className="space-y-3 text-sm">
@@ -1188,5 +1174,3 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
         </Dialog>
     );
 }
-
-    
