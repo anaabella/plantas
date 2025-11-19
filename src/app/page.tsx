@@ -88,9 +88,9 @@ export default function PlantManagerFinal() {
   const userId = user?.uid;
 
   const plantsRef = useMemoFirebase(() => {
-    if (!firestore || isLoadingUser) return null; // Wait for user loading to finish
+    if (!firestore) return null; 
     return collection(firestore, 'plants');
-  }, [firestore, isLoadingUser]);
+  }, [firestore]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -507,7 +507,7 @@ export default function PlantManagerFinal() {
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {isLoadingPlants && Array.from({length: 10}).map((_, i) => (
+        {(isLoadingUser || isLoadingPlants) && Array.from({length: 10}).map((_, i) => (
              <Card key={i} className="overflow-hidden">
                  <div className="aspect-square relative bg-secondary animate-pulse"></div>
                  <div className="p-3">
@@ -516,7 +516,7 @@ export default function PlantManagerFinal() {
                  </div>
              </Card>
         ))}
-        {filteredPlants.map(plant => {
+        {!(isLoadingUser || isLoadingPlants) && filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
           const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
           const isOwner = plant.ownerId === userId;
@@ -890,3 +890,6 @@ export default function PlantManagerFinal() {
 }
 
 
+
+
+    
