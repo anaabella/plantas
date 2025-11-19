@@ -326,7 +326,7 @@ export default function PlantManagerFinal() {
     setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
-      if (plant.ownerId !== userId) {
+      if (plant.ownerId !== userId && currentView !== 'community') {
         alert("Solo puedes editar las plantas que te pertenecen.");
         return;
       }
@@ -469,21 +469,6 @@ export default function PlantManagerFinal() {
               </div>
             )}
   
-             {plant.ownerPhotoURL && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button onClick={handleProfileClick} className="absolute top-2 left-2 p-0 border-0 bg-transparent rounded-full">
-                        <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="rounded-full border-2 border-background shadow-md" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Ver perfil de: {plant.ownerName || 'Anónimo'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-  
             {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
               <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
                 <Camera size={12} />
@@ -525,7 +510,12 @@ export default function PlantManagerFinal() {
                        {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
                     </div>
                 </>
-            ) : null}
+            ) : (
+              <button onClick={handleProfileClick} className="flex items-center gap-2 mt-1 group">
+                  {plant.ownerPhotoURL && <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={20} height={20} className="rounded-full" />}
+                  <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">{plant.ownerName || 'Anónimo'}</p>
+              </button>
+            )}
          </div>
       </Card>
     );
@@ -1066,3 +1056,5 @@ function UserProfileView({ profile, allPlants, firestore, currentUserId, onBack 
         </div>
     );
 }
+
+    
