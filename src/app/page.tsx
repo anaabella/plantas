@@ -44,6 +44,7 @@ type Plant = {
   events: PlantEvent[];
   giftFrom?: string;
   stolenFrom?: string;
+  lastPhotoUpdate?: string;
 };
 
 
@@ -74,6 +75,7 @@ export default function PlantManagerFinal() {
     events: [],
     giftFrom: '',
     stolenFrom: '',
+    lastPhotoUpdate: new Date().toISOString().split('T')[0],
   };
 
   // Estado del formulario
@@ -81,7 +83,7 @@ export default function PlantManagerFinal() {
 
   // Estado para nuevo evento
   const [newEvent, setNewEvent] = useState({
-    type: 'riego',
+    type: 'poda',
     date: new Date().toISOString().split('T')[0],
     note: ''
   });
@@ -109,6 +111,14 @@ export default function PlantManagerFinal() {
     return { color: 'text-red-500', bg: 'bg-red-50', days: diffDays };
   };
 
+  const needsPhotoUpdate = (lastUpdate: string | undefined) => {
+    if (!lastUpdate) return true; // If never updated, it needs one.
+    const last = new Date(lastUpdate);
+    const now = new Date();
+    const diffDays = Math.ceil((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays > 90; // 90 days = ~3 months
+  };
+
   const formatCurrency = (val: number | string | undefined) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(val) || 0);
 
   // --- Acciones ---
@@ -121,7 +131,7 @@ export default function PlantManagerFinal() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, image: reader.result as string }));
+      reader.onloadend = () => setFormData(prev => ({ ...prev, image: reader.result as string, lastPhotoUpdate: new Date().toISOString().split('T')[0] }));
       reader.readAsDataURL(file);
     }
   };
@@ -131,7 +141,7 @@ export default function PlantManagerFinal() {
     if (formData.id) {
       setPlants(plants.map(p => p.id === formData.id ? formData : p));
     } else {
-      setPlants([{ ...formData, id: Date.now().toString(), events: [] }, ...plants]);
+      setPlants([{ ...formData, id: Date.now().toString(), events: [], lastPhotoUpdate: new Date().toISOString().split('T')[0] }, ...plants]);
     }
     closeModal();
   };
@@ -140,8 +150,6 @@ export default function PlantManagerFinal() {
     e.preventDefault();
     const eventToAdd = { ...newEvent, id: Date.now() };
     let updatedFormData = { ...formData, events: [eventToAdd, ...(formData.events || [])] };
-    
-    if (newEvent.type === 'riego') updatedFormData.lastWatered = newEvent.date;
     
     setFormData(updatedFormData);
     if (formData.id) setPlants(plants.map(p => p.id === formData.id ? updatedFormData : p));
@@ -158,8 +166,7 @@ export default function PlantManagerFinal() {
   const waterPlantDirectly = (e: React.MouseEvent, plant: Plant) => {
     e.stopPropagation();
     const today = new Date().toISOString().split('T')[0];
-    const newEvent: PlantEvent = { id: Date.now(), type: 'riego', date: today, note: 'Riego rápido' };
-    const updatedPlant = { ...plant, lastWatered: today, events: [newEvent, ...(plant.events || [])]};
+    const updatedPlant = { ...plant, lastWatered: today };
     setPlants(plants.map(p => p.id === plant.id ? updatedPlant : p));
   };
 
@@ -266,7 +273,7 @@ export default function PlantManagerFinal() {
       <div className="max-w-5xl mx-auto p-4 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
-          const hijitosCount = plant.events?.filter(e => e.type === 'hijito').length || 0;
+          const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate);
           
           return (
             <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
@@ -280,6 +287,13 @@ export default function PlantManagerFinal() {
                   <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
                     {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
                   </div>
+
+                  {photoUpdateNeeded && plant.status === 'viva' && (
+                    <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
+                      <Camera size={12} />
+                      <span>Actualizar Foto</span>
+                    </div>
+                  )}
 
                   {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
                   {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
@@ -425,13 +439,10 @@ export default function PlantManagerFinal() {
                     <Select name="type" value={newEvent.type} onValueChange={(v) => setNewEvent({...newEvent, type: v})}>
                         <SelectTrigger><SelectValue/></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="riego">💧 Riego</SelectItem>
-                            <SelectItem value="fertilizante">🧪 Fertilizante</SelectItem>
                             <SelectItem value="poda">✂️ Poda</SelectItem>
                             <SelectItem value="plaga">🐞 Plaga</SelectItem>
                             <SelectItem value="transplante">🪴 Transplante</SelectItem>
                             <SelectItem value="hijito">👶 Hijito</SelectItem>
-                            <SelectItem value="otro">🗒️ Otro</SelectItem>
                         </SelectContent>
                     </Select>
                     <Input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})} />
