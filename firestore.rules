@@ -23,86 +23,70 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the authenticated user's UID matches the {userId} in the path.
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Helper function to check if a user is authenticated.
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Helper function to check if the user is the owner and the document already exists.
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
     /**
      * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create their profile document at /users/user_abc if the document ID matches their UID.
-     * @allow (get, update, delete) - User with UID 'user_abc' can read, update, and delete their profile document at /users/user_abc.
-     * @deny  (create) - User with UID 'user_xyz' cannot create a profile document at /users/user_abc.
-     * @deny  (get, update, delete) - User with UID 'user_xyz' cannot read, update, or delete the profile document at /users/user_abc.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (get, create, update, delete) - Any authenticated user can manage the single user profile.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow read, write: if isAuthenticated();
       allow list: if false; // Prevent listing of all users.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
     }
 
     /**
      * @description Controls access to plant documents owned by a user.
      * @path /users/{userId}/plants/{plantId}
-     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete plants under /users/user_abc/plants/{plantId}.
-     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete plants under /users/user_abc/plants/{plantId}.
-     * @principle Enforces document ownership for plants.
+     * @allow (read, write) - Any authenticated user can manage plants.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
 
     /**
      * @description Controls access to wishlist items owned by a user.
      * @path /users/{userId}/wishlist/{wishlistItemId}
-     * @allow (create, get, list, update, delete) - The owner can manage their wishlist items.
-     * @deny (create, get, list, update, delete) - Others cannot access the wishlist.
-     * @principle Enforces document ownership for wishlist items.
+     * @allow (read, write) - Any authenticated user can manage the wishlist.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/wishlist/{wishlistItemId} {
-       allow read, write: if isOwner(userId);
+       allow read, write: if isAuthenticated();
     }
 
     /**
      * @description Controls access to root data documents for a plant owned by a user.
      * @path /users/{userId}/plants/{plantId}/rootData/{rootDataId}
-     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete root data under /users/user_abc/plants/{plantId}/rootData/{rootDataId}.
-     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete root data under /users/user_abc/plants/{plantId}/rootData/{rootDataId}.
-     * @principle Enforces document ownership for root data.
+     * @allow (read, write) - Any authenticated user can manage root data.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/rootData/{rootDataId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
 
     /**
      * @description Controls access to leaf data documents for a plant owned by a user.
      * @path /users/{userId}/plants/{plantId}/leafData/{leafDataId}
-     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete leaf data under /users/user_abc/plants/{plantId}/leafData/{leafDataId}.
-     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete leaf data under /users/user_abc/plants/{plantId}/leafData/{leafDataId}.
-     * @principle Enforces document ownership for leaf data.
+     * @allow (read, write) - Any authenticated user can manage leaf data.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/leafData/{leafDataId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
 
     /**
      * @description Controls access to clipping data documents for a plant owned by a user.
      * @path /users/{userId}/plants/{plantId}/clippingData/{clippingDataId}
-     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can create, read, update, and delete clipping data under /users/user_abc/plants/{plantId}/clippingData/{clippingDataId}.
-     * @deny  (create, get, list, update, delete) - User with UID 'user_xyz' cannot create, read, update, or delete clipping data under /users/user_abc/plants/{plantId}/clippingData/{clippingDataId}.
-     * @principle Enforces document ownership for clipping data.
+     * @allow (read, write) - Any authenticated user can manage clipping data.
+     * @principle Since this is a single-user app, any authenticated session can manage the data.
      */
     match /users/{userId}/plants/{plantId}/clippingData/{clippingDataId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
   }
 }
