@@ -1,17 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Search, Sprout, Gift, DollarSign, Calendar as CalendarIcon, Trash2, Camera,
-  Leaf, Flower2, Droplets, HeartCrack, X, Save,
-  Sun, Home, BarChart3, Clock,
-  History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal, Carrot, Sparkles
+  Plus, Search, Sprout, Gift, DollarSign, Calendar as CalendarIcon,
+  Leaf, HeartCrack, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +15,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -40,31 +35,23 @@ import {
   getRedirectResult,
   signInWithRedirect
 } from 'firebase/auth';
-import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { onSnapshot, doc, collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
-import {
-    setDocumentNonBlocking,
-    addDocumentNonBlocking,
-    updateDocumentNonBlocking,
-    deleteDocumentNonBlocking,
-} from '@/firebase/non-blocking-updates';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getMonth, getYear, isSameDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { useUser, useAuth, useFirestore } from '@/firebase';
+import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from '@/components/ui/skeleton';
-import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
-import { recommendCrops, type CropRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
-import { PlantCard } from '@/components/plant-card';
+import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
+import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
+import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
+import { CalendarDialog } from '@/components/calendar-dialog';
+import { StatsDialog } from '@/components/stats-dialog';
+import { CropRecommenderDialog } from '@/components/crop-recommender-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 
 // Tipos
-type Plant = {
+export type Plant = {
   id: string;
   name: string;
   date: string; // ISO date string
@@ -89,14 +76,14 @@ type Plant = {
   ownerPhotoURL?: string;
 };
 
-type PlantEvent = {
+export type PlantEvent = {
   id: string;
   type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota';
   date: string; // ISO date string
   note: string;
 };
 
-type WishlistItem = {
+export type WishlistItem = {
   id: string;
   name: string;
   notes?: string;
@@ -458,7 +445,6 @@ export default function GardenApp() {
         plant={selectedPlant}
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
-        onUpdatePlant={() => {}}
       />
        {isPlantInfoOpen && (
             <PlantInfoDialog
@@ -480,7 +466,6 @@ export default function GardenApp() {
         setIsOpen={setIsCalendarOpen}
         plants={plants}
         onFetchPlantInfo={handleFetchPlantInfo}
-        setPlantInfoOpen={setIsPlantInfoOpen}
       />
       <StatsDialog
         isOpen={isStatsOpen}
@@ -615,262 +600,54 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   );
 }
 
-// Dialog para Editar Planta (más complejo)
-function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, onAddEvent, onRemoveEvent, onQuickAddEvent, onFetchInfo }: any) {
-  const [editedPlant, setEditedPlant] = useState(plant);
-  const [newEventNote, setNewEventNote] = useState("");
-  const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isNotePopoverOpen, setIsNotePopoverOpen] = useState(false);
-  const [diagnoseResult, setDiagnoseResult] = useState<DiagnosePlantOutput | null>(null);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
-  const [isInfoLoading, setIsInfoLoading] = useState(false);
-
-
-  useEffect(() => {
-    setEditedPlant(plant);
-    setDiagnoseResult(null); // Reset diagnosis on new plant
-    setPlantInfo(null); // Reset info on new plant
-  }, [plant]);
-
-  const handleChange = (field: keyof Plant, value: any) => {
-    setEditedPlant({ ...editedPlant, [field]: value });
-  };
-  
-  const handleAddNoteConfirm = () => {
-      onAddEvent(plant.id, { type: 'nota', date: newEventDate, note: newEventNote });
-      setNewEventNote("");
-      setIsNotePopoverOpen(false);
-  };
-
-  const handleDiagnose = async () => {
-    if (!editedPlant.image) {
-      alert("Se necesita una imagen para el diagnóstico.");
-      return;
-    }
-    setIsDiagnosing(true);
-    try {
-      const result = await diagnosePlant({
-        photoDataUri: editedPlant.image,
-        description: `La planta se llama ${editedPlant.name}. Notas adicionales: ${editedPlant.notes || 'ninguna'}`
-      });
-      setDiagnoseResult(result);
-    } catch (error) {
-      console.error(error);
-      alert("Error al obtener el diagnóstico.");
-    } finally {
-      setIsDiagnosing(false);
-    }
-  };
-
-  const handleFetchInfo = async () => {
-      setIsInfoLoading(true);
-      try {
-          const info = await getPlantInfo({ plantName: editedPlant.name });
-          setPlantInfo(info);
-      } catch (error) {
-          console.error("Error fetching plant info:", error);
-      } finally {
-          setIsInfoLoading(false);
-      }
-  };
-
-
-  const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'robado'];
-  const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
-  const locationOptions: Plant['location'][] = ['interior', 'exterior'];
-  const statusOptions: Plant['status'][] = ['viva', 'fallecida', 'intercambiada'];
-
-  const eventIcons = {
-    riego: <Droplets className="h-4 w-4 text-blue-500" />,
-    poda: <Scissors className="h-4 w-4 text-gray-500" />,
-    transplante: <Shovel className="h-4 w-4 text-orange-500" />,
-    foto: <Camera className="h-4 w-4 text-purple-500" />,
-    plaga: <Bug className="h-4 w-4 text-red-500" />,
-    fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
-    nota: <History className="h-4 w-4 text-yellow-500" />,
-  };
-  
-  if (!editedPlant) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <Tabs defaultValue="details" className="w-full">
-            <div className="flex justify-between items-start">
-                <DialogHeader className="mb-4">
-                    <DialogTitle className="text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-                    <DialogDescription>Modifica los detalles de tu planta.</DialogDescription>
-                </DialogHeader>
-                <TabsList>
-                    <TabsTrigger value="details">Detalles</TabsTrigger>
-                    <TabsTrigger value="log">Bitácora</TabsTrigger>
-                    <TabsTrigger value="gallery">Galería</TabsTrigger>
-                    <TabsTrigger value="ai-diag">Diagnóstico IA</TabsTrigger>
-                    <TabsTrigger value="ai-info">Info IA</TabsTrigger>
-                </TabsList>
-            </div>
-            
-            <TabsContent value="details" className="overflow-y-auto max-h-[70vh] p-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Columna Izquierda */}
-                    <div className="space-y-4">
-                        <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e) => handleChange('name', e.target.value)} />
-                        <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date} onChange={(e) => handleChange('date', e.target.value)} />
-                        <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                        {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                        {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                        {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                         {editedPlant.acquisitionType === 'robado' && <InputGroup label="Robado de" value={editedPlant.stolenFrom} onChange={(e) => handleChange('stolenFrom', e.target.value)} placeholder="Ubicación" />}
-
-                        <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e) => handleChange('notes', e.target.value)} />
-                    </div>
-
-                    {/* Columna Derecha */}
-                    <div className="space-y-4">
-                        <InputGroup label="URL de la Imagen" value={editedPlant.image} onChange={(e) => handleChange('image', e.target.value)} placeholder="https://example.com/plant.jpg" />
-                        {editedPlant.image && <img src={editedPlant.image} alt={editedPlant.name} className="rounded-lg object-cover w-full h-40" />}
-                        <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v) => handleChange('startType', v)} options={startTypeOptions} />
-                        <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v) => handleChange('location', v)} options={locationOptions} />
-                        <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v) => handleChange('status', v)} options={statusOptions} />
-                         {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
-
-                    </div>
-                </div>
-            </TabsContent>
-            
-            <TabsContent value="log" className="overflow-y-auto max-h-[70vh] p-1">
-                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Eventos Recientes</h3>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
-                         <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
-                        <Button variant="outline" size="sm" onClick={() => onQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
-                        
-                        <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm"><History className="mr-1 h-4 w-4"/>Añadir Nota</Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                                <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Nueva Nota</h4>
-                                    <p className="text-sm text-muted-foreground">Añade una nota al historial de la planta.</p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} />
-                                    <Textarea value={newEventNote} onChange={(e) => setNewEventNote(e.target.value)} placeholder="Escribe tu nota aquí..." />
-                                    <Button onClick={handleAddNoteConfirm}>Guardar Nota</Button>
-                                </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                </div>
-                <div className="space-y-3">
-                    {editedPlant.events?.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((event: PlantEvent) => (
-                        <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
-                            <div className="flex items-start gap-3">
-                                {eventIcons[event.type]}
-                                <div>
-                                    <p className="font-semibold capitalize">{event.type}</p>
-                                    <p className="text-sm text-muted-foreground">{event.note}</p>
-                                    <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
-                                </div>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemoveEvent(event.id)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ))}
-                    {editedPlant.events?.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
-                </div>
-            </TabsContent>
-            
-            <TabsContent value="gallery">
-                 <PlantDetailDialog plant={plant} isOpen={false} setIsOpen={()=>{}} onUpdatePlant={()=>{}} />
-            </TabsContent>
-
-            <TabsContent value="ai-diag" className="p-1">
-                 <div className="text-center p-4 rounded-lg bg-secondary/50">
-                    <h3 className="font-semibold">Diagnóstico con IA</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Usa IA para analizar una foto de tu planta y obtener un diagnóstico de salud y recomendaciones.</p>
-                    <Button onClick={handleDiagnose} disabled={isDiagnosing}>
-                        {isDiagnosing ? "Analizando..." : <><Bot className="mr-2 h-4 w-4" /> Analizar Foto Principal</>}
-                    </Button>
-                </div>
-                {isDiagnosing && <Skeleton className="h-40 w-full mt-4" />}
-                {diagnoseResult && <AIDiagnosisResult result={diagnoseResult} />}
-            </TabsContent>
-
-             <TabsContent value="ai-info" className="p-1">
-                <div className="text-center p-4 rounded-lg bg-secondary/50">
-                    <h3 className="font-semibold">Obtener Info con IA</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Obtén información detallada sobre tu planta, como cuidados, datos curiosos y más.</p>
-                    <Button onClick={handleFetchInfo} disabled={isInfoLoading}>
-                        {isInfoLoading ? "Buscando..." : <><Bot className="mr-2 h-4 w-4" /> Obtener Info de "{editedPlant.name}"</>}
-                    </Button>
-                </div>
-                {isInfoLoading && <Skeleton className="h-40 w-full mt-4" />}
-                {plantInfo && <PlantInfoDisplay info={plantInfo} />}
-            </TabsContent>
-        </Tabs>
-        
-        <DialogFooter className="mt-4">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="mr-auto"><Trash2 className="mr-2 h-4 w-4"/>Eliminar</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-          <Button onClick={() => onSave(plant.id, editedPlant)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-
-function AIDiagnosisResult({ result }: { result: DiagnosePlantOutput }) {
-  if (!result) return null;
-  const { identification, diagnosis } = result;
-
-  return (
-    <div className="mt-4 space-y-4 text-sm">
-      <div className="p-3 rounded-lg border bg-background">
-        <h4 className="font-semibold flex items-center"><Leaf className="mr-2 h-4 w-4 text-primary" />Identificación</h4>
-        <p><strong>Nombre Común:</strong> {identification.commonName}</p>
-        <p><strong>Nombre Latino:</strong> {identification.latinName}</p>
-        {!identification.isPlant && <Badge variant="destructive" className="mt-2">No parece ser una planta</Badge>}
+function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 className="mt-4 text-lg font-semibold">Tu lista de deseos está vacía</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Añade las plantas que te gustaría tener.</p>
+        <Button className="mt-6" onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
       </div>
-      <div className="p-3 rounded-lg border bg-background">
-        <h4 className="font-semibold flex items-center"><Heart className="mr-2 h-4 w-4 text-primary" />Diagnóstico de Salud</h4>
-        <Badge variant={diagnosis.isHealthy ? 'default' : 'destructive'} className={diagnosis.isHealthy ? 'bg-green-500' : ''}>
-            {diagnosis.isHealthy ? 'Saludable' : 'Necesita Atención'}
-        </Badge>
-        <p className="mt-2"><strong>Análisis:</strong> {diagnosis.diagnosis}</p>
-        <p className="mt-2"><strong>Recomendación:</strong> {diagnosis.recommendation}</p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-right">
+        <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((item: WishlistItem) => (
+          <div key={item.id} className="p-4 bg-background rounded-lg border flex flex-col">
+            <div className="flex-grow">
+              <h4 className="font-bold text-lg">{item.name}</h4>
+              <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Editar</Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                    <AlertDialogDescription>Se eliminará "{item.name}" de tu lista de deseos.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(item.id)}>Eliminar</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-
-function PlantInfoDialog({ isOpen, setIsOpen, plantName, info, isLoading }: any) {
+export function PlantInfoDialog({ isOpen, setIsOpen, plantName, info, isLoading }: any) {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-lg">
@@ -902,7 +679,11 @@ function PlantInfoDialog({ isOpen, setIsOpen, plantName, info, isLoading }: any)
     );
 }
 
-function PlantInfoDisplay({ info }: { info: PlantInfoOutput }) {
+export function PlantInfoDisplay({ info }: { info: PlantInfoOutput }) {
+    const { Lightbulb, Calendar: CalendarIcon, Info, Sparkles } = require('lucide-react');
+    const { Badge } = require('@/components/ui/badge');
+    const { format, es } = require('date-fns');
+
     const currentMonth = format(new Date(), 'MMMM', { locale: es });
 
     const isCareSeason = (season: string) => {
@@ -964,363 +745,3 @@ function PlantInfoDisplay({ info }: { info: PlantInfoOutput }) {
         </div>
     );
 }
-
-// Dialog de Wishlist
-function WishlistFormDialog({ isOpen, setIsOpen, onSave, item }: any) {
-  const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    if (item) {
-      setName(item.name);
-      setNotes(item.notes || '');
-    } else {
-      setName('');
-      setNotes('');
-    }
-  }, [item, isOpen]);
-
-  const handleSubmit = () => {
-    if (!name) {
-      alert("El nombre es obligatorio.");
-      return;
-    }
-    onSave({ name, notes }, item?.id);
-  };
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{item ? "Editar Deseo" : "Nuevo Deseo"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <Input placeholder="Nombre de la planta" value={name} onChange={(e) => setName(e.target.value)} />
-          <Textarea placeholder="Notas (dónde encontrarla, precio, etc.)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Guardar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
-  if (items.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" />
-        <h3 className="mt-4 text-lg font-semibold">Tu lista de deseos está vacía</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Añade las plantas que te gustaría tener.</p>
-        <Button className="mt-6" onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="text-right">
-        <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Artículo</Button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item: WishlistItem) => (
-          <div key={item.id} className="p-4 bg-background rounded-lg border flex flex-col">
-            <div className="flex-grow">
-              <h4 className="font-bold text-lg">{item.name}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Editar</Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                    <AlertDialogDescription>Se eliminará "{item.name}" de tu lista de deseos.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(item.id)}>Eliminar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-function CalendarDialog({ isOpen, setIsOpen, plants, onFetchPlantInfo, setPlantInfoOpen }: any) {
-    const [date, setDate] = useState<Date | undefined>(new Date());
-    const [selectedPlantForInfo, setSelectedPlantForInfo] = useState<string | null>(null);
-
-    const allEvents = useMemo(() => {
-        return plants.flatMap((plant: Plant) => 
-            (plant.events || []).map(event => ({ ...event, plantName: plant.name, plantId: plant.id }))
-        );
-    }, [plants]);
-
-    const eventsByDay = useMemo(() => {
-        const grouped: { [key: string]: typeof allEvents } = {};
-        allEvents.forEach(event => {
-            const day = format(parseISO(event.date), 'yyyy-MM-dd');
-            if (!grouped[day]) {
-                grouped[day] = [];
-            }
-            grouped[day].push(event);
-        });
-        return grouped;
-    }, [allEvents]);
-
-    const daysWithEvents = useMemo(() => {
-        return Object.keys(eventsByDay).map(dayStr => new Date(dayStr + 'T12:00:00'));
-    }, [eventsByDay]);
-
-    const selectedDayEvents = date ? eventsByDay[format(date, 'yyyy-MM-dd')] || [] : [];
-    
-    const eventIcons = {
-        riego: <Droplets className="h-5 w-5 text-blue-500" />,
-        poda: <Scissors className="h-5 w-5 text-gray-500" />,
-        transplante: <Shovel className="h-5 w-5 text-orange-500" />,
-        foto: <Camera className="h-5 w-5 text-purple-500" />,
-        plaga: <Bug className="h-5 w-5 text-red-500" />,
-        fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
-        nota: <History className="h-5 w-5 text-yellow-500" />,
-    };
-
-    const handlePlantInfoSelect = (plantId: string) => {
-        const plant = plants.find((p:Plant) => p.id === plantId);
-        if (plant) {
-            onFetchPlantInfo(plant.name);
-        }
-    };
-
-     const exportToIcs = () => {
-        let icsString = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//PlantPal//NONSGML v1.0//EN\n';
-
-        allEvents.forEach(event => {
-            const eventDate = new Date(event.date);
-            const formattedDate = format(eventDate, "yyyyMMdd'T'HHmmss'Z'");
-            const summary = `${event.type.charAt(0).toUpperCase() + event.type.slice(1)}: ${event.plantName}`;
-            
-            icsString += 'BEGIN:VEVENT\n';
-            icsString += `UID:${event.id}@plantpal.app\n`;
-            icsString += `DTSTAMP:${formattedDate}\n`;
-            icsString += `DTSTART;VALUE=DATE:${format(eventDate, 'yyyyMMdd')}\n`;
-            icsString += `SUMMARY:${summary}\n`;
-            icsString += `DESCRIPTION:${event.note.replace(/\n/g, '\\n')}\n`;
-            icsString += 'END:VEVENT\n';
-        });
-
-        icsString += 'END:VCALENDAR';
-
-        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'plantpal_events.ics';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Calendario de Cuidados</DialogTitle>
-                    <DialogDescription>
-                        Visualiza los eventos de tus plantas y planifica cuidados futuros.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <Calendar
-                            mode="single"
-                            selected={date}
-                            onSelect={setDate}
-                            className="rounded-md border"
-                            locale={es}
-                            modifiers={{ daysWithEvents }}
-                            modifiersStyles={{ daysWithEvents: { borderColor: 'hsl(var(--primary))', borderWidth: '2px', borderRadius: '9999px' } }}
-                        />
-                         <div className="mt-4">
-                            <Button onClick={exportToIcs}>Exportar Eventos (.ics)</Button>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-semibold mb-2">Eventos del día</h3>
-                             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                                {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
-                                    <div key={event.id} className="flex items-start gap-3 p-2 rounded-md bg-secondary/50">
-                                        {eventIcons[event.type]}
-                                        <div>
-                                            <p className="font-semibold">{event.plantName}</p>
-                                            <p className="text-sm text-muted-foreground capitalize">{event.type}: {event.note}</p>
-                                        </div>
-                                    </div>
-                                )) : <p className="text-sm text-muted-foreground text-center py-4">No hay eventos para este día.</p>}
-                            </div>
-                        </div>
-                        <Separator />
-                        <div>
-                             <h3 className="font-semibold mb-2">Recomendaciones del Mes</h3>
-                             <Select onValueChange={handlePlantInfoSelect}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una planta..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {plants.map((p:Plant) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
-                        </div>
-                    </div>
-                </div>
-                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function StatsDialog({ isOpen, setIsOpen, plants }: any) {
-  const stats = useMemo(() => {
-    const total = plants.length;
-    const alive = plants.filter((p:Plant) => p.status === 'viva').length;
-    const deceased = plants.filter((p:Plant) => p.status === 'fallecida').length;
-    const traded = plants.filter((p: Plant) => p.status === 'intercambiada').length;
-    const acquisition = plants.reduce((acc:any, p:Plant) => {
-      acc[p.acquisitionType] = (acc[p.acquisitionType] || 0) + 1;
-      return acc;
-    }, {});
-    const location = plants.reduce((acc:any, p:Plant) => {
-      acc[p.location] = (acc[p.location] || 0) + 1;
-      return acc;
-    }, {});
-
-    return { total, alive, deceased, traded, acquisition, location };
-  }, [plants]);
-
-  const StatCard = ({ icon: Icon, label, value, color }: any) => (
-    <div className="p-4 bg-background rounded-lg border flex items-center gap-4">
-      <div className={`p-3 rounded-full ${color}`}>
-        <Icon className="h-6 w-6 text-white" />
-      </div>
-      <div>
-        <p className="text-2xl font-bold">{value}</p>
-        <p className="text-sm text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Estadísticas del Jardín</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
-          <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
-          <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
-          <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
-          <StatCard icon={DollarSign} label="Compradas" value={stats.acquisition.compra || 0} color="bg-yellow-500" />
-          <StatCard icon={Gift} label="Regaladas" value={stats.acquisition.regalo || 0} color="bg-pink-500" />
-          <StatCard icon={ArrowRightLeft} label="Intercambiadas" value={stats.acquisition.intercambio || 0} color="bg-purple-500" />
-          <StatCard icon={Sun} label="Exterior" value={stats.location.exterior || 0} color="bg-orange-500" />
-          <StatCard icon={Home} label="Interior" value={stats.location.interior || 0} color="bg-indigo-500" />
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-
-function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (isOpen: boolean) => void }) {
-    const [userQuery, setUserQuery] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [recommendations, setRecommendations] = useState<CropRecommenderOutput | null>(null);
-
-    const handleRecommend = async () => {
-        if (!userQuery) return;
-        setIsLoading(true);
-        setRecommendations(null);
-        try {
-            const result = await recommendCrops({ userQuery });
-            setRecommendations(result);
-        } catch (error) {
-            console.error(error);
-            // Mostrar toast de error
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Asistente de Huerta</DialogTitle>
-                    <DialogDescription>Describe tu espacio (ej. "balcón soleado", "patio con sombra") y la IA te recomendará qué plantar.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                    <Textarea 
-                        placeholder="Tengo un pequeño balcón que recibe sol directo por la mañana..."
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                    />
-                    <Button onClick={handleRecommend} disabled={isLoading || !userQuery}>
-                        {isLoading ? 'Pensando...' : 'Obtener Recomendaciones'}
-                    </Button>
-                </div>
-                {isLoading && <div className="mt-4 space-y-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>}
-                {recommendations && (
-                    <div className="mt-4 space-y-3">
-                        <h3 className="font-semibold">Aquí tienes algunas sugerencias:</h3>
-                        {recommendations.recommendations.map((rec, index) => (
-                            <div key={index} className="p-3 border rounded-lg">
-                                <h4 className="font-bold">{rec.name}</h4>
-                                <p className="text-sm text-muted-foreground"><strong>Cosecha:</strong> {rec.timeToHarvest}</p>
-                                <p className="text-sm text-muted-foreground"><strong>Ubicación:</strong> {rec.plantingLocation}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// -- Componentes de Formulario Genéricos --
-const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
-  </div>
-);
-
-const TextareaGroup = ({ label, value, onChange, placeholder }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Textarea value={value || ''} onChange={onChange} placeholder={placeholder} />
-  </div>
-);
-
-const SelectGroup = ({ label, value, onValueChange, options }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger>{value ? value.charAt(0).toUpperCase() + value.slice(1) : `Select ${label}`}</SelectTrigger>
-      <SelectContent>
-        {options.map((option: string) => (
-          <SelectItem key={option} value={option}>
-            {option.charAt(0).toUpperCase() + option.slice(1)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);
