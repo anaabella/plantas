@@ -87,9 +87,14 @@ export default function PlantManagerFinal() {
   const userId = user?.uid;
 
   const plantsRef = useMemoFirebase(() => {
+    // Only create ref if firestore is available and user loading is finished
     if (!firestore || isLoadingUser) return null; 
-    return collection(firestore, 'plants');
-  }, [firestore, isLoadingUser]);
+    // And if we have a user
+    if (user) {
+        return collection(firestore, 'plants');
+    }
+    return null;
+  }, [firestore, isLoadingUser, user]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -237,10 +242,12 @@ export default function PlantManagerFinal() {
 
   const savePlant = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plantsRef || !userId) return;
+    if (!firestore || !userId) return;
+    
+    const plantsCollectionRef = collection(firestore, 'plants');
 
     if (formData.id) {
-       const plantDocRef = doc(plantsRef, formData.id);
+       const plantDocRef = doc(plantsCollectionRef, formData.id);
        const dataToUpdate = { ...formData };
        delete dataToUpdate.id; // Don't save id inside the document
        updateDocumentNonBlocking(plantDocRef, dataToUpdate);
@@ -254,13 +261,14 @@ export default function PlantManagerFinal() {
         lastPhotoUpdate: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp() 
       };
-      addDocumentNonBlocking(plantsRef, dataToSave);
+      addDocumentNonBlocking(plantsCollectionRef, dataToSave);
     }
     closeModal();
   };
   
   const addEvent = (type: string, note?: string) => {
-    if (!formData.id || !plantsRef) return;
+    if (!formData.id || !firestore) return;
+    const plantsCollectionRef = collection(firestore, 'plants');
   
     const eventToAdd = {
       type,
@@ -273,18 +281,19 @@ export default function PlantManagerFinal() {
     const updatedFormData = { ...formData, events: updatedEvents };
   
     setFormData(updatedFormData);
-    const plantDocRef = doc(plantsRef, formData.id);
+    const plantDocRef = doc(plantsCollectionRef, formData.id);
     updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
   
   const deleteEvent = (eventId: string) => {
-    if (!formData.id || !plantsRef) return;
+    if (!formData.id || !firestore) return;
+    const plantsCollectionRef = collection(firestore, 'plants');
   
     const updatedEvents = formData.events?.filter(ev => ev.id !== eventId);
     const updatedFormData = { ...formData, events: updatedEvents };
   
     setFormData(updatedFormData);
-    const plantDocRef = doc(plantsRef, formData.id);
+    const plantDocRef = doc(plantsCollectionRef, formData.id);
     updateDocumentNonBlocking(plantDocRef, { events: updatedEvents });
   };
 
@@ -327,8 +336,8 @@ export default function PlantManagerFinal() {
 
   const closeModal = () => setShowModal(false);
   const deletePlant = (id: string) => { 
-    if (window.confirm('¿Eliminar esta planta permanentemente?') && plantsRef) { 
-      deleteDocumentNonBlocking(doc(plantsRef, id));
+    if (window.confirm('¿Eliminar esta planta permanentemente?') && firestore) { 
+      deleteDocumentNonBlocking(doc(collection(firestore, 'plants'), id));
       closeModal(); 
     }
   };
@@ -378,12 +387,13 @@ export default function PlantManagerFinal() {
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!plantsRef || !userId) return;
+    if (!firestore || !userId) return;
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => { 
         try { 
-            const importedPlants = JSON.parse(ev.target?.result as string); 
+            const importedPlants = JSON.parse(ev.target?.result as string);
+            const plantsCollectionRef = collection(firestore, 'plants'); 
             if(window.confirm(`¿Importar ${importedPlants.length} plantas a tu colección?`)) {
                 importedPlants.forEach((p: any) => {
                     const dataToSave = { 
@@ -394,7 +404,7 @@ export default function PlantManagerFinal() {
                       createdAt: serverTimestamp() 
                     };
                     delete dataToSave.id;
-                    addDocumentNonBlocking(plantsRef, dataToSave);
+                    addDocumentNonBlocking(plantsCollectionRef, dataToSave);
                 });
             }
         } catch(e){
@@ -506,7 +516,7 @@ export default function PlantManagerFinal() {
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {(isLoadingUser || isLoadingPlants) && Array.from({length: 10}).map((_, i) => (
+        {(isLoadingUser || (isLoadingPlants && user)) && Array.from({length: 10}).map((_, i) => (
              <Card key={i} className="overflow-hidden">
                  <div className="aspect-square relative bg-secondary animate-pulse"></div>
                  <div className="p-3">
@@ -515,7 +525,12 @@ export default function PlantManagerFinal() {
                  </div>
              </Card>
         ))}
-        {!(isLoadingUser || isLoadingPlants) && filteredPlants.map(plant => {
+        {!isLoadingUser && !user && (
+          <div className="col-span-full text-center py-16">
+            <p className="text-lg font-medium text-muted-foreground">Inicia sesión para ver y gestionar tu jardín.</p>
+          </div>
+        )}
+        {user && filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
           const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
           const isOwner = plant.ownerId === userId;
@@ -877,5 +892,3 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
-
-    
