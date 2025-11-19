@@ -866,7 +866,7 @@ export default function PlantManagerFinal() {
                 <TooltipProvider>
                   <div className="mb-6 p-3 bg-secondary rounded-lg">
                       <p className="text-sm font-medium text-center mb-3 text-muted-foreground">Registro Rápido de Eventos</p>
-                      <div className="grid grid-cols-5 gap-2 text-center">
+                      <div className="grid grid-cols-6 gap-2 text-center">
                           <Tooltip>
                               <TooltipTrigger asChild>
                                   <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('poda', 'Poda realizada')}>
@@ -906,6 +906,14 @@ export default function PlantManagerFinal() {
                                   </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Floreció</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="outline" size="icon" className="h-14 w-14 rounded-full flex flex-col items-center justify-center gap-1" onClick={() => addEvent('fertilizante', 'Se aplicó fertilizante')}>
+                                      <Beaker size={20} />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Fertilizar</p></TooltipContent>
                           </Tooltip>
                       </div>
                   </div>
@@ -1292,6 +1300,30 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
 
 function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean, onOpenChange: (open: boolean) => void, userPlants: Plant[] }) {
     const [date, setDate] = useState<Date | undefined>(new Date());
+    const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
+    const [seasonalInfo, setSeasonalInfo] = useState<PlantInfoOutput | null>(null);
+    const [isLoadingInfo, setIsLoadingInfo] = useState(false);
+
+    const selectedPlant = userPlants.find(p => p.id === selectedPlantId);
+
+    useEffect(() => {
+        if (selectedPlant) {
+            const fetchInfo = async () => {
+                setIsLoadingInfo(true);
+                setSeasonalInfo(null);
+                try {
+                    const result = await getPlantInfo({ plantName: selectedPlant.name });
+                    setSeasonalInfo(result);
+                } catch (error) {
+                    console.error("Error fetching plant info for calendar:", error);
+                }
+                setIsLoadingInfo(false);
+            };
+            fetchInfo();
+        } else {
+            setSeasonalInfo(null);
+        }
+    }, [selectedPlant]);
   
     const allEvents = useMemo(() => {
       return userPlants.flatMap(plant => 
@@ -1327,40 +1359,86 @@ function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean,
   
     const getIconForEvent = (type: string) => {
         switch (type) {
-            case 'poda': return <Scissors size={16} className="text-gray-500"/>;
+            case 'poda': return <Scissors size={16} className="text-blue-500"/>;
             case 'plaga': return <Bug size={16} className="text-red-500"/>;
             case 'transplante': return <Shovel size={16} className="text-yellow-700"/>;
             case 'hijito': return <Baby size={16} className="text-green-500"/>;
             case 'florecio': return <Flower2 size={16} className="text-pink-500"/>;
+            case 'fertilizante': return <Beaker size={16} className="text-green-600"/>;
             default: return <Sprout size={16} className="text-gray-400"/>;
         }
     }
+
+    const getSeason = (date: Date) => {
+        const month = date.getMonth();
+        if (month >= 8 && month <= 10) return 'Primavera';
+        if (month >= 11 || month <= 1) return 'Verano';
+        if (month >= 2 && month <= 4) return 'Otoño';
+        return 'Invierno';
+    };
+    const currentSeason = getSeason(new Date());
   
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Calendario de Cuidados</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-md border justify-center"
-              locale={es}
-              modifiers={{
-                event: eventDays,
-              }}
-              modifiersStyles={{
-                event: {
-                  border: `2px solid hsl(var(--primary))`,
-                  borderRadius: '9999px',
-                },
-              }}
-            />
-            <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
-              <h3 className="font-bold text-lg border-b pb-2">
+            <div className="flex flex-col gap-4">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  className="rounded-md border justify-center"
+                  locale={es}
+                  modifiers={{ event: eventDays }}
+                  modifiersStyles={{ event: { border: `2px solid hsl(var(--primary))` } }}
+                />
+                <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-3 text-lg">Recomendaciones del Mes</h3>
+                     <Select onValueChange={setSelectedPlantId} value={selectedPlantId || ''}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una planta..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {userPlants.filter(p => p.status === 'viva').map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    
+                    {isLoadingInfo && <p className="text-sm text-muted-foreground mt-4 text-center">Buscando recomendaciones...</p>}
+                    
+                    {seasonalInfo && (
+                        <div className="space-y-3 text-sm mt-4">
+                           <div className={`flex gap-3 items-start p-2 rounded-md ${seasonalInfo.seasonalCare.fertilize.includes(currentSeason) ? 'bg-green-100 dark:bg-green-900/50' : ''}`}>
+                                <Beaker className="text-green-600 mt-0.5 flex-shrink-0" size={18}/> 
+                                <div>
+                                    <span className="font-medium">Fertilizar:</span> {seasonalInfo.seasonalCare.fertilize}
+                                    {seasonalInfo.seasonalCare.fertilize.includes(currentSeason) && <span className="text-xs font-bold text-green-700 dark:text-green-300 ml-2">(¡Ahora!)</span>}
+                                </div>
+                            </div>
+                            <div className={`flex gap-3 items-start p-2 rounded-md ${seasonalInfo.seasonalCare.prune.includes(currentSeason) ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                                <Scissors className="text-blue-600 mt-0.5 flex-shrink-0" size={18}/> 
+                                <div>
+                                   <span className="font-medium">Podar:</span> {seasonalInfo.seasonalCare.prune}
+                                   {seasonalInfo.seasonalCare.prune.includes(currentSeason) && <span className="text-xs font-bold text-blue-700 dark:text-blue-300 ml-2">(¡Ahora!)</span>}
+                                </div>
+                            </div>
+                             <div className={`flex gap-3 items-start p-2 rounded-md ${seasonalInfo.seasonalCare.repot.includes(currentSeason) ? 'bg-yellow-100 dark:bg-yellow-900/50' : ''}`}>
+                                <RefreshCcw className="text-yellow-700 mt-0.5 flex-shrink-0" size={18}/> 
+                                <div>
+                                   <span className="font-medium">Transplantar:</span> {seasonalInfo.seasonalCare.repot}
+                                   {seasonalInfo.seasonalCare.repot.includes(currentSeason) && <span className="text-xs font-bold text-yellow-800 dark:text-yellow-300 ml-2">(¡Ahora!)</span>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
+              <h3 className="font-bold text-lg border-b pb-2 sticky top-0 bg-background/95 backdrop-blur-sm">
                 Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : '...'}
               </h3>
               {selectedDayEvents.length > 0 ? (
@@ -1393,3 +1471,5 @@ function CalendarDialog({ isOpen, onOpenChange, userPlants }: { isOpen: boolean,
   
   
   
+
+    
