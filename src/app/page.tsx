@@ -24,7 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 
 // Types
@@ -86,15 +86,21 @@ export default function PlantManagerFinal() {
   const { user, isLoading: isLoadingUser } = useUser();
   const userId = user?.uid;
 
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .catch((error) => {
+        // Handle Errors here.
+        if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-blocked') {
+            console.error("Error with redirect result: ", error);
+        }
+      });
+  }, [auth]);
+
   const plantsRef = useMemoFirebase(() => {
-    // Only create ref if firestore is available and user loading is finished
-    if (!firestore || isLoadingUser) return null; 
-    // And if we have a user
-    if (user) {
-        return collection(firestore, 'plants');
-    }
-    return null;
-  }, [firestore, isLoadingUser, user]);
+    if (!firestore) return null;
+    return collection(firestore, 'plants');
+  }, [firestore]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -117,7 +123,9 @@ export default function PlantManagerFinal() {
       await signInWithPopup(auth, provider);
       // The useUser hook will handle the user state update
     } catch (error: any) {
-        if (error.code !== 'auth/cancelled-popup-request') {
+        if (error.code === 'auth/popup-blocked') {
+          await signInWithRedirect(auth, provider);
+        } else if (error.code !== 'auth/cancelled-popup-request') {
             console.error("Error signing in with Google: ", error);
         }
     }
@@ -516,7 +524,7 @@ export default function PlantManagerFinal() {
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {(isLoadingUser || (isLoadingPlants && user)) && Array.from({length: 10}).map((_, i) => (
+        {(isLoadingPlants && plants.length === 0) && Array.from({length: 10}).map((_, i) => (
              <Card key={i} className="overflow-hidden">
                  <div className="aspect-square relative bg-secondary animate-pulse"></div>
                  <div className="p-3">
@@ -525,12 +533,7 @@ export default function PlantManagerFinal() {
                  </div>
              </Card>
         ))}
-        {!isLoadingUser && !user && (
-          <div className="col-span-full text-center py-16">
-            <p className="text-lg font-medium text-muted-foreground">Inicia sesión para ver y gestionar tu jardín.</p>
-          </div>
-        )}
-        {user && filteredPlants.map(plant => {
+        {filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
           const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
           const isOwner = plant.ownerId === userId;
@@ -799,7 +802,7 @@ export default function PlantManagerFinal() {
                 {diagnosisResult && (
                   <div className="mt-6 text-left space-y-4">
                     <Alert variant={diagnosisResult.diagnosis.isHealthy ? 'default' : 'destructive'}>
-                      <AlertTitle className="font-bold flex items-center gap-2">
+                       <AlertTitle className="font-bold flex items-center gap-2">
                          {diagnosisResult.diagnosis.isHealthy ? <CheckCircle size={20}/> : <AlertCircle size={20}/>}
                         Veredicto: {diagnosisResult.diagnosis.isHealthy ? 'Planta Sana' : 'Necesita Atención'}
                       </AlertTitle>
@@ -892,3 +895,5 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+
+    
