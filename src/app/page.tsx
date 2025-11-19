@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
@@ -63,8 +63,13 @@ type WishlistItem = {
   name: string;
   notes: string;
   image: string | null;
-}
+};
 
+type UserProfileType = {
+  uid: string;
+  displayName?: string;
+  photoURL?: string;
+}
 
 export default function PlantManagerFinal() {
   // --- Estados ---
@@ -80,6 +85,7 @@ export default function PlantManagerFinal() {
   const wishlistImageInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const [currentView, setCurrentView] = useState('community'); // 'community' o 'mine'
+  const [viewingProfile, setViewingProfile] = useState<UserProfileType | null>(null);
 
 
   // --- Firebase ---
@@ -89,13 +95,16 @@ export default function PlantManagerFinal() {
 
   useEffect(() => {
     if (!auth) return;
-    getRedirectResult(auth)
-      .catch((error) => {
-        // Handle Errors here.
-        if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-blocked') {
-            console.error("Error with redirect result: ", error);
-        }
-      });
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      getRedirectResult(auth)
+        .catch((error) => {
+          // Handle Errors here.
+          if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-blocked') {
+              console.error("Error with redirect result: ", error);
+          }
+        });
+    }
   }, [auth]);
 
   const plantsRef = useMemoFirebase(() => {
@@ -120,13 +129,19 @@ export default function PlantManagerFinal() {
   const handleGoogleSignIn = async () => {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
     try {
-      await signInWithPopup(auth, provider);
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
       // The useUser hook will handle the user state update
     } catch (error: any) {
         if (error.code === 'auth/popup-blocked') {
           await signInWithRedirect(auth, provider);
-        } else if (error.code !== 'auth/cancelled-popup-request') {
+        } else if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
             console.error("Error signing in with Google: ", error);
         }
     }
@@ -141,12 +156,12 @@ export default function PlantManagerFinal() {
   const initialFormData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'> = {
     name: '',
     image: null,
-    acquisitionType: 'compra', // compra, regalo, intercambio, robado
-    exchangeSource: '', // "Llegó a cambio de X"
+    acquisitionType: 'compra',
+    exchangeSource: '', 
     price: '',
     date: new Date().toISOString().split('T')[0],
-    status: 'viva', // viva, fallecida, intercambiada
-    exchangeDest: '', // "Se fue a cambio de Y" (Solo si se fue toda la planta)
+    status: 'viva',
+    exchangeDest: '',
     startType: 'planta',
     location: 'interior',
     lastWatered: new Date().toISOString().split('T')[0],
@@ -263,14 +278,12 @@ export default function PlantManagerFinal() {
     } else {
       const dataToSave = { 
         ...formData, 
-        status: 'viva',
         ownerId: userId,
         ownerName: user?.displayName,
         ownerPhotoURL: user?.photoURL,
-        lastPhotoUpdate: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp() 
       };
-      addDocumentNonBlocking(plantsCollectionRef, dataToSave);
+      addDocumentNonBlocking(plantsCollectionRef, dataToSave as Plant);
     }
     closeModal();
   };
@@ -360,6 +373,20 @@ export default function PlantManagerFinal() {
     }
   };
 
+  const addPlantToWishlist = (plant: Plant) => {
+    if (!wishlistRef) {
+      alert("Por favor, inicia sesión para añadir a tu lista de deseos.");
+      return;
+    }
+    const item = {
+      name: plant.name,
+      notes: `Visto en el jardín de ${plant.ownerName || 'alguien'}.`,
+      image: plant.image,
+    };
+    addDocumentNonBlocking(wishlistRef, item);
+     alert(`${plant.name} añadido a tu lista de deseos!`);
+  };
+
   const deleteWishlistItem = (id: string) => {
     if (wishlistRef) {
         deleteDocumentNonBlocking(doc(wishlistRef, id));
@@ -413,7 +440,7 @@ export default function PlantManagerFinal() {
                       createdAt: serverTimestamp() 
                     };
                     delete dataToSave.id;
-                    addDocumentNonBlocking(plantsCollectionRef, dataToSave);
+                    addDocumentNonBlocking(plantsCollectionRef, dataToSave as Plant);
                 });
             }
         } catch(e){
@@ -449,71 +476,96 @@ export default function PlantManagerFinal() {
   }, [plants, currentView, userId, searchTerm, filterStatus]);
 
 
-  const PlantCard = ({ plant }: { plant: Plant }) => {
-      const w = getWateringStatus(plant.lastWatered);
-      const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
-      const isOwner = plant.ownerId === userId;
-
-      return (
-        <Card onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
-           <div className="aspect-square relative bg-secondary overflow-hidden">
-              {plant.image ? (
-                <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
-              )}
-              
+  const PlantCard = ({ plant, view }: { plant: Plant, view: 'mine' | 'community' }) => {
+    const w = getWateringStatus(plant.lastWatered);
+    const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
+    const isOwner = plant.ownerId === userId;
+  
+    const handleWishlistClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      addPlantToWishlist(plant);
+    };
+  
+    const handleProfileClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setViewingProfile({ uid: plant.ownerId, displayName: plant.ownerName, photoURL: plant.ownerPhotoURL });
+    }
+  
+    return (
+      <Card onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
+         <div className="aspect-square relative bg-secondary overflow-hidden">
+            {plant.image ? (
+              <Image src={plant.image} alt={plant.name} fill className={`object-cover transition-transform group-hover:scale-105 ${plant.status === 'fallecida' ? 'grayscale' : ''}`} sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
+            )}
+            
+            {view === 'mine' && (
               <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
                 {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
               </div>
-
-               {plant.ownerPhotoURL && (
+            )}
+  
+             {plant.ownerPhotoURL && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={handleProfileClick} className="absolute top-2 left-2 p-0 border-0 bg-transparent rounded-full">
+                        <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="rounded-full border-2 border-background shadow-md" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Ver perfil de: {plant.ownerName || 'Anónimo'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+  
+            {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
+              <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
+                <Camera size={12} />
+                <span>Actualizar Foto</span>
+              </div>
+            )}
+  
+            {view === 'community' && user && !isOwner && (
                 <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="absolute top-2 left-2 rounded-full border-2 border-background shadow-md" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>De: {plant.ownerName || 'Anónimo'}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                             <Button onClick={handleWishlistClick} variant="ghost" size="icon" className="absolute top-1 right-1 bg-background/50 hover:bg-background/80 text-rose-500 hover:text-rose-600 rounded-full h-8 w-8">
+                                <Heart />
+                             </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Añadir a mi lista de deseos</p></TooltipContent>
+                    </Tooltip>
                 </TooltipProvider>
-              )}
-
-              {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
-                <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
-                  <Camera size={12} />
-                  <span>Actualizar Foto</span>
-                </div>
-              )}
-
-              {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
-              {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
-           </div>
-           
-           <div className="p-3">
-              <div className="flex justify-between items-start">
-                 <h3 className="font-bold truncate">{plant.name}</h3>
-                 {plant.status === 'viva' && (
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color}`}>
-                       <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
+            )}
+  
+            {plant.status === 'fallecida' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px]"><HeartCrack size={16} className="mr-2"/> EN MEMORIA</div>}
+            {plant.status === 'intercambiada' && <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center text-white font-bold text-sm tracking-widest backdrop-blur-[1px] text-center px-4"><ArrowRightLeft size={16} className="mr-2"/> INTERCAMBIADA</div>}
+         </div>
+         
+         <div className="p-3">
+             <h3 className="font-bold truncate">{plant.name}</h3>
+            {view === 'mine' ? (
+                <>
+                    {plant.status === 'viva' && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${w.bg} ${w.color} w-fit`}>
+                           <Clock size={10}/> {w.days === 0 ? 'HOY' : `${w.days}d`}
+                        </div>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                       <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
+                       {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
+                       {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
+                       {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
+                       {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
                     </div>
-                 )}
-              </div>
-              
-              <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
-                 <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="capitalize">{plant.startType}</Badge>
-                    {plant.acquisitionType === 'compra' && <Badge variant="outline">{formatCurrency(plant.price)}</Badge>}
-                    {plant.acquisitionType === 'regalo' && <Badge variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">De: {plant.giftFrom}</Badge>}
-                    {plant.acquisitionType === 'intercambio' && <Badge variant="outline" className="border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400">Por: {plant.exchangeSource}</Badge>}
-                    {plant.acquisitionType === 'robado' && <Badge variant="destructive" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">De: {plant.stolenFrom}</Badge>}
-                 </div>
-              </div>
-
-           </div>
-        </Card>
-      );
+                </>
+            ) : null}
+         </div>
+      </Card>
+    );
   };
 
   if (isLoadingUser) {
@@ -526,6 +578,11 @@ export default function PlantManagerFinal() {
         </div>
     )
   }
+
+  if (viewingProfile) {
+    return <UserProfileView profile={viewingProfile} allPlants={plants} firestore={firestore} currentUserId={userId} onBack={() => setViewingProfile(null)} />;
+  }
+
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
@@ -633,7 +690,7 @@ export default function PlantManagerFinal() {
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredPlants.map(plant => <PlantCard key={plant.id} plant={plant} />)}
+            {filteredPlants.map(plant => <PlantCard key={plant.id} plant={plant} view={currentView} />)}
         </div>
       </div>
 
@@ -874,7 +931,7 @@ export default function PlantManagerFinal() {
       <Dialog open={showWishlist} onOpenChange={setShowWishlist}>
         <DialogContent className="max-w-md">
             <DialogHeader>
-                <DialogTitle>Lista de Deseos</DialogTitle>
+                <DialogTitle>Mi Lista de Deseos</DialogTitle>
             </DialogHeader>
             <form onSubmit={addWishlistItem} className="flex items-start gap-2">
                 <div className="flex-1 space-y-2">
@@ -930,4 +987,121 @@ export default function PlantManagerFinal() {
       </Dialog>
     </div>
   );
+}
+
+
+function UserProfileView({ profile, allPlants, firestore, currentUserId, onBack }: { profile: UserProfileType, allPlants: Plant[], firestore: any, currentUserId: string | undefined, onBack: () => void }) {
+    const [activeTab, setActiveTab] = useState('plants');
+
+    const userPlants = useMemo(() => allPlants.filter(p => p.ownerId === profile.uid), [allPlants, profile.uid]);
+    
+    const userWishlistRef = useMemoFirebase(() => (firestore && profile.uid) ? collection(firestore, 'users', profile.uid, 'wishlist') : null, [firestore, profile.uid]);
+    const userWishlistQuery = useMemoFirebase(() => userWishlistRef ? query(userWishlistRef, orderBy('name')) : null, [userWishlistRef]);
+    const { data: userWishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(userWishlistQuery);
+    const userWishlist = userWishlistData || [];
+
+    const isMyProfile = profile.uid === currentUserId;
+
+    const addPlantToMyWishlist = (plant: Plant | WishlistItem) => {
+        if (!currentUserId || !firestore) {
+            alert("Por favor, inicia sesión para añadir a tu lista de deseos.");
+            return;
+        }
+        const myWishlistRef = collection(firestore, 'users', currentUserId, 'wishlist');
+        const item = {
+            name: plant.name,
+            notes: `Visto en el perfil de ${profile.displayName || 'alguien'}.`,
+            image: plant.image || null,
+        };
+        addDocumentNonBlocking(myWishlistRef, item);
+        alert(`${plant.name} añadido a tu lista de deseos!`);
+    };
+
+
+    return (
+        <div className="max-w-4xl mx-auto p-4">
+            <Button onClick={onBack} variant="outline" className="mb-4"><ArrowLeft size={16} /> Volver</Button>
+            
+            <div className="flex items-center gap-4 mb-6">
+                {profile.photoURL && <Image src={profile.photoURL} alt={profile.displayName || 'user'} width={80} height={80} className="rounded-full" />}
+                <div>
+                    <h1 className="text-3xl font-bold">{isMyProfile ? 'Mi Perfil' : `Perfil de ${profile.displayName}`}</h1>
+                    <p className="text-muted-foreground">{userPlants.length} plantas en su colección.</p>
+                </div>
+            </div>
+
+            <div className="flex justify-center border-b mt-4">
+                 <button onClick={() => setActiveTab('plants')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'plants' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:bg-accent/50'}`}>
+                    <Sprout size={16} /> Las Plantas de {isMyProfile ? 'mí' : profile.displayName?.split(' ')[0]}
+                </button>
+                <button onClick={() => setActiveTab('wishlist')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'wishlist' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:bg-accent/50'}`}>
+                    <ListTodo size={16} /> Lista de Deseos
+                </button>
+            </div>
+            
+            <div className="py-6">
+                {activeTab === 'plants' && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {userPlants.map(plant => (
+                            <Card key={plant.id} className="overflow-hidden group">
+                               <div className="aspect-square relative bg-secondary overflow-hidden">
+                                  {plant.image ? (
+                                    <Image src={plant.image} alt={plant.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 33vw" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-primary/50"><Leaf size={48}/></div>
+                                  )}
+                                  {!isMyProfile && (
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                 <Button onClick={() => addPlantToMyWishlist(plant)} variant="ghost" size="icon" className="absolute top-1 right-1 bg-background/50 hover:bg-background/80 text-rose-500 hover:text-rose-600 rounded-full h-8 w-8">
+                                                    <Heart />
+                                                 </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Añadir a mi lista de deseos</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                               </div>
+                               <div className="p-3">
+                                  <h3 className="font-bold truncate">{plant.name}</h3>
+                               </div>
+                            </Card>
+                        ))}
+                         {userPlants.length === 0 && <p className="text-muted-foreground col-span-full text-center py-10">Este jardín aún no tiene plantas.</p>}
+                    </div>
+                )}
+                 {activeTab === 'wishlist' && (
+                    <div className="space-y-2">
+                        {isLoadingWishlist && <p>Cargando lista de deseos...</p>}
+                        {userWishlist.map(item => (
+                            <div key={item.id} className="flex items-center gap-4 p-3 bg-secondary rounded-lg">
+                               {item.image ? (
+                                 <Image src={item.image} alt={item.name} width={56} height={56} className="rounded-md object-cover"/>
+                               ) : (
+                                 <div className="w-14 h-14 bg-muted rounded-md flex items-center justify-center text-muted-foreground"><Sprout size={28}/></div>
+                               )}
+                               <div className="flex-1">
+                                  <p className="font-bold">{item.name}</p>
+                                  <p className="text-sm text-muted-foreground">{item.notes}</p>
+                               </div>
+                               {!isMyProfile && (
+                                  <TooltipProvider>
+                                     <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button size="sm" variant="outline" onClick={() => addPlantToMyWishlist(item)}><Heart className="mr-2" size={16}/> Querer</Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Añadir a mi lista de deseos</p></TooltipContent>
+                                      </Tooltip>
+                                   </TooltipProvider>
+                               )}
+                            </div>
+                        ))}
+                        {!isLoadingWishlist && userWishlist.length === 0 && <p className="text-muted-foreground text-center py-10">La lista de deseos está vacía.</p>}
+                    </div>
+                 )}
+            </div>
+
+        </div>
+    );
 }
