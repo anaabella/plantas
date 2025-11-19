@@ -74,7 +74,7 @@ const getPlantInfoPrompt = ai.definePrompt({
     input: { schema: PlantInfoInputSchema },
     output: { schema: PlantInfoOutputSchema },
     prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
-    Busca en internet 3 URLs de imágenes de alta calidad que muestren claramente la planta.
+    Busca en internet 3 URLs de imágenes de alta calidad que muestren claramente la planta. MUY IMPORTANTE: Las URLs deben ser del dominio images.unsplash.com y apuntar directamente a una imagen (por ejemplo: https://images.unsplash.com/photo-...). No uses URLs de la forma unsplash.com/photos/...
     Resume los cuidados básicos en términos de luz, agua y temperatura.
     Finalmente, añade un dato curioso sobre la planta.
     Responde siempre en español.`,
