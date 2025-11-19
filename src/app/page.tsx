@@ -21,9 +21,8 @@ import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { diagnosePlant, type DiagnosePlantOutput } from '@/ai/flows/diagnose-plant-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useFirebase, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
@@ -79,22 +78,16 @@ export default function PlantManagerFinal() {
   const { theme, setTheme } = useTheme();
 
   // --- Firebase ---
-  const { auth, firestore } = useFirebase();
-  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
+  const userId = 'single-user-id'; // Hardcoded user ID
 
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isUserLoading, user, auth]);
-
-  const plantsRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'plants') : null, [firestore, user]);
-  const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
+  const plantsRef = useMemoFirebase(() => collection(firestore, 'users', userId, 'plants'), [firestore]);
+  const plantsQuery = useMemoFirebase(() => query(plantsRef, orderBy('createdAt', 'desc')), [plantsRef]);
   const { data: plantsData, isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
   const plants = plantsData || [];
 
-  const wishlistRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'wishlist') : null, [firestore, user]);
-  const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
+  const wishlistRef = useMemoFirebase(() => collection(firestore, 'users', userId, 'wishlist'), [firestore]);
+  const wishlistQuery = useMemoFirebase(() => query(wishlistRef, orderBy('name')), [wishlistRef]);
   const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   const wishlist = wishlistData || [];
   
@@ -353,7 +346,7 @@ export default function PlantManagerFinal() {
     return matchSearch && matchFilter;
   });
 
-  if (isUserLoading) {
+  if (isLoadingPlants) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex items-center gap-2 text-primary">
@@ -790,5 +783,6 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+
 
     
