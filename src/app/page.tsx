@@ -89,7 +89,8 @@ export default function PlantManagerFinal() {
 
   const plantsRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'plants') : null, [firestore, user]);
   const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
-  const { data: plants = [], isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
+  const { data: plantsData, isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
+  const plants = plantsData || [];
 
   const wishlistRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'wishlist') : null, [firestore, user]);
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
@@ -787,5 +788,3 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
-
-    
