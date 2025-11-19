@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Plant": {
@@ -34,9 +35,12 @@
             },
             "required": ["id", "type", "date", "note"]
           }
-        }
+        },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns the plant." },
+        "ownerName": { "type": "string", "description": "The name of the user who owns the plant." },
+        "ownerPhotoURL": { "type": "string", "description": "The photo URL of the user who owns the plant." }
       },
-      "required": ["name", "date", "status", "createdAt"]
+      "required": ["name", "date", "status", "createdAt", "ownerId"]
     },
     "WishlistItem": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -64,7 +68,9 @@
           "type": "string",
           "description": "The user's email address.",
           "format": "email"
-        }
+        },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" }
       },
       "required": [
         "id"
@@ -73,7 +79,7 @@
   },
   "auth": {
     "providers": [
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -89,13 +95,13 @@
         }
       },
       {
-        "path": "/users/{userId}/plants/{plantId}",
+        "path": "/plants/{plantId}",
         "definition": {
           "entityName": "Plant",
           "schema": {
             "$ref": "#/backend/entities/Plant"
           },
-          "description": "Stores plants owned by a specific user."
+          "description": "Stores all plants from all users."
         }
       },
       {

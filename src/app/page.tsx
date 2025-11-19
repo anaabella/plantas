@@ -8,7 +8,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock, Upload, Download,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
 
 // Types
@@ -54,6 +55,9 @@ type Plant = {
   stolenFrom?: string;
   lastPhotoUpdate?: string;
   createdAt: any;
+  ownerId: string;
+  ownerName?: string;
+  ownerPhotoURL?: string;
 };
 
 type WishlistItem = {
@@ -79,11 +83,11 @@ export default function PlantManagerFinal() {
   const { theme, setTheme } = useTheme();
 
   // --- Firebase ---
-  const { firestore } = useFirebase();
+  const { firestore, auth } = useFirebase();
   const { user, isLoading: isLoadingUser } = useUser();
   const userId = user?.uid;
 
-  const plantsRef = useMemoFirebase(() => userId ? collection(firestore, 'users', userId, 'plants') : null, [firestore, userId]);
+  const plantsRef = useMemoFirebase(() => firestore ? collection(firestore, 'plants') : null, [firestore]);
   const plantsQuery = useMemoFirebase(() => plantsRef ? query(plantsRef, orderBy('createdAt', 'desc')) : null, [plantsRef]);
   const { data: plantsData, isLoading: isLoadingPlants } = useCollection<Plant>(plantsQuery);
   const plants = plantsData || [];
@@ -92,8 +96,25 @@ export default function PlantManagerFinal() {
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
   const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   const wishlist = wishlistData || [];
+
+  const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      // The useUser hook will handle the user state update
+    } catch (error) {
+      console.error("Error signing in with Google: ", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (auth) {
+      await signOut(auth);
+    }
+  };
   
-  const initialFormData: Omit<Plant, 'id' | 'createdAt'> = {
+  const initialFormData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'> = {
     name: '',
     image: null,
     acquisitionType: 'compra', // compra, regalo, intercambio, robado
@@ -206,7 +227,7 @@ export default function PlantManagerFinal() {
 
   const savePlant = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plantsRef) return;
+    if (!plantsRef || !userId) return;
 
     if (formData.id) {
        const plantDocRef = doc(plantsRef, formData.id);
@@ -217,6 +238,9 @@ export default function PlantManagerFinal() {
       const dataToSave = { 
         ...formData, 
         status: 'viva',
+        ownerId: userId,
+        ownerName: user?.displayName,
+        ownerPhotoURL: user?.photoURL,
         lastPhotoUpdate: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp() 
       };
@@ -255,9 +279,17 @@ export default function PlantManagerFinal() {
   };
 
   const openModal = (plant: Partial<Plant> | null = null) => {
+    if (!userId) {
+      alert("Por favor, inicia sesión para añadir o editar plantas.");
+      return;
+    }
     setDiagnosisResult(null);
     setActiveTab('details');
     if (plant) {
+      if (plant.ownerId !== userId) {
+        alert("Solo puedes editar las plantas que te pertenecen.");
+        return;
+      }
       setFormData({ ...plant, events: plant.events || [] });
     } else {
       setFormData(initialFormData);
@@ -266,6 +298,10 @@ export default function PlantManagerFinal() {
   };
   
   const convertWishlistItemToPlant = (item: WishlistItem) => {
+    if (!userId) {
+      alert("Por favor, inicia sesión para realizar esta acción.");
+      return;
+    }
     setShowWishlist(false);
     const plantFromWishlist = {
       ...initialFormData,
@@ -326,22 +362,27 @@ export default function PlantManagerFinal() {
 
   // Import/Export
   const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(plants));
+    const userPlants = plants.filter(p => p.ownerId === userId);
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userPlants));
     const a = document.createElement('a'); a.href = dataStr; a.download = "mi_jardin_final.json"; a.click();
   };
+
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!plantsRef) return;
+    if (!plantsRef || !userId) return;
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => { 
         try { 
             const importedPlants = JSON.parse(ev.target?.result as string); 
-            if(window.confirm(`¿Importar ${importedPlants.length} plantas? Esto sobreescribirá tus plantas actuales.`)) {
-                // Not a great way to do this, but for MVP it's fine.
-                // A better way would be a batch write.
-                plants.forEach(p => deleteDocumentNonBlocking(doc(plantsRef, p.id)));
+            if(window.confirm(`¿Importar ${importedPlants.length} plantas a tu colección?`)) {
                 importedPlants.forEach((p: any) => {
-                    const dataToSave = { ...p, createdAt: serverTimestamp() };
+                    const dataToSave = { 
+                      ...p, 
+                      ownerId: userId,
+                      ownerName: user?.displayName,
+                      ownerPhotoURL: user?.photoURL,
+                      createdAt: serverTimestamp() 
+                    };
                     delete dataToSave.id;
                     addDocumentNonBlocking(plantsRef, dataToSave);
                 });
@@ -353,13 +394,14 @@ export default function PlantManagerFinal() {
     reader.readAsText(file);
   };
 
-  // Stats
-  const stats = {
-    spent: plants.filter(p => p.acquisitionType === 'compra').reduce((a, b) => a + parseFloat(b.price || '0'), 0),
-    alive: plants.filter(p => p.status === 'viva').length,
-    offspring: plants.reduce((acc, curr) => acc + (curr.events?.filter(e => e.type === 'hijito').length || 0), 0),
-    total: plants.length
-  };
+  // Stats for the logged-in user
+  const userPlants = useMemo(() => plants.filter(p => p.ownerId === userId), [plants, userId]);
+  const stats = useMemo(() => ({
+    spent: userPlants.filter(p => p.acquisitionType === 'compra').reduce((a, b) => a + parseFloat(b.price || '0'), 0),
+    alive: userPlants.filter(p => p.status === 'viva').length,
+    offspring: userPlants.reduce((acc, curr) => acc + (curr.events?.filter(e => e.type === 'hijito').length || 0), 0),
+    total: userPlants.length
+  }), [userPlants]);
 
   // --- Render ---
   const filteredPlants = plants.filter(p => {
@@ -371,7 +413,7 @@ export default function PlantManagerFinal() {
     return matchSearch && matchFilter;
   });
 
-  if (isLoadingPlants || isLoadingUser) {
+  if (isLoadingUser) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
             <div className="flex items-center gap-2 text-primary">
@@ -391,23 +433,31 @@ export default function PlantManagerFinal() {
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2 text-primary">
               <Leaf className="fill-primary" size={24} />
-              <h1 className="text-xl font-bold">Mi Jardín</h1>
+              <h1 className="text-xl font-bold">Jardín Comunitario</h1>
             </div>
-            <div className="flex gap-1 sm:gap-2">
+            <div className="flex gap-1 sm:gap-2 items-center">
               <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="ghost" size="icon">
                 <SunDim className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 <span className="sr-only">Toggle theme</span>
               </Button>
-              <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
-              <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
-              <Button onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon"><Upload size={20}/><input type="file" ref={fileInputRef} onChange={importData} className="hidden" accept=".json"/></Button>
-              <Button onClick={exportData} variant="ghost" size="icon"><Download size={20}/></Button>
-              <Button onClick={() => openModal()}><Plus size={18}/> <span className="hidden sm:inline">Planta</span></Button>
+              {user ? (
+                <>
+                  <Button onClick={() => setShowWishlist(true)} variant="ghost" size="icon"><ListTodo size={20}/></Button>
+                  <Button onClick={() => setShowStats(!showStats)} variant="ghost" size="icon" className={showStats ? 'bg-secondary' : ''}><BarChart3 size={20}/></Button>
+                  <Button onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon"><Upload size={20}/><input type="file" ref={fileInputRef} onChange={importData} className="hidden" accept=".json"/></Button>
+                  <Button onClick={exportData} variant="ghost" size="icon"><Download size={20}/></Button>
+                  <Button onClick={() => openModal()}><Plus size={18}/> <span className="hidden sm:inline">Planta</span></Button>
+                  <Button onClick={handleSignOut} variant="outline"><LogOut size={18} /> <span className="hidden sm:inline">Salir</span></Button>
+                  {user.photoURL && <Image src={user.photoURL} alt={user.displayName || 'user'} width={32} height={32} className="rounded-full" />}
+                </>
+              ) : (
+                <Button onClick={handleGoogleSignIn}><LogIn size={18}/> <span className="hidden sm:inline">Entrar con Google</span></Button>
+              )}
             </div>
           </div>
           
-          {showStats && (
+          {showStats && user && (
             <div className="mb-3 grid grid-cols-3 gap-2 animate-in slide-in-from-top-2">
                <Card className="text-center">
                  <CardHeader className="p-2 pb-0"><CardTitle className="text-xs uppercase font-bold text-muted-foreground">Inversión</CardTitle></CardHeader>
@@ -446,9 +496,19 @@ export default function PlantManagerFinal() {
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {isLoadingPlants && Array.from({length: 10}).map((_, i) => (
+             <Card key={i} className="overflow-hidden">
+                 <div className="aspect-square relative bg-secondary animate-pulse"></div>
+                 <div className="p-3">
+                     <div className="h-5 w-3/4 bg-secondary animate-pulse rounded-md"></div>
+                     <div className="mt-2 h-4 w-1/2 bg-secondary animate-pulse rounded-md"></div>
+                 </div>
+             </Card>
+        ))}
         {filteredPlants.map(plant => {
           const w = getWateringStatus(plant.lastWatered);
           const photoUpdateNeeded = needsPhotoUpdate(plant.lastPhotoUpdate, plant.date);
+          const isOwner = plant.ownerId === userId;
           
           return (
             <Card key={plant.id} onClick={() => openModal(plant)} className={`overflow-hidden cursor-pointer hover:shadow-md transition-all group ${plant.status === 'fallecida' ? 'opacity-70' : ''} ${plant.status === 'intercambiada' ? 'opacity-90' : ''}`}>
@@ -463,7 +523,20 @@ export default function PlantManagerFinal() {
                     {plant.location === 'exterior' ? <Sun size={12} className="text-amber-500"/> : <Home size={12} className="text-blue-500"/>}
                   </div>
 
-                  {photoUpdateNeeded && plant.status === 'viva' && (
+                   {plant.ownerPhotoURL && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Image src={plant.ownerPhotoURL} alt={plant.ownerName || 'dueño'} width={28} height={28} className="absolute top-2 left-2 rounded-full border-2 border-background shadow-md" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>De: {plant.ownerName || 'Anónimo'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+
+                  {photoUpdateNeeded && isOwner && plant.status === 'viva' && (
                     <div className="absolute bottom-2 left-2 bg-amber-500/90 text-white backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm animate-pulse">
                       <Camera size={12} />
                       <span>Actualizar Foto</span>
@@ -768,7 +841,7 @@ export default function PlantManagerFinal() {
             <Button type="submit" className="w-full">Agregar a la Lista</Button>
           </form>
           <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
-            {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tu lista de deseos está vacía.</p>}
+            {isLoadingWishlist ? <p>Cargando...</p> : wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tu lista de deseos está vacía.</p>}
             {wishlist.map(item => (
               <div key={item.id} className="flex items-center gap-3 p-2 bg-secondary rounded-md">
                  {item.image ? (
@@ -804,3 +877,4 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
+

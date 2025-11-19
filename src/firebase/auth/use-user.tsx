@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { useAuth } from '@/firebase/provider';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { onAuthStateChanged, User, updateProfile, getAdditionalUserInfo } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useAuth, useFirestore } from '@/firebase/provider';
 
 export interface UseUserResult {
   user: User | null;
@@ -17,26 +17,42 @@ export interface UseUserResult {
  */
 export function useUser(): UseUserResult {
   const auth = useAuth();
-  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const firestore = useFirestore();
+  const [user, setUser] = useState<User | null>(auth?.currentUser || null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (!auth || !firestore) {
+      setIsLoading(false); // Firebase services not ready
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // User is signed in.
+        // Check if it's a new user from Google Sign-In to save their profile.
+        const additionalUserInfo = getAdditionalUserInfo(user.metadata.creationTime ? {metadata: user.metadata, providerId: user.providerData[0]?.providerId || null} as any : user);
+
+        if (additionalUserInfo?.isNewUser) {
+            const userRef = doc(firestore, 'users', user.uid);
+            await setDoc(userRef, {
+                displayName: user.displayName,
+                email: user.email,
+                photoURL: user.photoURL,
+            }, { merge: true });
+        }
         setUser(user);
-        setIsLoading(false);
+
       } else {
-        // No user is signed in, so we initiate an anonymous sign-in.
-        // The onAuthStateChanged listener will be triggered again once sign-in is complete.
-        initiateAnonymousSignIn(auth);
+        // User is signed out.
+        setUser(null);
       }
+       setIsLoading(false);
     });
 
     // Cleanup the subscription on unmount
     return () => unsubscribe();
-  }, [auth]); // Dependency array ensures this runs only when the auth instance changes.
+  }, [auth, firestore]);
 
   return { user, isLoading };
 }
-
-    
