@@ -17,12 +17,11 @@ export interface UseUserResult {
 export function useUser(): UseUserResult {
   const auth = useAuth();
   const firestore = useFirestore();
-  const [user, setUser] = useState<User | null>(auth?.currentUser || null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!auth || !firestore) {
-      // If Firebase services are not ready, we are not loading a user.
       if (auth === null || firestore === null) {
         setIsLoading(false);
       }
@@ -36,7 +35,6 @@ export function useUser(): UseUserResult {
         const userDoc = await getDoc(userRef);
 
         if (!userDoc.exists()) {
-            // New user, create their profile document.
             await setDoc(userRef, {
                 displayName: user.displayName,
                 email: user.email,

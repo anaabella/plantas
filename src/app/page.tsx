@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -88,9 +87,9 @@ export default function PlantManagerFinal() {
   const userId = user?.uid;
 
   const plantsRef = useMemoFirebase(() => {
-    if (!firestore) return null; 
+    if (!firestore || isLoadingUser) return null; 
     return collection(firestore, 'plants');
-  }, [firestore]);
+  }, [firestore, isLoadingUser]);
   
   const plantsQuery = useMemoFirebase(() => {
     if (!plantsRef) return null;
@@ -101,7 +100,7 @@ export default function PlantManagerFinal() {
   const plants = plantsData || [];
 
 
-  const wishlistRef = useMemoFirebase(() => userId ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId]);
+  const wishlistRef = useMemoFirebase(() => userId && !isLoadingUser ? collection(firestore, 'users', userId, 'wishlist') : null, [firestore, userId, isLoadingUser]);
   const wishlistQuery = useMemoFirebase(() => wishlistRef ? query(wishlistRef, orderBy('name')) : null, [wishlistRef]);
   const { data: wishlistData, isLoading: isLoadingWishlist } = useCollection<WishlistItem>(wishlistQuery);
   const wishlist = wishlistData || [];
@@ -790,106 +789,93 @@ export default function PlantManagerFinal() {
                         Veredicto: {diagnosisResult.diagnosis.isHealthy ? 'Planta Sana' : 'Necesita Atención'}
                       </AlertTitle>
                       <AlertDescription>
-                        <strong>{diagnosisResult.identification.commonName}</strong> ({diagnosisResult.identification.latinName})
+                        {diagnosisResult.diagnosis.isHealthy ? '¡Tu planta parece estar en buena forma!' : 'Tu planta podría necesitar algo de ayuda.'}
                       </AlertDescription>
                     </Alert>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Diagnóstico Detallado</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm">{diagnosisResult.diagnosis.diagnosis}</p>
-                      </CardContent>
-                    </Card>
-                     <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Recomendaciones</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm">{diagnosisResult.diagnosis.recommendation}</p>
-                      </CardContent>
-                    </Card>
+                    <div>
+                      <h4 className="font-bold text-lg mb-2">Identificación</h4>
+                      <p className="text-sm"><span className="font-semibold">Nombre Común:</span> {diagnosisResult.identification.commonName}</p>
+                      <p className="text-sm"><span className="font-semibold">Nombre Científico:</span> {diagnosisResult.identification.latinName}</p>
+                    </div>
+
+                     <div>
+                      <h4 className="font-bold text-lg mb-2">Diagnóstico</h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{diagnosisResult.diagnosis.diagnosis}</p>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-bold text-lg mb-2">Recomendaciones</h4>
+                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">{diagnosisResult.diagnosis.recommendation}</p>
+                    </div>
                   </div>
                 )}
-
               </div>
             )}
           </div>
         </DialogContent>
       </Dialog>
       
-      {/* Wishlist Modal */}
+      {/* Wishlist Sheet */}
       <Dialog open={showWishlist} onOpenChange={setShowWishlist}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mi Lista de Deseos</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={addWishlistItem} className="space-y-3">
-            <Input 
-              placeholder="Nombre de la nueva planta..." 
-              value={newWishlistItem.name} 
-              onChange={(e) => setNewWishlistItem({ ...newWishlistItem, name: e.target.value })}
-            />
-             <div className="relative w-full h-24 bg-secondary border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary">
-                {newWishlistItem.image ? (
-                    <>
-                        <Image src={newWishlistItem.image} alt="wishlist plant" fill className="object-cover" sizes="100vw" />
-                        <Button type="button" onClick={() => setNewWishlistItem({...newWishlistItem, image: null})} variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6"><X size={12}/></Button>
-                    </>
-                ) : (
-                    <>
-                        <Camera className="text-muted-foreground"/>
-                        <input type="file" accept="image/*" ref={wishlistImageInputRef} onChange={(e) => handleImageUpload(e, setNewWishlistItem)} className="absolute inset-0 opacity-0 cursor-pointer"/>
-                    </>
-                )}
-            </div>
-            <Textarea 
-              placeholder="Notas (dónde la viste, precio, etc.)..."
-              value={newWishlistItem.notes}
-              onChange={(e) => setNewWishlistItem({ ...newWishlistItem, notes: e.target.value })}
-            />
-            <Button type="submit" className="w-full">Agregar a la Lista</Button>
-          </form>
-          <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
-            {isLoadingWishlist ? <p>Cargando...</p> : wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tu lista de deseos está vacía.</p>}
-            {wishlist.map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-2 bg-secondary rounded-md">
-                 {item.image ? (
-                    <Image src={item.image} alt={item.name} width={40} height={40} className="rounded-md object-cover aspect-square" />
-                 ) : (
-                    <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
-                        <Leaf size={20}/>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Lista de Deseos</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={addWishlistItem} className="flex items-start gap-2">
+                <div className="flex-1 space-y-2">
+                    <Input value={newWishlistItem.name} onChange={(e) => setNewWishlistItem(p => ({...p, name: e.target.value}))} placeholder="Nombre de la planta deseada" required/>
+                    <Textarea value={newWishlistItem.notes} onChange={(e) => setNewWishlistItem(p => ({...p, notes: e.target.value}))} placeholder="Notas (dónde la viste, precio, etc.)" rows={2}/>
+                     <div className="flex gap-2">
+                        <Button type="button" size="sm" variant="outline" className="relative w-full">
+                            <Camera size={16} className="mr-2"/>
+                            Subir foto
+                            <input type="file" accept="image/*" ref={wishlistImageInputRef} onChange={(e) => handleImageUpload(e, setNewWishlistItem)} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                        </Button>
+                        {newWishlistItem.image && (
+                            <Button type="button" size="sm" variant="destructive" onClick={() => setNewWishlistItem(p => ({...p, image: null}))}>
+                                <Trash2 size={16} className="mr-2"/>
+                                Quitar foto
+                            </Button>
+                        )}
                     </div>
-                 )}
-                <div className="flex-1">
-                    <p className="font-semibold">{item.name}</p>
-                    {item.notes && <p className="text-xs text-muted-foreground">{item.notes}</p>}
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => convertWishlistItemToPlant(item)}>
-                        <CheckCircle size={18} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>¡La conseguí! Mover a mi jardín</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteWishlistItem(item.id)}>
-                  <Trash2 size={16} />
-                </Button>
-              </div>
-            ))}
-          </div>
+                <Button type="submit" className="self-stretch"><Plus size={20}/></Button>
+            </form>
+            <div className="max-h-64 overflow-y-auto space-y-2 pt-4">
+              {wishlist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tu lista de deseos está vacía.</p>}
+              {wishlist.map(item => (
+                <div key={item.id} className="flex items-center gap-3 p-2 bg-secondary rounded-md">
+                   {item.image ? (
+                     <Image src={item.image} alt={item.name} width={48} height={48} className="rounded-md object-cover"/>
+                   ) : (
+                     <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-muted-foreground"><Sprout size={24}/></div>
+                   )}
+                   <div className="flex-1">
+                      <p className="font-bold">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.notes}</p>
+                   </div>
+                   <TooltipProvider>
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button size="icon" variant="ghost" onClick={() => convertWishlistItemToPlant(item)}><CheckCircle size={18} className="text-green-600"/></Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>¡La conseguí!</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button size="icon" variant="ghost" onClick={() => deleteWishlistItem(item.id)}><Trash2 size={18} className="text-red-600"/></Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Eliminar de la lista</p></TooltipContent>
+                      </Tooltip>
+                   </TooltipProvider>
+                </div>
+              ))}
+            </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
-
-
-
 
     
