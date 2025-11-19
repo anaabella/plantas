@@ -6,7 +6,7 @@ import {
   Leaf, Flower2, Droplets, HeartCrack, X, Save,
   Sun, Home, BarChart3, Clock,
   History, Scissors, Bug, Beaker, Shovel, AlertCircle,
-  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal, Carrot
+  ArrowRightLeft, RefreshCcw, Baby, Moon, SunDim, ListTodo, CheckCircle, Bot, LogIn, LogOut, Users, User, Heart, ArrowLeft, Info, Lightbulb, Thermometer, GalleryHorizontal, Carrot, Palmtree
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -478,6 +478,7 @@ export default function PlantManagerFinal() {
     if (currentView === 'mine') {
         sourcePlants = plants.filter(p => p.ownerId === userId);
     } else {
+        // Filter for community view: plants that don't belong to the current user and have an owner name.
         sourcePlants = plants.filter(p => p.ownerId !== userId && p.ownerName);
     }
 
@@ -725,7 +726,7 @@ export default function PlantManagerFinal() {
 
       {/* Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0 gap-0">
           <DialogHeader className="p-4 border-b flex-row justify-between items-center">
             <DialogTitle>{formData.id ? formData.name : 'Nueva Planta'}</DialogTitle>
              <Button onClick={closeModal} variant="ghost" size="icon" className="rounded-full flex-shrink-0"><X size={20}/></Button>
@@ -741,7 +742,10 @@ export default function PlantManagerFinal() {
                 Bitácora <Badge variant="secondary">{formData.events?.length || 0}</Badge>
               </button>
                <button onClick={() => setActiveTab('diagnosis')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'diagnosis' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-                <Bot size={16}/> Diagnóstico IA
+                <Bot size={16}/> Diagnóstico
+              </button>
+               <button onClick={() => setActiveTab('info')} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'info' ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                <Info size={16}/> Info IA
               </button>
             </div>
           )}
@@ -994,6 +998,9 @@ export default function PlantManagerFinal() {
                 )}
               </div>
             )}
+            {activeTab === 'info' && (
+              <PlantInfoTabContent plant={formData} />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1197,6 +1204,115 @@ function UserProfileView({ profile, allPlants, firestore, currentUserId, onBack 
     );
 }
 
+function PlantInfoTabContent({ plant }: { plant: Partial<Plant> }) {
+    const [info, setInfo] = useState<PlantInfoOutput | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (plant && plant.name && !info) { // Fetch only if we have a plant name and no info yet
+            const fetchInfo = async () => {
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const result = await getPlantInfo({ plantName: plant.name! });
+                    setInfo(result);
+                } catch (err) {
+                    console.error("Error fetching plant info:", err);
+                    setError("No se pudo cargar la información. Intenta de nuevo más tarde.");
+                }
+                setIsLoading(false);
+            };
+            fetchInfo();
+        }
+    }, [plant, info]);
+
+    const getSeason = (date: Date) => {
+        const month = date.getMonth();
+        // South Hemisphere seasons
+        if (month >= 8 && month <= 10) return 'Primavera'; // Sep, Oct, Nov
+        if (month >= 11 || month <= 1) return 'Verano'; // Dec, Jan, Feb
+        if (month >= 2 && month <= 4) return 'Otoño'; // Mar, Apr, May
+        return 'Invierno'; // Jun, Jul, Aug
+    };
+    const currentSeason = getSeason(new Date());
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4 py-4">
+                <div className="h-4 bg-muted rounded w-1/4 animate-pulse"></div>
+                <div className="h-24 bg-muted rounded-md animate-pulse"></div>
+                <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                <div className="h-12 bg-muted rounded w-full animate-pulse"></div>
+                <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
+                <div className="h-8 bg-muted rounded w-full animate-pulse"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return <p className="text-center text-red-500">{error}</p>;
+    }
+
+    if (!info) {
+        return <p className="text-center text-muted-foreground">No hay información disponible.</p>;
+    }
+
+    return (
+        <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div>
+                <h3 className="font-semibold mb-3 border-b pb-2">Cuidados Básicos</h3>
+                <div className="space-y-3 text-sm">
+                    <div className="flex gap-3 items-start"><Sun className="text-amber-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Luz:</span> {info.careInfo.light}</div></div>
+                    <div className="flex gap-3 items-start"><Droplets className="text-blue-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Riego:</span> {info.careInfo.water}</div></div>
+                    <div className="flex gap-3 items-start"><Thermometer className="text-red-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Temperatura:</span> {info.careInfo.temperature}</div></div>
+                </div>
+            </div>
+             <div>
+                <h3 className="font-semibold mb-3 border-b pb-2">Información General</h3>
+                <div className="space-y-3 text-sm">
+                    <div className="flex gap-3 items-start"><Palmtree className="text-green-600 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Altura Máxima:</span> {info.generalInfo.maxHeight}</div></div>
+                    <div className="flex gap-3 items-start"><CalendarIcon className="text-purple-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Época de Floración:</span> {info.generalInfo.bloomSeason}</div></div>
+                    <div className="flex gap-3 items-start"><Flower2 className="text-pink-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Colores de Flores:</span> {info.generalInfo.flowerColors}</div></div>
+                </div>
+            </div>
+            <div>
+                <h3 className="font-semibold mb-3 border-b pb-2">Consejos de Temporada</h3>
+                <div className="space-y-3 text-sm">
+                    <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.fertilize.includes(currentSeason) ? 'bg-green-100 dark:bg-green-900/50' : ''}`}>
+                        <Beaker className="text-green-600 mt-0.5 flex-shrink-0" size={18}/> 
+                        <div>
+                            <span className="font-medium">Fertilizar:</span> {info.seasonalCare.fertilize}
+                            {info.seasonalCare.fertilize.includes(currentSeason) && <span className="text-xs font-bold text-green-700 dark:text-green-300 ml-2">(¡Ahora!)</span>}
+                        </div>
+                    </div>
+                    <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.prune.includes(currentSeason) ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                        <Scissors className="text-blue-600 mt-0.5 flex-shrink-0" size={18}/> 
+                        <div>
+                           <span className="font-medium">Podar:</span> {info.seasonalCare.prune}
+                           {info.seasonalCare.prune.includes(currentSeason) && <span className="text-xs font-bold text-blue-700 dark:text-blue-300 ml-2">(¡Ahora!)</span>}
+                        </div>
+                    </div>
+                    <div className={`flex gap-3 items-start p-2 rounded-md ${info.seasonalCare.repot.includes(currentSeason) ? 'bg-yellow-100 dark:bg-yellow-900/50' : ''}`}>
+                        <RefreshCcw className="text-yellow-700 mt-0.5 flex-shrink-0" size={18}/> 
+                        <div>
+                           <span className="font-medium">Transplantar:</span> {info.seasonalCare.repot}
+                           {info.seasonalCare.repot.includes(currentSeason) && <span className="text-xs font-bold text-yellow-800 dark:text-yellow-300 ml-2">(¡Ahora!)</span>}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3 className="font-semibold mb-2 border-b pb-2">Dato Curioso</h3>
+                <div className="flex gap-3 items-start text-sm">
+                  <Lightbulb className="text-yellow-500 mt-0.5 flex-shrink-0" size={18}/>
+                  <p>{info.funFact}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
     const [info, setInfo] = useState<PlantInfoOutput | null>(null);
@@ -1263,7 +1379,14 @@ function PlantInfoDialog({ plant, isOpen, onOpenChange }: { plant: Plant | null,
                                         <div className="flex gap-3 items-start"><Thermometer className="text-red-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Temperatura:</span> {info.careInfo.temperature}</div></div>
                                     </div>
                                 </div>
-                                
+                                <div>
+                                    <h3 className="font-semibold mb-3 border-b pb-2">Información General</h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex gap-3 items-start"><Palmtree className="text-green-600 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Altura Máxima:</span> {info.generalInfo.maxHeight}</div></div>
+                                        <div className="flex gap-3 items-start"><CalendarIcon className="text-purple-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Época de Floración:</span> {info.generalInfo.bloomSeason}</div></div>
+                                        <div className="flex gap-3 items-start"><Flower2 className="text-pink-500 mt-0.5 flex-shrink-0" size={18}/> <div><span className="font-medium">Colores de Flores:</span> {info.generalInfo.flowerColors}</div></div>
+                                    </div>
+                                </div>
                                 <div>
                                     <h3 className="font-semibold mb-3 border-b pb-2">Consejos de Temporada</h3>
                                     <div className="space-y-3 text-sm">
