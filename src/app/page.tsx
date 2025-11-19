@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -160,7 +161,7 @@ export default function PlantManagerFinal() {
     if (formData.id) {
       setPlants(plants.map(p => p.id === formData.id ? formData : p));
     } else {
-      setPlants([{ ...formData, id: Date.now().toString(), events: [], lastPhotoUpdate: new Date().toISOString().split('T')[0] }, ...plants]);
+      setPlants([{ ...formData, id: Date.now().toString(), events: [], lastPhotoUpdate: new Date().toISOString().split('T')[0], status: 'viva' }, ...plants]);
     }
     closeModal();
   };
@@ -436,16 +437,20 @@ export default function PlantManagerFinal() {
                         <Input required name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre de la planta" />
                         
                         <div className="grid grid-cols-2 gap-2">
-                          <Select name="status" value={formData.status} onValueChange={(v) => handleInputChange({target: {name: 'status', value: v}} as any)}>
-                            <SelectTrigger className={formData.status === 'intercambiada' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/50 dark:border-indigo-700 dark:text-indigo-400' : ''}>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="viva">🌱 Viva</SelectItem>
-                                <SelectItem value="intercambiada">🚫 Se fue toda</SelectItem>
-                                <SelectItem value="fallecida">🥀 Fallecida</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          {formData.id ? (
+                            <Select name="status" value={formData.status} onValueChange={(v) => handleInputChange({target: {name: 'status', value: v}} as any)}>
+                              <SelectTrigger className={formData.status === 'intercambiada' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/50 dark:border-indigo-700 dark:text-indigo-400' : ''}>
+                                  <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="viva">🌱 Viva</SelectItem>
+                                  <SelectItem value="intercambiada">🚫 Se fue toda</SelectItem>
+                                  <SelectItem value="fallecida">🥀 Fallecida</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                             <Input value="🌱 Viva" disabled className="bg-muted"/>
+                          )}
                            <Select name="location" value={formData.location} onValueChange={(v) => handleInputChange({target: {name: 'location', value: v}} as any)}>
                             <SelectTrigger><SelectValue/></SelectTrigger>
                             <SelectContent>
@@ -635,5 +640,3 @@ export default function PlantManagerFinal() {
     </div>
   );
 }
-
-    
