@@ -485,11 +485,12 @@ export default function GardenApp() {
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, onOpenCropRecommender, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
-  const NavButton = ({ activeView, targetView, icon: Icon, children }: any) => (
+  const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
     <Button
       variant={activeView === targetView ? "secondary" : "ghost"}
       onClick={() => onViewChange(targetView)}
       className="flex items-center gap-2"
+      {...props}
     >
       <Icon className="h-5 w-5" />
       <span className="hidden sm:inline">{children}</span>
@@ -504,16 +505,24 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
           <h1 className="ml-2 hidden font-headline text-xl font-bold sm:block">PlantPal</h1>
         </div>
         
-        <nav className="flex flex-1 items-center justify-start gap-2">
-          <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>
+        <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
+          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
           <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
+          {user && (
+            <Button variant="ghost" size="icon" onClick={onAddPlant} className="sm:hidden">
+              <Plus className="h-5 w-5" />
+            </Button>
+          )}
+           {user && (
+            <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
+              <Plus className="h-5 w-5 mr-2" />Añadir Planta
+            </Button>
+          )}
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
           <Button variant="ghost" size="icon" onClick={onOpenCropRecommender}><Carrot className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon" onClick={onOpenWishlist}><ListTodo className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
@@ -532,7 +541,9 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
                 </div>
                 <Separator />
                 <div className="p-1">
-                    <Button variant="ghost" className="w-full justify-start" onClick={onAddPlant}><Plus className="mr-2 h-4 w-4" />Añadir Planta</Button>
+                    <Button variant="ghost" className="w-full justify-start" onClick={onOpenWishlist}><ListTodo className="mr-2 h-4 w-4" />Lista de Deseos</Button>
+                    <Button variant="ghost" className="w-full justify-start" onClick={onOpenStats}><BarChart3 className="mr-2 h-4 w-4" />Estadísticas</Button>
+                    <Separator className='my-1' />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="w-full justify-start">
@@ -565,6 +576,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
     </header>
   );
 }
+
 
 // Attention Section
 function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
