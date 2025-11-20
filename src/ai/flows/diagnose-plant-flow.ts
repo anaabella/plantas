@@ -84,7 +84,7 @@ const getPlantInfoFlow = ai.defineFlow(
     },
     async (input) => {
         const llmResponse = await ai.generate({
-            model: 'googleai/gemini-pro-vision',
+            model: 'googleai/gemini-pro',
             prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}".
 Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(PlantInfoOutputSchema.shape)}.
 - careInfo: luz, agua, temperatura.
