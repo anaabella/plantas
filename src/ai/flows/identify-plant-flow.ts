@@ -34,12 +34,6 @@ export async function identifyPlant(input: IdentifyPlantInput): Promise<Identify
   return identifyPlantFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'identifyPlantPrompt',
-  input: {schema: IdentifyPlantInputSchema},
-  output: {schema: IdentifyPlantOutputSchema, format: 'json' },
-});
-
 const identifyPlantFlow = ai.defineFlow(
   {
     name: 'identifyPlantFlow',
@@ -56,9 +50,8 @@ const identifyPlantFlow = ai.defineFlow(
   
   Responde de forma concisa y directa. Responde siempre en español.
   
-  Foto: {{media url=photoDataUri}}`,
+  Foto: {{media url=${input.photoDataUri}}}`,
       model: googleAI.model('gemini-pro'),
-      input,
       output: { schema: IdentifyPlantOutputSchema, format: 'json' }
     });
     const output = llmResponse.output();

@@ -54,11 +54,10 @@ Para cada recomendación, proporciona:
 2.  El tiempo aproximado que tardará en estar lista para la cosecha.
 3.  Una recomendación clave sobre dónde plantarla (ej: necesita pleno sol, ideal para macetas, prefiere sombra parcial, etc.).
 
-Descripción del usuario: "{{userQuery}}"
+Descripción del usuario: "${input.userQuery}"
 
 Sé claro y conciso en tus recomendaciones. Responde siempre en español.`,
       model: googleAI.model('gemini-pro'),
-      input,
       output: { schema: CropRecommenderOutputSchema, format: 'json' }
     });
     const output = llmResponse.output();
