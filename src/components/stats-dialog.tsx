@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import type { Plant } from '@/app/page';
-import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, Download } from 'lucide-react';
+import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, Download, Skull } from 'lucide-react';
 
 export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const stats = useMemo(() => {
@@ -32,7 +32,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const exportToCsv = () => {
     const headers = [
         "ID", "Nombre", "Fecha Adquisicion", "Estado", "Ultimo Riego", "Tipo Comienzo", 
-        "Ubicacion", "Tipo Adquisicion", "Precio", "Regalo De", "Robado De", 
+        "Ubicacion", "Tipo Adquisicion", "Precio", "Regalo De", "Rescatada De", 
         "Fuente Intercambio", "Destino Intercambio", "Ultima Foto", "Notas"
     ];
     
@@ -47,7 +47,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
         p.acquisitionType,
         p.price || "",
         p.giftFrom || "",
-        p.stolenFrom || "",
+        p.rescuedFrom || "",
         p.exchangeSource || "",
         p.exchangeDest || "",
         p.lastPhotoUpdate || "",
@@ -88,6 +88,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
           <StatCard icon={DollarSign} label="Compradas" value={stats.acquisition.compra || 0} color="bg-yellow-500" />
           <StatCard icon={Gift} label="Regaladas" value={stats.acquisition.regalo || 0} color="bg-pink-500" />
           <StatCard icon={ArrowRightLeft} label="Intercambiadas" value={stats.acquisition.intercambio || 0} color="bg-purple-500" />
+          <StatCard icon={Skull} label="Rescatadas" value={stats.acquisition.rescatada || 0} color="bg-gray-500" />
           <StatCard icon={Sun} label="Exterior" value={stats.location.exterior || 0} color="bg-orange-500" />
           <StatCard icon={Home} label="Interior" value={stats.location.interior || 0} color="bg-indigo-500" />
         </div>
@@ -101,3 +102,5 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
     </Dialog>
   );
 }
+
+    

@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3,
-  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor
+  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -41,9 +42,11 @@ import { CropRecommenderDialog } from '@/components/crop-recommender-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlantInfoDialog } from '@/components/plant-info-dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 // Tipos
 export type Plant = {
@@ -611,13 +614,27 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
     );
 }
 
-
 // Plants Grid
 function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: any) {
+  
+  const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
+    compra: <ShoppingBag className="h-4 w-4" />,
+    regalo: <Gift className="h-4 w-4" />,
+    intercambio: <RefreshCw className="h-4 w-4" />,
+    rescatada: <Heart className="h-4 w-4" />,
+  };
+
+  const startIcons: { [key in Plant['startType']]: React.ReactElement } = {
+      planta: <Sprout className="h-4 w-4" />,
+      gajo: <Scissors className="h-4 w-4" />,
+      raiz: <Package className="h-4 w-4" />,
+      semilla: <Circle className="h-4 w-4" />,
+  };
+  
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[350px] w-full rounded-lg" />)}
+        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[450px] w-full rounded-lg" />)}
       </div>
     );
   }
@@ -635,7 +652,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
       {plants.map((plant: Plant) => (
         <div key={plant.id} className="cursor-pointer group" onClick={() => onPlantClick(plant)}>
           <div className="relative overflow-hidden rounded-lg">
@@ -646,24 +663,55 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
                 height={500}
                 className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
             />
-            {plant.status === 'fallecida' && (
+            {plant.status !== 'viva' && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <HeartCrack className="h-12 w-12 text-white/80" />
+                    <div className="flex flex-col items-center text-white/90">
+                        {plant.status === 'fallecida' && <HeartCrack className="h-10 w-10" />}
+                        {plant.status === 'intercambiada' && <RefreshCw className="h-10 w-10" />}
+                        <p className="mt-2 font-semibold capitalize">{plant.status}</p>
+                    </div>
                 </div>
             )}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-               <h3 className="font-headline text-xl font-bold text-white truncate">{plant.name}</h3>
-               {isCommunity && (
-                 <div className="flex items-center gap-2 mt-1">
-                   <Avatar className="h-6 w-6">
-                     <AvatarImage src={plant.ownerPhotoURL} />
-                     <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
-                   </Avatar>
-                   <span className="text-xs text-white/80">{plant.ownerName}</span>
+            {isCommunity && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex items-center gap-2">
+                 <Avatar className="h-8 w-8 border-2 border-background">
+                   <AvatarImage src={plant.ownerPhotoURL} />
+                   <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
+                 </Avatar>
+                 <div>
+                    <h3 className="font-headline text-lg font-bold text-white truncate">{plant.name}</h3>
+                    <span className="text-xs text-white/80">{plant.ownerName}</span>
                  </div>
-               )}
-            </div>
+               </div>
+            )}
           </div>
+          {!isCommunity && (
+            <div className="p-2 bg-background rounded-b-lg">
+                <h3 className="font-headline text-xl font-bold truncate">{plant.name}</h3>
+                <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        <span>Contigo hace {formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: false })}</span>
+                    </div>
+                    <div className="flex items-center gap-2 capitalize">
+                        {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
+                        <span>
+                            {plant.acquisitionType === 'compra' && plant.price && `Costó $${plant.price}`}
+                            {plant.acquisitionType === 'regalo' && `Regalo de ${plant.giftFrom || 'alguien'}`}
+                            {plant.acquisitionType === 'intercambio' && `Intercambio`}
+                            {plant.acquisitionType === 'rescatada' && `Rescatada`}
+                        </span>
+                    </div>
+                     <div className="flex items-center gap-2 capitalize">
+                        {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
+                        <span>Empezó como {plant.startType}</span>
+                    </div>
+                </div>
+                <div className='mt-2'>
+                    <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
+                </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
