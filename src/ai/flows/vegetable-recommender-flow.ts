@@ -9,7 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { geminiProJson } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 // Esquema de entrada para la descripción del usuario.
 const CropRecommenderInputSchema = z.object({
@@ -42,7 +42,7 @@ export async function recommendCrops(input: CropRecommenderInput): Promise<CropR
 const recommendCropsPrompt = ai.definePrompt({
   name: 'recommendCropsPrompt',
   input: { schema: CropRecommenderInputSchema },
-  output: { schema: CropRecommenderOutputSchema },
+  output: { schema: CropRecommenderOutputSchema, format: 'json' },
   prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
 
 Para cada recomendación, proporciona:
@@ -66,7 +66,7 @@ const cropRecommenderFlow = ai.defineFlow(
   async (input) => {
     const llmResponse = await ai.generate({
       prompt: recommendCropsPrompt,
-      model: geminiProJson,
+      model: googleAI.model('gemini-pro'),
       input,
     });
     const output = llmResponse.output();

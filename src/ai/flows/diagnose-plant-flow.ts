@@ -8,7 +8,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { geminiProJson } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 // Esquema de entrada para el flujo de diagnóstico.
 const DiagnosePlantInputSchema = z.object({
@@ -81,7 +81,7 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
 const getPlantInfoPrompt = ai.definePrompt({
     name: 'getPlantInfoPrompt',
     input: { schema: PlantInfoInputSchema },
-    output: { schema: PlantInfoOutputSchema },
+    output: { schema: PlantInfoOutputSchema, format: 'json' },
     prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
     - Resume los cuidados básicos en términos de luz, agua y temperatura.
     - Indica la mejor estación del año para fertilizar, podar y transplantar. Sé breve y directo (ej. "Primavera", "Verano y otoño").
@@ -99,7 +99,7 @@ const getPlantInfoFlow = ai.defineFlow(
     async (input) => {
         const llmResponse = await ai.generate({
           prompt: getPlantInfoPrompt,
-          model: geminiProJson,
+          model: googleAI.model('gemini-pro'),
           input,
         });
         const output = llmResponse.output();
@@ -115,7 +115,7 @@ const getPlantInfoFlow = ai.defineFlow(
 const diagnosePlantPrompt = ai.definePrompt({
   name: 'diagnosePlantPrompt',
   input: {schema: DiagnosePlantInputSchema},
-  output: {schema: DiagnosePlantOutputSchema},
+  output: {schema: DiagnosePlantOutputSchema, format: 'json' },
   prompt: `Actúa como un botánico experto y amigable. Tu tarea es analizar la imagen y la descripción de una planta proporcionada por un usuario para diagnosticar su estado de salud.
 
 Primero, identifica la planta en la foto. Si no es una planta, indícalo claramente.
@@ -139,7 +139,7 @@ const diagnosePlantFlow = ai.defineFlow(
   async input => {
     const llmResponse = await ai.generate({
       prompt: diagnosePlantPrompt,
-      model: geminiProJson,
+      model: googleAI.model('gemini-pro'),
       input,
     });
     const output = llmResponse.output();

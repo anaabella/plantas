@@ -7,7 +7,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { geminiProJson } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 // Esquema de entrada
 const IdentifyPlantInputSchema = z.object({
@@ -37,7 +37,7 @@ export async function identifyPlant(input: IdentifyPlantInput): Promise<Identify
 const prompt = ai.definePrompt({
   name: 'identifyPlantPrompt',
   input: {schema: IdentifyPlantInputSchema},
-  output: {schema: IdentifyPlantOutputSchema},
+  output: {schema: IdentifyPlantOutputSchema, format: 'json' },
   prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
   
   - Determina si la imagen es realmente de una planta.
@@ -58,7 +58,7 @@ const identifyPlantFlow = ai.defineFlow(
   async input => {
     const llmResponse = await ai.generate({
       prompt,
-      model: geminiProJson,
+      model: googleAI.model('gemini-pro'),
       input,
     });
     const output = llmResponse.output();
