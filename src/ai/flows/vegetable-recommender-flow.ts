@@ -37,16 +37,6 @@ export async function recommendCrops(input: CropRecommenderInput): Promise<CropR
   return cropRecommenderFlow(input);
 }
 
-const cropRecommenderPrompt = ai.definePrompt({
-    name: 'cropRecommenderPrompt',
-    model: 'googleai/gemini-pro',
-    input: { schema: CropRecommenderInputSchema },
-    output: { schema: CropRecommenderOutputSchema },
-    prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("{{userQuery}}"), recomienda de 3 a 5 hortalizas o frutas.
-Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
-Sé claro y conciso. Responde siempre en español.`,
-});
-
 // Definición del flujo de Genkit.
 const cropRecommenderFlow = ai.defineFlow(
   {
@@ -55,10 +45,20 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const { output } = await cropRecommenderPrompt(input);
-    if (!output) {
+    const llmResponse = await ai.generate({
+        model: 'googleai/gemini-pro',
+        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas.
+Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(CropRecommenderOutputSchema.shape)}.
+Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
+Sé claro y conciso. Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.`,
+    });
+    
+    const textResponse = llmResponse.text();
+    try {
+        return JSON.parse(textResponse);
+    } catch (e) {
+        console.error("Failed to parse LLM response as JSON:", textResponse);
         throw new Error("El modelo no pudo generar recomendaciones.");
     }
-    return output;
   }
 );
