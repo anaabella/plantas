@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { geminiProJson } from '@genkit-ai/google-genai';
 
 // Esquema de entrada para la descripción del usuario.
 const CropRecommenderInputSchema = z.object({
@@ -63,7 +64,12 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const { output } = await recommendCropsPrompt(input);
+    const llmResponse = await ai.generate({
+      prompt: recommendCropsPrompt,
+      model: geminiProJson,
+      input,
+    });
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("El modelo no pudo generar recomendaciones.");
     }

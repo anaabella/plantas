@@ -8,6 +8,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiProJson } from '@genkit-ai/google-genai';
 
 // Esquema de entrada para el flujo de diagnóstico.
 const DiagnosePlantInputSchema = z.object({
@@ -96,7 +97,12 @@ const getPlantInfoFlow = ai.defineFlow(
         outputSchema: PlantInfoOutputSchema,
     },
     async (input) => {
-        const { output } = await getPlantInfoPrompt(input);
+        const llmResponse = await ai.generate({
+          prompt: getPlantInfoPrompt,
+          model: geminiProJson,
+          input,
+        });
+        const output = llmResponse.output();
         if (!output) {
             throw new Error("El modelo no pudo generar la información de la planta.");
         }
@@ -131,7 +137,12 @@ const diagnosePlantFlow = ai.defineFlow(
     outputSchema: DiagnosePlantOutputSchema,
   },
   async input => {
-    const {output} = await diagnosePlantPrompt(input);
+    const llmResponse = await ai.generate({
+      prompt: diagnosePlantPrompt,
+      model: geminiProJson,
+      input,
+    });
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("El modelo no pudo generar un diagnóstico.");
     }

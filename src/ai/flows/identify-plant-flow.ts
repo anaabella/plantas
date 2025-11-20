@@ -7,6 +7,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiProJson } from '@genkit-ai/google-genai';
 
 // Esquema de entrada
 const IdentifyPlantInputSchema = z.object({
@@ -55,7 +56,12 @@ const identifyPlantFlow = ai.defineFlow(
     outputSchema: IdentifyPlantOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const llmResponse = await ai.generate({
+      prompt,
+      model: geminiProJson,
+      input,
+    });
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("El modelo no pudo identificar la planta.");
     }
