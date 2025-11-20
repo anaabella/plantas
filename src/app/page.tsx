@@ -17,7 +17,6 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -490,32 +489,32 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
     <Button
       variant={activeView === targetView ? "secondary" : "ghost"}
       onClick={() => onViewChange(targetView)}
-      className="flex-col h-16 w-20 sm:flex-row sm:h-10 sm:w-auto sm:px-4"
+      className="flex items-center gap-2"
     >
-      <Icon className="h-5 w-5 mb-1 sm:mb-0 sm:mr-2" />
-      <span className="text-xs sm:text-sm">{children}</span>
+      <Icon className="h-5 w-5" />
+      <span className="hidden sm:inline">{children}</span>
     </Button>
   );
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
-        <div className="mr-4 hidden sm:flex items-center">
+      <div className="container flex h-16 items-center px-4 sm:px-6 lg:px-8">
+        <div className="mr-4 flex items-center">
           <Sprout className="h-6 w-6 text-primary" />
-          <h1 className="ml-2 font-headline text-xl font-bold">PlantPal</h1>
+          <h1 className="ml-2 hidden font-headline text-xl font-bold sm:block">PlantPal</h1>
         </div>
         
-        <nav className="flex-1 flex items-center justify-start gap-1">
+        <nav className="flex flex-1 items-center justify-start gap-2">
           <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>
           <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
         </nav>
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1 sm:gap-2">
           <Button variant="ghost" size="icon" onClick={onOpenCropRecommender}><Carrot className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={onOpenWishlist}><ListTodo className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>
-          <Separator orientation="vertical" className="h-6 mx-2" />
+          <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
           ) : user ? (
@@ -578,7 +577,7 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
             <Carousel opts={{ align: "start", loop: false }} className="w-full">
                 <CarouselContent className="-ml-4">
                     {plantsNeedingAttention.map(({ plant, needsWatering, needsPhoto }: any) => (
-                        <CarouselItem key={plant.id} className="pl-4 md:basis-1/3 lg:basis-1/4">
+                        <CarouselItem key={plant.id} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
                             <div className="p-1">
                                 <div onClick={() => onPlantClick(plant)} className="cursor-pointer group">
                                     <div className="relative overflow-hidden rounded-lg border">
@@ -601,8 +600,8 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
                                                 </div>
                                             )}
                                         </div>
-                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                                            <h3 className="font-headline text-lg font-bold text-white truncate">{plant.name}</h3>
+                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
+                                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -635,8 +634,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[450px] w-full rounded-lg" />)}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+        {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-[350px] sm:h-[450px] w-full rounded-lg" />)}
       </div>
     );
   }
@@ -654,7 +653,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {plants.map((plant: Plant) => (
         <div key={plant.id} className="cursor-pointer group" onClick={() => onPlantClick(plant)}>
           <div className="relative overflow-hidden rounded-lg">
@@ -668,45 +667,42 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
             {plant.status !== 'viva' && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                     <div className="flex flex-col items-center text-white/90">
-                        {plant.status === 'fallecida' && <HeartCrack className="h-10 w-10" />}
-                        {plant.status === 'intercambiada' && <RefreshCw className="h-10 w-10" />}
-                        <p className="mt-2 font-semibold capitalize">{plant.status}</p>
+                        {plant.status === 'fallecida' && <HeartCrack className="h-8 w-8 sm:h-10 sm:w-10" />}
+                        {plant.status === 'intercambiada' && <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10" />}
+                        <p className="mt-2 font-semibold capitalize text-sm sm:text-base">{plant.status}</p>
                     </div>
                 </div>
             )}
             {isCommunity && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex items-center gap-2">
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center gap-2">
                  <Avatar className="h-8 w-8 border-2 border-background">
                    <AvatarImage src={plant.ownerPhotoURL} />
                    <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
                  </Avatar>
                  <div>
-                    <h3 className="font-headline text-lg font-bold text-white truncate">{plant.name}</h3>
-                    <span className="text-xs text-white/80">{plant.ownerName}</span>
+                    <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
+                    <span className="text-xs text-white/80 hidden sm:inline">{plant.ownerName}</span>
                  </div>
                </div>
             )}
           </div>
           {!isCommunity && (
-            <div className="p-2 bg-background rounded-b-lg">
-                <h3 className="font-headline text-xl font-bold truncate">{plant.name}</h3>
-                <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+            <div className="p-2 bg-transparent">
+                <h3 className="font-headline text-lg font-bold truncate">{plant.name}</h3>
+                <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        <span>Contigo hace {formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: false })}</span>
+                        <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
                     </div>
                     <div className="flex items-center gap-2 capitalize">
                         {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
                         <span>
-                            {plant.acquisitionType === 'compra' && plant.price && `Costó $${plant.price}`}
-                            {plant.acquisitionType === 'regalo' && `Regalo de ${plant.giftFrom || 'alguien'}`}
-                            {plant.acquisitionType === 'intercambio' && `Intercambio`}
-                            {plant.acquisitionType === 'rescatada' && `Rescatada`}
+                            {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
                         </span>
                     </div>
                      <div className="flex items-center gap-2 capitalize">
                         {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
-                        <span>Empezó como {plant.startType}</span>
+                        <span>{plant.startType}</span>
                     </div>
                 </div>
                 <div className='mt-2'>
@@ -765,7 +761,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
         <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" />
         <h3 className="mt-4 text-lg font-semibold">Tu lista de deseos está vacía</h3>
         <p className="mt-1 text-sm text-muted-foreground">Añade las plantas que te gustaría tener.</p>
-        <div className="mt-6 flex justify-center gap-4">
+        <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
             <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
             <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
                 <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}
@@ -778,7 +774,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
 
   return (
     <div className="space-y-4">
-      <div className="text-right flex justify-end gap-4">
+      <div className="text-right flex flex-col sm:flex-row justify-end gap-4">
         <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
         <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
             <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}

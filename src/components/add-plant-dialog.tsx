@@ -15,6 +15,7 @@ import { useState } from 'react';
 import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera } from 'lucide-react';
+import { ScrollArea } from './ui/scroll-area';
 
 export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [name, setName] = useState('');
@@ -110,44 +111,47 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   return (
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg">
         <DialogHeader>
           <DialogTitle>Añadir Nueva Planta</DialogTitle>
           <DialogDescription>
             Rellena los detalles de tu nueva compañera verde.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-             <div className="space-y-4">
-                <InputGroup label="Nombre de la Planta" value={name} onChange={(e:any) => setName(e.target.value)} />
-                <InputGroup type="date" label="Fecha de Adquisición" value={date} onChange={(e:any) => setDate(e.target.value)} />
-                 <SelectGroup label="Tipo de Adquisición" value={acquisitionType} onValueChange={setAcquisitionType} options={acquisitionTypeOptions} />
-                 
-                 {acquisitionType === 'compra' && <InputGroup label="Precio" value={price} onChange={(e:any) => setPrice(e.target.value)} placeholder="$0.00" />}
-                 {acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={giftFrom} onChange={(e:any) => setGiftFrom(e.target.value)} placeholder="Nombre" />}
-                 {acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={exchangeSource} onChange={(e:any) => setExchangeSource(e.target.value)} placeholder="Ej: un esqueje" />}
-                {acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={rescuedFrom} onChange={(e:any) => setRescuedFrom(e.target.value)} placeholder="Ubicación" />}
+        <ScrollArea className='max-h-[70vh]'>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                <div className="space-y-4">
+                    <InputGroup label="Nombre de la Planta" value={name} onChange={(e:any) => setName(e.target.value)} />
+                    <InputGroup type="date" label="Fecha de Adquisición" value={date} onChange={(e:any) => setDate(e.target.value)} />
+                    <SelectGroup label="Tipo de Adquisición" value={acquisitionType} onValueChange={setAcquisitionType} options={acquisitionTypeOptions} />
+                    
+                    {acquisitionType === 'compra' && <InputGroup label="Precio" value={price} onChange={(e:any) => setPrice(e.target.value)} placeholder="$0.00" />}
+                    {acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={giftFrom} onChange={(e:any) => setGiftFrom(e.target.value)} placeholder="Nombre" />}
+                    {acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={exchangeSource} onChange={(e:any) => setExchangeSource(e.target.value)} placeholder="Ej: un esqueje" />}
+                    {acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={rescuedFrom} onChange={(e:any) => setRescuedFrom(e.target.value)} placeholder="Ubicación" />}
 
-             </div>
-             <div className="space-y-4">
-                <div className="space-y-1">
-                    <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                    <div className="flex gap-2">
-                        <Input value={image} onChange={(e:any) => setImage(e.target.value)} placeholder="https://example.com/plant.jpg" />
-                        <Button variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
-                            <Camera className="h-4 w-4" />
-                        </Button>
-                    </div>
                 </div>
-                {image && <img src={image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">Imagen</label>
+                        <div className="flex gap-2">
+                            <Input value={image} onChange={(e:any) => setImage(e.target.value)} placeholder="https://example.com/plant.jpg" />
+                            <Button variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
+                                <Camera className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    {image && <img src={image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
 
-                <SelectGroup label="Comienzo como" value={startType} onValueChange={setStartType} options={startTypeOptions} />
-                <SelectGroup label="Ubicación" value={location} onValueChange={setLocation} options={locationOptions} />
-             </div>
-        </div>
-        <Textarea placeholder="Notas adicionales sobre la planta..." value={notes} onChange={(e:any) => setNotes(e.target.value)} />
-
-        <DialogFooter>
+                    <SelectGroup label="Comienzo como" value={startType} onValueChange={setStartType} options={startTypeOptions} />
+                    <SelectGroup label="Ubicación" value={location} onValueChange={setLocation} options={locationOptions} />
+                </div>
+            </div>
+            <div className='p-4 pt-0'>
+             <Textarea placeholder="Notas adicionales sobre la planta..." value={notes} onChange={(e:any) => setNotes(e.target.value)} />
+            </div>
+        </ScrollArea>
+        <DialogFooter className='p-4 pt-0'>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
           <Button onClick={handleSubmit}>Guardar Planta</Button>
         </DialogFooter>

@@ -17,7 +17,6 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -163,22 +162,21 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
         <Tabs defaultValue="details" className="w-full">
-            <div className="flex justify-between items-start">
-                <DialogHeader className="mb-4">
-                    <DialogTitle className="text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <DialogHeader className="mb-4 flex-shrink-0">
+                    <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
                     <DialogDescription>Modifica los detalles de tu planta.</DialogDescription>
                 </DialogHeader>
-                <TabsList>
-                    <TabsTrigger value="details">Detalles</TabsTrigger>
-                    <TabsTrigger value="log">Bitácora</TabsTrigger>
-                    <TabsTrigger value="ai-diag">Diagnóstico IA</TabsTrigger>
-                    <TabsTrigger value="ai-info">Info IA</TabsTrigger>
+                <TabsList className="w-full sm:w-auto">
+                    <TabsTrigger value="details" className='flex-1 sm:flex-initial'>Detalles</TabsTrigger>
+                    <TabsTrigger value="log" className='flex-1 sm:flex-initial'>Bitácora</TabsTrigger>
+                    <TabsTrigger value="ai-diag" className='flex-1 sm:flex-initial'>IA</TabsTrigger>
                 </TabsList>
             </div>
             
-            <TabsContent value="details" className="overflow-y-auto max-h-[70vh] p-1">
+            <TabsContent value="details" className="overflow-y-auto max-h-[65vh] p-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Columna Izquierda */}
                     <div className="space-y-4">
@@ -206,7 +204,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
                 </div>
             </TabsContent>
             
-            <TabsContent value="log" className="overflow-y-auto max-h-[70vh] p-1">
+            <TabsContent value="log" className="overflow-y-auto max-h-[65vh] p-1">
                  <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Planes de Cuidado</h3>
                  </div>
@@ -261,20 +259,18 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
                 </div>
             </TabsContent>
 
-            <TabsContent value="ai-diag" className="p-1">
+            <TabsContent value="ai-diag" className="overflow-y-auto max-h-[65vh] p-1">
                  <div className="text-center p-4 rounded-lg bg-secondary/50">
                     <h3 className="font-semibold">Diagnóstico con IA</h3>
                     <p className="text-sm text-muted-foreground mb-4">Usa IA para analizar una foto de tu planta y obtener un diagnóstico de salud y recomendaciones.</p>
-                    <Button onClick={handleDiagnose} disabled={isDiagnosing}>
+                    <Button onClick={handleDiagnose} disabled={isDiagnosing || !editedPlant.image}>
                         {isDiagnosing ? "Analizando..." : <><Bot className="mr-2 h-4 w-4" /> Analizar Foto Principal</>}
                     </Button>
                 </div>
                 {isDiagnosing && <Skeleton className="h-40 w-full mt-4" />}
                 {diagnoseResult && <AIDiagnosisResult result={diagnoseResult} />}
-            </TabsContent>
 
-             <TabsContent value="ai-info" className="overflow-y-auto max-h-[70vh] p-1">
-                <div className="text-center p-4 rounded-lg bg-secondary/50">
+                <div className="text-center p-4 rounded-lg bg-secondary/50 mt-4">
                     <h3 className="font-semibold">Obtener Info con IA</h3>
                     <p className="text-sm text-muted-foreground mb-4">Obtén información detallada sobre tu planta, como cuidados, datos curiosos y más.</p>
                     <Button onClick={handleFetchInfo} disabled={isInfoLoading}>
@@ -284,12 +280,13 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
                 {isInfoLoading && <Skeleton className="h-40 w-full mt-4" />}
                 {plantInfo && <PlantInfoDisplay info={plantInfo} />}
             </TabsContent>
+
         </Tabs>
         
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-4 flex-col sm:flex-row sm:justify-between w-full">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="mr-auto"><Trash2 className="mr-2 h-4 w-4"/>Eliminar</Button>
+              <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/>Eliminar</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -304,8 +301,10 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-          <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          <div className='flex gap-2 justify-end'>
+            <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -68,20 +68,20 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const StatCard = ({ icon: Icon, label, value, color }: any) => (
     <div className="p-4 bg-background rounded-lg border flex items-center gap-4">
       <div className={`p-3 rounded-full ${color}`}>
-        <Icon className="h-6 w-6 text-white" />
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
       </div>
       <div>
-        <p className="text-2xl font-bold">{value}</p>
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold">{value}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground">{label}</p>
       </div>
     </div>
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl w-[95vw] rounded-lg">
         <DialogHeader><DialogTitle>Estadísticas del Jardín</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 py-4">
           <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
           <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
           <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
@@ -102,5 +102,3 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
     </Dialog>
   );
 }
-
-    

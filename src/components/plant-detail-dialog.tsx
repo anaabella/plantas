@@ -98,7 +98,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
         <DialogHeader>
           <DialogTitle className="text-3xl font-bold font-headline">{plant.name}</DialogTitle>
           <DialogDescription>
@@ -110,7 +110,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
           <div className="space-y-4">
             <h3 className="font-headline text-lg font-semibold">Galería de Crecimiento</h3>
             
-            {galleryImages.length > 0 && (
+            {galleryImages.length > 0 ? (
                  <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4 border">
                     <Image
                         src={galleryImages[0].imageUrl}
@@ -127,6 +127,10 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant }: P
                         </div>
                     )}
                  </div>
+            ) : (
+                <div className="h-64 w-full rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                    Sin foto principal
+                </div>
             )}
 
             {galleryImages.length > 1 && (

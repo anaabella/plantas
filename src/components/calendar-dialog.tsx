@@ -91,15 +91,15 @@ export function CalendarDialog({ isOpen, setIsOpen, plants, onFetchPlantInfo }: 
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
                 <DialogHeader>
                     <DialogTitle>Calendario de Cuidados</DialogTitle>
                     <DialogDescription>
                         Visualiza los eventos de tus plantas y planifica cuidados futuros.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    <div className='flex flex-col items-center'>
                         <Calendar
                             mode="single"
                             selected={date}
