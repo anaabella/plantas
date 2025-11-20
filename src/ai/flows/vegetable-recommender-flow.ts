@@ -39,22 +39,6 @@ export async function recommendCrops(input: CropRecommenderInput): Promise<CropR
   return cropRecommenderFlow(input);
 }
 
-const cropRecommenderPrompt = ai.definePrompt({
-    name: 'cropRecommenderPrompt',
-    model: googleAI.model('gemini-pro'),
-    input: { schema: CropRecommenderInputSchema },
-    output: { schema: CropRecommenderOutputSchema },
-    prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
-
-Para cada recomendación, proporciona:
-1.  El nombre común.
-2.  El tiempo aproximado que tardará en estar lista para la cosecha.
-3.  Una recomendación clave sobre dónde plantarla (ej: necesita pleno sol, ideal para macetas, prefiere sombra parcial, etc.).
-
-Descripción del usuario: "{{userQuery}}"
-
-Sé claro y conciso en tus recomendaciones. Responde siempre en español.`
-});
 
 // Definición del flujo de Genkit.
 const cropRecommenderFlow = ai.defineFlow(
@@ -64,7 +48,25 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const { output } = await cropRecommenderPrompt(input);
+    const llmResponse = await ai.generate({
+      model: googleAI.model('gemini-pro'),
+      prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
+
+Para cada recomendación, proporciona:
+1.  El nombre común.
+2.  El tiempo aproximado que tardará en estar lista para la cosecha.
+3.  Una recomendación clave sobre dónde plantarla (ej: necesita pleno sol, ideal para macetas, prefiere sombra parcial, etc.).
+
+Descripción del usuario: "${input.userQuery}"
+
+Sé claro y conciso en tus recomendaciones. Responde siempre en español.`,
+      output: {
+        format: 'json',
+        schema: CropRecommenderOutputSchema
+      }
+    });
+
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("El modelo no pudo generar recomendaciones.");
     }
