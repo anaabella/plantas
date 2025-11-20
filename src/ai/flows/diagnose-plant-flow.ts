@@ -85,7 +85,7 @@ const getPlantInfoFlow = ai.defineFlow(
     },
     async (input) => {
         const llmResponse = await ai.generate({
-          model: 'googleai/gemini-pro',
+          model: 'googleai/gemini-1.5-flash',
           prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}". Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(PlantInfoOutputSchema.shape)}.
 - careInfo: luz, agua, temperatura.
 - seasonalCare: fertilizar, podar, transplantar (indica la estación).
@@ -95,10 +95,12 @@ Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que
         });
 
         try {
-            const output = JSON.parse(llmResponse.text);
+            // Clean up the response text before parsing
+            const cleanedText = llmResponse.text.replace(/^```json\s*|```\s*$/g, '');
+            const output = JSON.parse(cleanedText);
             return PlantInfoOutputSchema.parse(output);
         } catch (e) {
-            console.error("Failed to parse LLM response as JSON", llmResponse.text);
+            console.error("Failed to parse LLM response as JSON", llmResponse.text, e);
             throw new Error("El modelo no pudo generar la información de la planta en el formato esperado.");
         }
     }
@@ -114,7 +116,7 @@ const diagnosePlantFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-        model: 'googleai/gemini-pro-vision',
+        model: 'googleai/gemini-1.5-flash',
         prompt: [
             { text: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
 - identification: isPlant (boolean), commonName, latinName.
@@ -127,10 +129,12 @@ Descripción: ${input.description}` },
     });
     
     try {
-        const output = JSON.parse(llmResponse.text);
+        // Clean up the response text before parsing
+        const cleanedText = llmResponse.text.replace(/^```json\s*|```\s*$/g, '');
+        const output = JSON.parse(cleanedText);
         return DiagnosePlantOutputSchema.parse(output);
     } catch (e) {
-        console.error("Failed to parse LLM response as JSON", llmResponse.text);
+        console.error("Failed to parse LLM response as JSON", llmResponse.text, e);
         throw new Error("El modelo no pudo generar un diagnóstico en el formato esperado.");
     }
   }
