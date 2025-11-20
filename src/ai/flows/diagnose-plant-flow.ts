@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta y obtener información general.
@@ -77,6 +76,19 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
     return getPlantInfoFlow(input);
 }
 
+const getPlantInfoPrompt = ai.definePrompt({
+    name: 'getPlantInfoPrompt',
+    model: 'googleai/gemini-pro',
+    input: { schema: PlantInfoInputSchema },
+    output: { schema: PlantInfoOutputSchema },
+    prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "{{plantName}}".
+- careInfo: luz, agua, temperatura.
+- seasonalCare: fertilizar, podar, transplantar (indica la estación).
+- generalInfo: altura máxima, época de floración, colores de flores.
+- funFact: un dato curioso.
+Responde siempre en español.`,
+});
+
 const getPlantInfoFlow = ai.defineFlow(
     {
         name: 'getPlantInfoFlow',
@@ -84,28 +96,28 @@ const getPlantInfoFlow = ai.defineFlow(
         outputSchema: PlantInfoOutputSchema,
     },
     async (input) => {
-        const llmResponse = await ai.generate({
-          model: 'googleai/gemini-1.5-flash',
-          prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}". Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(PlantInfoOutputSchema.shape)}.
-- careInfo: luz, agua, temperatura.
-- seasonalCare: fertilizar, podar, transplantar (indica la estación).
-- generalInfo: altura máxima, época de floración, colores de flores.
-- funFact: un dato curioso.
-Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.`,
-        });
-
-        try {
-            // Clean up the response text before parsing
-            const cleanedText = llmResponse.text.replace(/^```json\s*|```\s*$/g, '');
-            const output = JSON.parse(cleanedText);
-            return PlantInfoOutputSchema.parse(output);
-        } catch (e) {
-            console.error("Failed to parse LLM response as JSON", llmResponse.text, e);
-            throw new Error("El modelo no pudo generar la información de la planta en el formato esperado.");
+        const { output } = await getPlantInfoPrompt(input);
+        if (!output) {
+            throw new Error("El modelo no pudo generar la información de la planta.");
         }
+        return output;
     }
 );
 
+
+const diagnosePlantPrompt = ai.definePrompt({
+    name: 'diagnosePlantPrompt',
+    model: 'googleai/gemini-pro-vision',
+    input: { schema: DiagnosePlantInputSchema },
+    output: { schema: DiagnosePlantOutputSchema },
+    prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud.
+- identification: isPlant (boolean), commonName, latinName.
+- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
+Responde siempre en español.
+Aquí está la información:
+Descripción: {{description}}
+Foto: {{media url=photoDataUri}}`,
+});
 
 // Definición del flujo de Genkit para diagnóstico.
 const diagnosePlantFlow = ai.defineFlow(
@@ -115,27 +127,10 @@ const diagnosePlantFlow = ai.defineFlow(
     outputSchema: DiagnosePlantOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: [
-            { text: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
-- identification: isPlant (boolean), commonName, latinName.
-- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
-Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.
-Aquí está la información:
-Descripción: ${input.description}` },
-            { media: { url: input.photoDataUri } },
-        ],
-    });
-    
-    try {
-        // Clean up the response text before parsing
-        const cleanedText = llmResponse.text.replace(/^```json\s*|```\s*$/g, '');
-        const output = JSON.parse(cleanedText);
-        return DiagnosePlantOutputSchema.parse(output);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON", llmResponse.text, e);
-        throw new Error("El modelo no pudo generar un diagnóstico en el formato esperado.");
+    const { output } = await diagnosePlantPrompt(input);
+    if (!output) {
+        throw new Error("El modelo no pudo generar un diagnóstico.");
     }
+    return output;
   }
 );

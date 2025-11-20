@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Flujo de Genkit para recomendar hortalizas y frutas para una huerta.
@@ -38,6 +37,15 @@ export async function recommendCrops(input: CropRecommenderInput): Promise<CropR
   return cropRecommenderFlow(input);
 }
 
+const cropRecommenderPrompt = ai.definePrompt({
+    name: 'cropRecommenderPrompt',
+    model: 'googleai/gemini-pro',
+    input: { schema: CropRecommenderInputSchema },
+    output: { schema: CropRecommenderOutputSchema },
+    prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("{{userQuery}}"), recomienda de 3 a 5 hortalizas o frutas.
+Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
+Sé claro y conciso. Responde siempre en español.`,
+});
 
 // Definición del flujo de Genkit.
 const cropRecommenderFlow = ai.defineFlow(
@@ -47,21 +55,10 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(CropRecommenderOutputSchema.shape)}.
-Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
-Sé claro y conciso. Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.`,
-    });
-
-    try {
-        // Clean up the response text before parsing
-        const cleanedText = llmResponse.text.replace(/^```json\s*|```\s*$/g, '');
-        const output = JSON.parse(cleanedText);
-        return CropRecommenderOutputSchema.parse(output);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON", llmResponse.text, e);
-        throw new Error("El modelo no pudo generar recomendaciones en el formato esperado.");
+    const { output } = await cropRecommenderPrompt(input);
+    if (!output) {
+        throw new Error("El modelo no pudo generar recomendaciones.");
     }
+    return output;
   }
 );
