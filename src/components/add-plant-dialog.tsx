@@ -42,7 +42,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
       return;
     }
 
-    const newPlantData = {
+    const newPlantData: Partial<Plant> = {
       name,
       date,
       status,
@@ -50,14 +50,15 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
       startType,
       location,
       acquisitionType,
-      price: acquisitionType === 'compra' ? price : undefined,
-      giftFrom: acquisitionType === 'regalo' ? giftFrom : undefined,
-      exchangeSource: acquisitionType === 'intercambio' ? exchangeSource : undefined,
-      rescuedFrom: acquisitionType === 'rescatada' ? rescuedFrom : undefined,
       notes,
       events: [],
     };
     
+    if (acquisitionType === 'compra' && price) newPlantData.price = price;
+    if (acquisitionType === 'regalo' && giftFrom) newPlantData.giftFrom = giftFrom;
+    if (acquisitionType === 'intercambio' && exchangeSource) newPlantData.exchangeSource = exchangeSource;
+    if (acquisitionType === 'rescatada' && rescuedFrom) newPlantData.rescuedFrom = rescuedFrom;
+
     onSave(newPlantData);
     
     // Reset form
