@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
-import { Camera } from 'lucide-react';
+import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 
 export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
@@ -32,6 +32,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [notes, setNotes] = useState('');
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const handleSubmit = () => {
@@ -79,6 +80,17 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const handlePhotoCaptured = (photoDataUri: string) => {
     setImage(photoDataUri);
     setIsCameraOpen(false);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
   
   const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
@@ -135,9 +147,12 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-muted-foreground">Imagen</label>
                         <div className="flex gap-2">
-                            <Input value={image} onChange={(e:any) => setImage(e.target.value)} placeholder="https://example.com/plant.jpg" />
-                            <Button variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
-                                <Camera className="h-4 w-4" />
+                             <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                            <Button variant="outline" className='w-full' onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="h-4 w-4 mr-2" /> Subir
+                            </Button>
+                            <Button variant="outline" className='w-full' onClick={() => setIsCameraOpen(true)}>
+                                <Camera className="h-4 w-4 mr-2" /> Capturar
                             </Button>
                         </div>
                     </div>

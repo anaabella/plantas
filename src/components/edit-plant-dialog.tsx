@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,6 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart, Skull } from 'lucide-react';
+import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart, Skull, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
@@ -34,6 +33,7 @@ import type { Plant, PlantEvent } from '@/app/page';
 import { PlantInfoDisplay } from '@/components/plant-info-display';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { CameraCaptureDialog } from './camera-capture-dialog';
 
 export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
   const firestore = useFirestore();
@@ -46,6 +46,8 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
   const [isInfoLoading, setIsInfoLoading] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     setEditedPlant(plant);
@@ -142,6 +144,21 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
       }
   };
 
+  const handlePhotoCaptured = (photoDataUri: string) => {
+    handleChange('image', photoDataUri);
+    setIsCameraOpen(false);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleChange('image', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
@@ -161,6 +178,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
   if (!editedPlant) return null;
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
         <Tabs defaultValue="details" className="w-full">
@@ -193,7 +211,19 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
 
                     {/* Columna Derecha */}
                     <div className="space-y-4">
-                        <InputGroup label="URL de la Imagen" value={editedPlant.image} onChange={(e:any) => handleChange('image', e.target.value)} placeholder="https://example.com/plant.jpg" />
+                       <div className="space-y-1">
+                          <label className="text-sm font-medium text-muted-foreground">Imagen Principal</label>
+                          <div className="flex gap-2">
+                            <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                            <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                              <Upload className="mr-2 h-4 w-4" /> Subir
+                            </Button>
+                            <Button variant="outline" className="w-full" onClick={() => setIsCameraOpen(true)}>
+                              <Camera className="mr-2 h-4 w-4" /> Capturar
+                            </Button>
+                          </div>
+                        </div>
+
                         {editedPlant.image && <img src={editedPlant.image} alt={editedPlant.name} className="rounded-lg object-cover w-full h-40" />}
                         <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
                         <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
@@ -308,6 +338,12 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <CameraCaptureDialog 
+        isOpen={isCameraOpen} 
+        setIsOpen={setIsCameraOpen}
+        onPhotoCaptured={handlePhotoCaptured}
+    />
+    </>
   );
 }
 
