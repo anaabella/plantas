@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Flujo de Genkit para diagnosticar la salud de una planta y obtener información general.
@@ -78,12 +79,6 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
 }
 
 
-const getPlantInfoPrompt = ai.definePrompt({
-    name: 'getPlantInfoPrompt',
-    input: { schema: PlantInfoInputSchema },
-    output: { schema: PlantInfoOutputSchema, format: 'json' },
-});
-
 const getPlantInfoFlow = ai.defineFlow(
     {
         name: 'getPlantInfoFlow',
@@ -110,13 +105,6 @@ const getPlantInfoFlow = ai.defineFlow(
     }
 );
 
-
-// Definición del prompt de Genkit para diagnóstico.
-const diagnosePlantPrompt = ai.definePrompt({
-  name: 'diagnosePlantPrompt',
-  input: {schema: DiagnosePlantInputSchema},
-  output: {schema: DiagnosePlantOutputSchema, format: 'json' },
-});
 
 // Definición del flujo de Genkit para diagnóstico.
 const diagnosePlantFlow = ai.defineFlow(
