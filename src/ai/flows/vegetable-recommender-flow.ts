@@ -42,7 +42,7 @@ const cropRecommenderPrompt = ai.definePrompt({
     name: 'cropRecommenderPrompt',
     input: { schema: CropRecommenderInputSchema },
     output: { schema: CropRecommenderOutputSchema },
-    model: 'gemini-pro',
+    model: 'googleai/gemini-pro',
     prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
 
 Para cada recomendación, proporciona:
