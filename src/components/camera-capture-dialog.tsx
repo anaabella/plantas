@@ -66,15 +66,30 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
             const context = canvas.getContext('2d');
             
             if (context) {
-                // Set canvas dimensions to match video
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+    
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
                 
-                // Draw the current video frame onto the canvas
-                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                context.drawImage(video, 0, 0, width, height);
                 
-                // Get the image data from the canvas
-                const dataUri = canvas.toDataURL('image/jpeg');
+                // Get the compressed image data from the canvas
+                const dataUri = canvas.toDataURL('image/jpeg', 0.7); // 70% quality JPEG
                 setCapturedImage(dataUri);
                 cleanupCamera();
             }
@@ -114,6 +129,9 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
                     <DialogTitle>Capturar Foto</DialogTitle>
                     <DialogDescription>Apunta con la cámara a tu planta y captura la mejor foto.</DialogDescription>
                 </DialogHeader>
+                
+                {/* Canvas oculto para procesar la imagen */}
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
 
                 <div className="relative aspect-video w-full bg-black rounded-md overflow-hidden flex items-center justify-center">
                     {capturedImage ? (
@@ -156,3 +174,5 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
         </Dialog>
     );
 }
+
+    

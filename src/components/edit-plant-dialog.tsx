@@ -35,6 +35,44 @@ import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 
+// Función para comprimir imágenes
+const compressImage = (file: File, callback: (dataUrl: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            
+            // Comprimir a JPEG con calidad 0.7
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            callback(dataUrl);
+        };
+        img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+};
+
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
   const firestore = useFirestore();
   const { user } = useUser();
@@ -152,11 +190,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleChange('image', reader.result as string);
-      };
-      reader.readAsDataURL(file);
+        compressImage(file, (compressedDataUrl) => {
+            handleChange('image', compressedDataUrl);
+        });
     }
   };
 
@@ -401,3 +437,5 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
     </Select>
   </div>
 );
+
+    
