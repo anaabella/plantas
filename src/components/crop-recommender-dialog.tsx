@@ -9,11 +9,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { recommendCrops, type CropRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
 
 
-export function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (isOpen: boolean) => void }) {
+export const CropRecommenderDialog = memo(function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (isOpen: boolean) => void }) {
     const [userQuery, setUserQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [recommendations, setRecommendations] = useState<CropRecommenderOutput | null>(null);
@@ -66,4 +66,4 @@ export function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, 
             </DialogContent>
         </Dialog>
     );
-}
+});

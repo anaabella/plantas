@@ -11,13 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 
-export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
+export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [status, setStatus] = useState<Plant['status']>('viva');
@@ -180,4 +180,4 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
     />
     </>
   );
-}
+});

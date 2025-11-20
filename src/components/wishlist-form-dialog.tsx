@@ -9,9 +9,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 
-export function WishlistFormDialog({ isOpen, setIsOpen, onSave, item }: any) {
+export const WishlistFormDialog = memo(function WishlistFormDialog({ isOpen, setIsOpen, onSave, item }: any) {
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -50,4 +50,4 @@ export function WishlistFormDialog({ isOpen, setIsOpen, onSave, item }: any) {
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 
-export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
+export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
@@ -345,7 +345,7 @@ export function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: 
     />
     </>
   );
-}
+});
 
 
 function AIDiagnosisResult({ result }: { result: DiagnosePlantOutput }) {
