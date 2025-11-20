@@ -41,7 +41,7 @@ const identifyPlantFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash-latest',
+        model: 'googleai/gemini-1.5-flash',
         prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
 Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(IdentifyPlantOutputSchema.shape)}.
 - isPlant: boolean que confirma si es una planta.
