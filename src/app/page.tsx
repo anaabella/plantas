@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +33,7 @@ import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, quer
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
+import { identifyPlant } from '@/ai/flows/identify-plant-flow';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
 import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
@@ -724,8 +726,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { identifyPlant } = require('@/ai/flows/identify-plant-flow');
-
+  
   const handleAiSearchClick = () => {
     fileInputRef.current?.click();
   };
