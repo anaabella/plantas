@@ -8,7 +8,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 // Esquema de entrada
 const IdentifyPlantInputSchema = z.object({
@@ -35,6 +34,22 @@ export async function identifyPlant(input: IdentifyPlantInput): Promise<Identify
   return identifyPlantFlow(input);
 }
 
+const identifyPlantPrompt = ai.definePrompt({
+    name: 'identifyPlantPrompt',
+    input: { schema: IdentifyPlantInputSchema },
+    output: { schema: IdentifyPlantOutputSchema },
+    model: 'gemini-pro-vision',
+    prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
+  
+  - Determina si la imagen es realmente de una planta.
+  - Proporciona el nombre común más conocido.
+  - Proporciona el nombre científico/latino.
+  
+  Responde de forma concisa y directa. Responde siempre en español.
+  Foto: {{media url=photoDataUri}}`,
+});
+
+
 const identifyPlantFlow = ai.defineFlow(
   {
     name: 'identifyPlantFlow',
@@ -42,23 +57,7 @@ const identifyPlantFlow = ai.defineFlow(
     outputSchema: IdentifyPlantOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-      model: googleAI.model('gemini-pro-vision'),
-      prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
-  
-  - Determina si la imagen es realmente de una planta.
-  - Proporciona el nombre común más conocido.
-  - Proporciona el nombre científico/latino.
-  
-  Responde de forma concisa y directa. Responde siempre en español.
-  Foto: [Media: ${input.photoDataUri}]`,
-      output: {
-        format: 'json',
-        schema: IdentifyPlantOutputSchema,
-      },
-    });
-
-    const output = llmResponse.output();
+    const { output } = await identifyPlantPrompt(input);
     if (!output) {
       throw new Error("El modelo no pudo identificar la planta.");
     }

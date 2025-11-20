@@ -9,7 +9,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 // Esquema de entrada para el flujo de diagnóstico.
 const DiagnosePlantInputSchema = z.object({
@@ -79,6 +78,20 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
 }
 
 
+const getPlantInfoPrompt = ai.definePrompt({
+    name: 'getPlantInfoPrompt',
+    input: { schema: PlantInfoInputSchema },
+    output: { schema: PlantInfoOutputSchema },
+    model: 'gemini-pro',
+    prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
+- Resume los cuidados básicos en términos de luz, agua y temperatura.
+- Indica la mejor estación del año para fertilizar, podar y transplantar. Sé breve y directo (ej. "Primavera", "Verano y otoño").
+- Proporciona detalles generales: altura máxima, época de floración y colores de las flores.
+- Añade un dato curioso sobre la planta.
+Responde siempre en español.`,
+});
+
+
 const getPlantInfoFlow = ai.defineFlow(
     {
         name: 'getPlantInfoFlow',
@@ -86,26 +99,32 @@ const getPlantInfoFlow = ai.defineFlow(
         outputSchema: PlantInfoOutputSchema,
     },
     async (input) => {
-        const llmResponse = await ai.generate({
-          model: googleAI.model('gemini-pro'),
-          prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "${input.plantName}".
-- Resume los cuidados básicos en términos de luz, agua y temperatura.
-- Indica la mejor estación del año para fertilizar, podar y transplantar. Sé breve y directo (ej. "Primavera", "Verano y otoño").
-- Proporciona detalles generales: altura máxima, época de floración y colores de las flores.
-- Añade un dato curioso sobre la planta.
-Responde siempre en español.`,
-          output: {
-            format: 'json',
-            schema: PlantInfoOutputSchema,
-          },
-        });
-        const output = llmResponse.output();
+        const { output } = await getPlantInfoPrompt(input);
         if (!output) {
             throw new Error("El modelo no pudo generar la información de la planta.");
         }
         return output;
     }
 );
+
+const diagnosePlantPrompt = ai.definePrompt({
+    name: 'diagnosePlantPrompt',
+    input: { schema: DiagnosePlantInputSchema },
+    output: { schema: DiagnosePlantOutputSchema },
+    model: 'gemini-pro-vision',
+    prompt: `Actúa como un botánico experto y amigable. Tu tarea es analizar la imagen y la descripción de una planta proporcionada por un usuario para diagnosticar su estado de salud.
+
+Primero, identifica la planta en la foto. Si no es una planta, indícalo claramente.
+
+Luego, evalúa su salud. Busca signos de enfermedades, plagas, estrés hídrico, quemaduras de sol, o deficiencias nutricionales. Basado en tu análisis, determina si la planta está 'sana' o 'necesita atención'.
+
+Finalmente, proporciona un diagnóstico claro y una recomendación práctica. El diagnóstico debe explicar lo que observas, y la recomendación debe ser una guía paso a paso que el usuario pueda seguir para cuidar mejor de su planta. Responde siempre en español.
+
+Aquí está la información proporcionada por el usuario:
+Descripción: {{description}}
+Foto: {{media url=photoDataUri}}`,
+});
+
 
 // Definición del flujo de Genkit para diagnóstico.
 const diagnosePlantFlow = ai.defineFlow(
@@ -115,26 +134,7 @@ const diagnosePlantFlow = ai.defineFlow(
     outputSchema: DiagnosePlantOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-        model: googleAI.model('gemini-pro-vision'),
-        prompt: `Actúa como un botánico experto y amigable. Tu tarea es analizar la imagen y la descripción de una planta proporcionada por un usuario para diagnosticar su estado de salud.
-
-Primero, identifica la planta en la foto. Si no es una planta, indícalo claramente.
-
-Luego, evalúa su salud. Busca signos de enfermedades, plagas, estrés hídrico, quemaduras de sol, o deficiencias nutricionales. Basado en tu análisis, determina si la planta está 'sana' o 'necesita atención'.
-
-Finalmente, proporciona un diagnóstico claro y una recomendación práctica. El diagnóstico debe explicar lo que observas, y la recomendación debe ser una guía paso a paso que el usuario pueda seguir para cuidar mejor de su planta. Responde siempre en español.
-
-Aquí está la información proporcionada por el usuario:
-Descripción: ${input.description}
-Foto: [Media: ${input.photoDataUri}]`,
-        output: {
-          format: 'json',
-          schema: DiagnosePlantOutputSchema
-        }
-    });
-
-    const output = llmResponse.output();
+    const { output } = await diagnosePlantPrompt(input);
     if (!output) {
       throw new Error("El modelo no pudo generar un diagnóstico.");
     }
