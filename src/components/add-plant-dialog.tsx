@@ -6,14 +6,15 @@ import {
     DialogTitle,
     DialogDescription,
     DialogFooter,
-    DialogClose,
   } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Plant } from '@/app/page';
+import { CameraCaptureDialog } from './camera-capture-dialog';
+import { Camera } from 'lucide-react';
 
 export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [name, setName] = useState('');
@@ -28,6 +29,8 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const [exchangeSource, setExchangeSource] = useState('');
   const [rescuedFrom, setRescuedFrom] = useState('');
   const [notes, setNotes] = useState('');
+
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
 
   const handleSubmit = () => {
@@ -71,6 +74,11 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
 
     setIsOpen(false);
   };
+
+  const handlePhotoCaptured = (photoDataUri: string) => {
+    setImage(photoDataUri);
+    setIsCameraOpen(false);
+  };
   
   const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
     <div className="space-y-1">
@@ -100,6 +108,7 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -121,7 +130,15 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
 
              </div>
              <div className="space-y-4">
-                <InputGroup label="URL de la Imagen" value={image} onChange={(e:any) => setImage(e.target.value)} placeholder="https://example.com/plant.jpg" />
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-muted-foreground">Imagen</label>
+                    <div className="flex gap-2">
+                        <Input value={image} onChange={(e:any) => setImage(e.target.value)} placeholder="https://example.com/plant.jpg" />
+                        <Button variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
+                            <Camera className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
                 {image && <img src={image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
 
                 <SelectGroup label="Comienzo como" value={startType} onValueChange={setStartType} options={startTypeOptions} />
@@ -136,5 +153,11 @@ export function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <CameraCaptureDialog 
+        isOpen={isCameraOpen} 
+        setIsOpen={setIsCameraOpen}
+        onPhotoCaptured={handlePhotoCaptured}
+    />
+    </>
   );
 }
