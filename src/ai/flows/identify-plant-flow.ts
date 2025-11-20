@@ -38,15 +38,6 @@ const prompt = ai.definePrompt({
   name: 'identifyPlantPrompt',
   input: {schema: IdentifyPlantInputSchema},
   output: {schema: IdentifyPlantOutputSchema, format: 'json' },
-  prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
-  
-  - Determina si la imagen es realmente de una planta.
-  - Proporciona el nombre común más conocido.
-  - Proporciona el nombre científico/latino.
-  
-  Responde de forma concisa y directa. Responde siempre en español.
-  
-  Foto: {{media url=photoDataUri}}`,
 });
 
 const identifyPlantFlow = ai.defineFlow(
@@ -57,9 +48,18 @@ const identifyPlantFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-      prompt,
+      prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
+  
+  - Determina si la imagen es realmente de una planta.
+  - Proporciona el nombre común más conocido.
+  - Proporciona el nombre científico/latino.
+  
+  Responde de forma concisa y directa. Responde siempre en español.
+  
+  Foto: {{media url=photoDataUri}}`,
       model: googleAI.model('gemini-pro'),
       input,
+      output: { schema: IdentifyPlantOutputSchema, format: 'json' }
     });
     const output = llmResponse.output();
     if (!output) {
