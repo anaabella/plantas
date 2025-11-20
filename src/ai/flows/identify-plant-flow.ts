@@ -34,22 +34,6 @@ export async function identifyPlant(input: IdentifyPlantInput): Promise<Identify
   return identifyPlantFlow(input);
 }
 
-const identifyPlantPrompt = ai.definePrompt({
-    name: 'identifyPlantPrompt',
-    input: { schema: IdentifyPlantInputSchema },
-    output: { schema: IdentifyPlantOutputSchema },
-    model: 'googleai/gemini-pro-vision',
-    prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
-  
-  - Determina si la imagen es realmente de una planta.
-  - Proporciona el nombre común más conocido.
-  - Proporciona el nombre científico/latino.
-  
-  Responde de forma concisa y directa. Responde siempre en español.
-  Foto: {{media url=photoDataUri}}`,
-});
-
-
 const identifyPlantFlow = ai.defineFlow(
   {
     name: 'identifyPlantFlow',
@@ -57,10 +41,24 @@ const identifyPlantFlow = ai.defineFlow(
     outputSchema: IdentifyPlantOutputSchema,
   },
   async input => {
-    const { output } = await identifyPlantPrompt(input);
-    if (!output) {
-      throw new Error("El modelo no pudo identificar la planta.");
+    const llmResponse = await ai.generate({
+        model: 'googleai/gemini-pro-vision',
+        prompt: [
+            { text: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(IdentifyPlantOutputSchema.shape)}.
+- isPlant: boolean que confirma si es una planta.
+- commonName: El nombre común más conocido.
+- latinName: El nombre científico/latino.
+Responde de forma concisa y directa. Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.` },
+            { media: { url: input.photoDataUri } },
+        ],
+    });
+
+    try {
+        const output = JSON.parse(llmResponse.text);
+        return IdentifyPlantOutputSchema.parse(output);
+    } catch (e) {
+        console.error("Failed to parse LLM response as JSON", llmResponse.text);
+        throw new Error("El modelo no pudo identificar la planta en el formato esperado.");
     }
-    return output;
   }
 );

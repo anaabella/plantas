@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 // Esquema de entrada para la descripción del usuario.
 const CropRecommenderInputSchema = z.object({
@@ -38,23 +38,6 @@ export async function recommendCrops(input: CropRecommenderInput): Promise<CropR
   return cropRecommenderFlow(input);
 }
 
-const cropRecommenderPrompt = ai.definePrompt({
-    name: 'cropRecommenderPrompt',
-    input: { schema: CropRecommenderInputSchema },
-    output: { schema: CropRecommenderOutputSchema },
-    model: 'googleai/gemini-pro',
-    prompt: `Actúa como un experto en horticultura. Basado en la siguiente descripción del espacio de un usuario, recomienda de 3 a 5 hortalizas o frutas adecuadas para plantar.
-
-Para cada recomendación, proporciona:
-1.  El nombre común.
-2.  El tiempo aproximado que tardará en estar lista para la cosecha.
-3.  Una recomendación clave sobre dónde plantarla (ej: necesita pleno sol, ideal para macetas, prefiere sombra parcial, etc.).
-
-Descripción del usuario: "{{userQuery}}"
-
-Sé claro y conciso en tus recomendaciones. Responde siempre en español.`,
-});
-
 
 // Definición del flujo de Genkit.
 const cropRecommenderFlow = ai.defineFlow(
@@ -64,10 +47,19 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const { output } = await cropRecommenderPrompt(input);
-    if (!output) {
-      throw new Error("El modelo no pudo generar recomendaciones.");
+    const llmResponse = await ai.generate({
+        model: 'googleai/gemini-pro',
+        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(CropRecommenderOutputSchema.shape)}.
+Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
+Sé claro y conciso. Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.`,
+    });
+
+    try {
+        const output = JSON.parse(llmResponse.text);
+        return CropRecommenderOutputSchema.parse(output);
+    } catch (e) {
+        console.error("Failed to parse LLM response as JSON", llmResponse.text);
+        throw new Error("El modelo no pudo generar recomendaciones en el formato esperado.");
     }
-    return output;
   }
 );

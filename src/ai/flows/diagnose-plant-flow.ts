@@ -77,21 +77,6 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
     return getPlantInfoFlow(input);
 }
 
-
-const getPlantInfoPrompt = ai.definePrompt({
-    name: 'getPlantInfoPrompt',
-    input: { schema: PlantInfoInputSchema },
-    output: { schema: PlantInfoOutputSchema },
-    model: 'googleai/gemini-pro',
-    prompt: `Actúa como un experto en botánica. Proporciona información concisa y útil sobre la planta llamada "{{plantName}}".
-- Resume los cuidados básicos en términos de luz, agua y temperatura.
-- Indica la mejor estación del año para fertilizar, podar y transplantar. Sé breve y directo (ej. "Primavera", "Verano y otoño").
-- Proporciona detalles generales: altura máxima, época de floración y colores de las flores.
-- Añade un dato curioso sobre la planta.
-Responde siempre en español.`,
-});
-
-
 const getPlantInfoFlow = ai.defineFlow(
     {
         name: 'getPlantInfoFlow',
@@ -99,31 +84,25 @@ const getPlantInfoFlow = ai.defineFlow(
         outputSchema: PlantInfoOutputSchema,
     },
     async (input) => {
-        const { output } = await getPlantInfoPrompt(input);
-        if (!output) {
-            throw new Error("El modelo no pudo generar la información de la planta.");
+        const llmResponse = await ai.generate({
+          model: 'googleai/gemini-pro',
+          prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}". Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(PlantInfoOutputSchema.shape)}.
+- careInfo: luz, agua, temperatura.
+- seasonalCare: fertilizar, podar, transplantar (indica la estación).
+- generalInfo: altura máxima, época de floración, colores de flores.
+- funFact: un dato curioso.
+Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.`,
+        });
+
+        try {
+            const output = JSON.parse(llmResponse.text);
+            return PlantInfoOutputSchema.parse(output);
+        } catch (e) {
+            console.error("Failed to parse LLM response as JSON", llmResponse.text);
+            throw new Error("El modelo no pudo generar la información de la planta en el formato esperado.");
         }
-        return output;
     }
 );
-
-const diagnosePlantPrompt = ai.definePrompt({
-    name: 'diagnosePlantPrompt',
-    input: { schema: DiagnosePlantInputSchema },
-    output: { schema: DiagnosePlantOutputSchema },
-    model: 'googleai/gemini-pro-vision',
-    prompt: `Actúa como un botánico experto y amigable. Tu tarea es analizar la imagen y la descripción de una planta proporcionada por un usuario para diagnosticar su estado de salud.
-
-Primero, identifica la planta en la foto. Si no es una planta, indícalo claramente.
-
-Luego, evalúa su salud. Busca signos de enfermedades, plagas, estrés hídrico, quemaduras de sol, o deficiencias nutricionales. Basado en tu análisis, determina si la planta está 'sana' o 'necesita atención'.
-
-Finalmente, proporciona un diagnóstico claro y una recomendación práctica. El diagnóstico debe explicar lo que observas, y la recomendación debe ser una guía paso a paso que el usuario pueda seguir para cuidar mejor de su planta. Responde siempre en español.
-
-Aquí está la información proporcionada por el usuario:
-Descripción: {{description}}
-Foto: {{media url=photoDataUri}}`,
-});
 
 
 // Definición del flujo de Genkit para diagnóstico.
@@ -134,10 +113,25 @@ const diagnosePlantFlow = ai.defineFlow(
     outputSchema: DiagnosePlantOutputSchema,
   },
   async input => {
-    const { output } = await diagnosePlantPrompt(input);
-    if (!output) {
-      throw new Error("El modelo no pudo generar un diagnóstico.");
+    const llmResponse = await ai.generate({
+        model: 'googleai/gemini-pro-vision',
+        prompt: [
+            { text: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde únicamente con un objeto JSON que siga este esquema: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
+- identification: isPlant (boolean), commonName, latinName.
+- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
+Responde siempre en español. No incluyas "\`\`\`json" o cualquier otra cosa que no sea el objeto JSON.
+Aquí está la información:
+Descripción: ${input.description}` },
+            { media: { url: input.photoDataUri } },
+        ],
+    });
+    
+    try {
+        const output = JSON.parse(llmResponse.text);
+        return DiagnosePlantOutputSchema.parse(output);
+    } catch (e) {
+        console.error("Failed to parse LLM response as JSON", llmResponse.text);
+        throw new Error("El modelo no pudo generar un diagnóstico en el formato esperado.");
     }
-    return output;
   }
 );
