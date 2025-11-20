@@ -56,10 +56,10 @@ export type Plant = {
   image?: string;
   startType: 'planta' | 'gajo' | 'raiz' | 'semilla';
   location: 'interior' | 'exterior';
-  acquisitionType: 'compra' | 'regalo' | 'intercambio' | 'robado';
+  acquisitionType: 'compra' | 'regalo' | 'intercambio' | 'rescatada';
   price?: string;
   giftFrom?: string;
-  stolenFrom?: string;
+  rescuedFrom?: string;
   exchangeSource?: string; // Motivo de intercambio si aplica
   exchangeDest?: string; // Destino del intercambio si aplica
   lastPhotoUpdate?: string; // ISO date string
