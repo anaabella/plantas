@@ -6,7 +6,7 @@ import {
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil
 } from 'lucide-react';
-import Image from 'next/image';
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -530,7 +530,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin: handleLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -640,7 +640,7 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
                             <div className="p-1">
                                 <div onClick={() => onPlantClick(plant)} className="cursor-pointer group">
                                     <div className="relative overflow-hidden rounded-lg border">
-                                        <Image
+                                        <NextImage
                                             src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                                             alt={plant.name}
                                             width={400}
@@ -720,7 +720,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         return (
             <div key={plant.id} className="group">
               <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
-                <Image
+                <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                     alt={plant.name}
                     width={400}
@@ -814,7 +814,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
         {items.map((item: WishlistItem) => (
           <div key={item.id} className="group relative cursor-pointer" onClick={() => onItemClick(item)}>
             <div className="relative overflow-hidden rounded-lg">
-                <Image
+                <NextImage
                     src={item.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                     alt={item.name}
                     width={400}
