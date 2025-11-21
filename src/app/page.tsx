@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -385,7 +385,6 @@ export default function GardenApp() {
             onEdit={openWishlistForm}
             onDelete={handleDeleteWishlistItem}
             onAddNew={() => openWishlistForm(undefined)}
-            onSave={handleSaveWishlistItem}
           />
         )}
       </main>
@@ -617,8 +616,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {plants.map((plant: Plant) => (
-        <div key={plant.id} className="cursor-pointer group" onClick={() => onPlantClick(plant)}>
-          <div className="relative overflow-hidden rounded-lg">
+        <div key={plant.id} className="group">
+            <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
              <Image
                 src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                 alt={plant.name}
@@ -648,30 +647,32 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
                </div>
             )}
           </div>
-          {!isCommunity && (
-            <div className="p-2 bg-transparent">
-                <h3 className="font-headline text-lg font-bold truncate">{plant.name}</h3>
-                <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
+          <div className="p-2 bg-transparent">
+              {!isCommunity ? (
+                <>
+                    <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                    <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
+                        </div>
+                        <div className="flex items-center gap-2 capitalize">
+                            {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
+                            <span>
+                                {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
+                            </span>
+                        </div>
+                         <div className="flex items-center gap-2 capitalize">
+                            {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
+                            <span>{plant.startType}</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 capitalize">
-                        {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
-                        <span>
-                            {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
-                        </span>
+                    <div className='mt-2'>
+                        <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
                     </div>
-                     <div className="flex items-center gap-2 capitalize">
-                        {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
-                        <span>{plant.startType}</span>
-                    </div>
-                </div>
-                <div className='mt-2'>
-                    <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
-                </div>
-            </div>
-          )}
+                </>
+              ) : null }
+          </div>
         </div>
       ))}
     </div>
@@ -728,3 +729,5 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
     </div>
   );
 }
+
+    
