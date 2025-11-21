@@ -61,10 +61,10 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
   const firestore = useFirestore();
   const { user } = useUser();
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
-  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
-  const handleOpenImageDetail = (imageUrl: string) => {
-    setSelectedImageUrl(imageUrl);
+  const handleOpenImageDetail = (index: number) => {
+    setImageDetailStartIndex(index);
     setIsImageDetailOpen(true);
   };
 
@@ -154,7 +154,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         <CarouselContent>
                         {galleryImages.map((image, index) => (
                             <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
-                            <div className="p-1" onClick={() => handleOpenImageDetail(image.imageUrl)}>
+                            <div className="p-1" onClick={() => handleOpenImageDetail(index)}>
                                 <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent cursor-pointer">
                                     <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
                                     <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
@@ -223,7 +223,8 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
      <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
-        imageUrl={selectedImageUrl}
+        images={galleryImages}
+        startIndex={imageDetailStartIndex}
     />
     </>
   );

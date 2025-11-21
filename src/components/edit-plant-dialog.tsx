@@ -24,8 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Pencil, Skull, ArrowRightLeft } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Pencil, Skull, ArrowRightLeft } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -88,14 +87,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
-  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
   
   useEffect(() => {
     setEditedPlant(plant);
   }, [plant, isOpen]);
 
-  const handleOpenImageDetail = (imageUrl: string) => {
-    setSelectedImageUrl(imageUrl);
+  const handleOpenImageDetail = (index: number) => {
+    setImageDetailStartIndex(index);
     setIsImageDetailOpen(true);
   };
   
@@ -105,7 +104,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   
   const handleSave = () => {
     onSave(plant.id, editedPlant);
-    // Vuelve a la pestaña de bitácora después de guardar
   };
   
   const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string }, statusChange?: Plant['status']) => {
@@ -204,7 +202,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const statusOptions: Plant['status'][] = ['viva', 'fallecida', 'intercambiada'];
 
   const eventIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
-    riego: <Droplets className="h-4 w-4 text-blue-500" />,
+    riego: <Scissors className="h-4 w-4 text-blue-500" />,
     poda: <Scissors className="h-4 w-4 text-gray-500" />,
     transplante: <Shovel className="h-4 w-4 text-orange-500" />,
     foto: <Camera className="h-4 w-4 text-purple-500" />,
@@ -245,24 +243,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <Button variant="outline" size="sm" onClick={() => handleAddEvent({type: 'nota', date: new Date().toISOString().split('T')[0], note: 'Se intercambió un gajo'})}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié gajo</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChange('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChange('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
-                        <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm"><History className="mr-1 h-4 w-4"/>Añadir Nota</Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                                <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Nueva Nota</h4>
-                                    <p className="text-sm text-muted-foreground">Añade una nota al historial de la planta.</p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} />
-                                    <Textarea value={newEventNote} onChange={(e) => setNewEventNote(e.target.value)} placeholder="Escribe tu nota aquí..." />
-                                    <Button onClick={handleAddNoteConfirm}>Guardar Nota</Button>
-                                </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
+                        
                     </div>
                     <div className="space-y-3">
                         {editedPlant.events?.map((event: PlantEvent) => (
@@ -295,7 +276,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         {galleryImages.map((image, index) => (
-                            <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(image.imageUrl)}>
+                            <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
                                 <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
                                 <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
                                     {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
@@ -361,7 +342,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
-        imageUrl={selectedImageUrl}
+        images={galleryImages}
+        startIndex={imageDetailStartIndex}
     />
     </>
   );
