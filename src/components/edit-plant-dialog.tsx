@@ -25,14 +25,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload } from 'lucide-react';
+import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Pencil, Skull, ArrowRightLeft } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
+import { ScrollArea } from './ui/scroll-area';
 
 // Función para comprimir imágenes
 const compressImage = (file: File, callback: (dataUrl: string) => void) => {
@@ -76,6 +76,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const firestore = useFirestore();
   const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
+  const [isEditing, setIsEditing] = useState(false);
+
   const [newEventNote, setNewEventNote] = useState("");
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [isNotePopoverOpen, setIsNotePopoverOpen] = useState(false);
@@ -84,7 +86,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   
   useEffect(() => {
     setEditedPlant(plant);
-  }, [plant]);
+    setIsEditing(false); // Reset to log view every time dialog opens
+  }, [plant, isOpen]);
   
   const handleChange = (field: keyof Plant, value: any) => {
     setEditedPlant({ ...editedPlant, [field]: value });
@@ -92,9 +95,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   
   const handleSave = () => {
     onSave(plant.id, editedPlant);
+    setIsEditing(false); // Switch back to log view after saving
   };
   
-  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string }) => {
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string }, statusChange?: Plant['status']) => {
     if (!firestore || !user || !editedPlant) return;
     const newEvent = { ...event, id: new Date().getTime().toString(), note: event.note || '' };
     const updatedEvents = [...(editedPlant.events || []), newEvent];
@@ -108,6 +112,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (event.type === 'foto' && event.note) {
         updatePayload.lastPhotoUpdate = event.date;
         updatePayload.image = event.note;
+    }
+    if (statusChange) {
+        updatePayload.status = statusChange;
     }
 
     await updateDoc(plantRef, updatePayload);
@@ -142,6 +149,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     setNewEventDate(new Date().toISOString().split('T')[0]);
     setIsNotePopoverOpen(false);
   };
+
+  const handleStatusChange = (status: Plant['status'], note: string) => {
+      handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note }, status);
+  }
   
   const handlePhotoCaptured = (photoDataUri: string) => {
     handleChange('image', photoDataUri);
@@ -178,92 +189,86 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
-        <Tabs defaultValue="details" className="w-full">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                <DialogHeader className="mb-4 flex-shrink-0">
-                    <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-                    <DialogDescription>Modifica los detalles de tu planta.</DialogDescription>
-                </DialogHeader>
-                <TabsList className="w-full sm:w-auto">
-                    <TabsTrigger value="details" className='flex-1 sm:flex-initial'>Detalles</TabsTrigger>
-                    <TabsTrigger value="log" className='flex-1 sm:flex-initial'>Bitácora</TabsTrigger>
-                </TabsList>
+        <DialogHeader className="flex flex-row justify-between items-center pr-10">
+          <div>
+            <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
+            <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+          </div>
+          <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[65vh] p-1">
+          {isEditing ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
+              {/* Columna Izquierda */}
+              <div className="space-y-4">
+                  <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                  <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
+                  <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
+                  {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                  {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                  {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                   {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+
+                  <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+              </div>
+
+              {/* Columna Derecha */}
+              <div className="space-y-4">
+                 <div className="space-y-1">
+                    <label className="text-sm font-medium text-muted-foreground">Imagen Principal</label>
+                    <div className="flex gap-2">
+                      <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                      <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="mr-2 h-4 w-4" /> Subir
+                      </Button>
+                      <Button variant="outline" className="w-full" onClick={() => setIsCameraOpen(true)}>
+                        <Camera className="mr-2 h-4 w-4" /> Capturar
+                      </Button>
+                    </div>
+                  </div>
+
+                  {editedPlant.image && <img src={editedPlant.image} alt={editedPlant.name} className="rounded-lg object-cover w-full h-40" />}
+                  <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                  <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                  <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
+                   {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+              </div>
             </div>
-            
-            <TabsContent value="details" className="overflow-y-auto max-h-[65vh] p-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Columna Izquierda */}
-                    <div className="space-y-4">
-                        <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
-                        <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
-                        <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                        {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                        {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                        {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                         {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
-
-                        <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
-                    </div>
-
-                    {/* Columna Derecha */}
-                    <div className="space-y-4">
-                       <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Imagen Principal</label>
-                          <div className="flex gap-2">
-                            <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
-                            <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                              <Upload className="mr-2 h-4 w-4" /> Subir
-                            </Button>
-                            <Button variant="outline" className="w-full" onClick={() => setIsCameraOpen(true)}>
-                              <Camera className="mr-2 h-4 w-4" /> Capturar
-                            </Button>
-                          </div>
-                        </div>
-
-                        {editedPlant.image && <img src={editedPlant.image} alt={editedPlant.name} className="rounded-lg object-cover w-full h-40" />}
-                        <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
-                        <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
-                        <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
-                         {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
-
-                    </div>
-                </div>
-            </TabsContent>
-            
-            <TabsContent value="log" className="overflow-y-auto max-h-[65vh] p-1">
-                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Planes de Cuidado</h3>
-                 </div>
-                 <div className="flex gap-2 flex-wrap mb-4">
-                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
-                </div>
+          ) : (
+             <div>
                  <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Eventos Rápidos</h3>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
-                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
-                        
-                        <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm"><History className="mr-1 h-4 w-4"/>Añadir Nota</Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                                <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Nueva Nota</h4>
-                                    <p className="text-sm text-muted-foreground">Añade una nota al historial de la planta.</p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} />
-                                    <Textarea value={newEventNote} onChange={(e) => setNewEventNote(e.target.value)} placeholder="Escribe tu nota aquí..." />
-                                    <Button onClick={handleAddNoteConfirm}>Guardar Nota</Button>
-                                </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('plaga')}><Bug className="mr-1 h-4 w-4"/>Plaga</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleAddEvent({type: 'nota', date: new Date().toISOString().split('T')[0], note: 'Se intercambió un gajo'})}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié gajo</Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleStatusChange('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleStatusChange('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
+                    <Popover open={isNotePopoverOpen} onOpenChange={setIsNotePopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm"><History className="mr-1 h-4 w-4"/>Añadir Nota</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="grid gap-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Nueva Nota</h4>
+                                <p className="text-sm text-muted-foreground">Añade una nota al historial de la planta.</p>
+                            </div>
+                            <div className="grid gap-2">
+                                <Input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} />
+                                <Textarea value={newEventNote} onChange={(e) => setNewEventNote(e.target.value)} placeholder="Escribe tu nota aquí..." />
+                                <Button onClick={handleAddNoteConfirm}>Guardar Nota</Button>
+                            </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
                 <div className="space-y-3">
                     {editedPlant.events?.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((event: PlantEvent) => (
@@ -283,8 +288,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     ))}
                     {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
                 </div>
-            </TabsContent>
-        </Tabs>
+             </div>
+          )}
+        </ScrollArea>
         
         <DialogFooter className="mt-4 flex-col sm:flex-row sm:justify-between w-full">
           <AlertDialog>
@@ -306,7 +312,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
           </AlertDialog>
           <div className='flex gap-2 justify-end'>
             <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+            {isEditing && <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>}
           </div>
         </DialogFooter>
       </DialogContent>
