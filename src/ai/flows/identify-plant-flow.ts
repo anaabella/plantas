@@ -24,10 +24,17 @@ const IdentifyPlantOutputSchema = z.object({
 });
 export type IdentifyPlantOutput = z.infer<typeof IdentifyPlantOutputSchema>;
 
-
 export async function identifyPlant(input: IdentifyPlantInput): Promise<IdentifyPlantOutput> {
   return identifyPlantFlow(input);
 }
+
+const identifyPlantPrompt = ai.definePrompt({
+    name: 'identifyPlantPrompt',
+    input: { schema: IdentifyPlantInputSchema },
+    output: { schema: IdentifyPlantOutputSchema },
+    prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde siempre en español.
+Foto: {{media url=photoDataUri}}`,
+});
 
 const identifyPlantFlow = ai.defineFlow(
   {
@@ -36,17 +43,7 @@ const identifyPlantFlow = ai.defineFlow(
     outputSchema: IdentifyPlantOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde siempre en español.
-Foto: ${input.photoDataUri}`,
-        output: {
-            format: 'json',
-            schema: IdentifyPlantOutputSchema,
-        }
-    });
-    
-    const output = llmResponse.output();
+    const { output } = await identifyPlantPrompt(input);
     if (!output) {
         throw new Error("El modelo no pudo identificar la planta.");
     }

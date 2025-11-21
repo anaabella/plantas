@@ -26,10 +26,16 @@ const CropRecommenderOutputSchema = z.object({
 });
 export type CropRecommenderOutput = z.infer<typeof CropRecommenderOutputSchema>;
 
-
 export async function recommendCrops(input: CropRecommenderInput): Promise<CropRecommenderOutput> {
   return cropRecommenderFlow(input);
 }
+
+const cropRecommenderPrompt = ai.definePrompt({
+    name: 'cropRecommenderPrompt',
+    input: { schema: CropRecommenderInputSchema },
+    output: { schema: CropRecommenderOutputSchema },
+    prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("{{{userQuery}}}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
+});
 
 const cropRecommenderFlow = ai.defineFlow(
   {
@@ -38,16 +44,7 @@ const cropRecommenderFlow = ai.defineFlow(
     outputSchema: CropRecommenderOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
-        output: {
-            format: 'json',
-            schema: CropRecommenderOutputSchema,
-        }
-    });
-    
-    const output = llmResponse.output();
+    const { output } = await cropRecommenderPrompt(input);
     if (!output) {
       throw new Error("El modelo no pudo generar recomendaciones.");
     }

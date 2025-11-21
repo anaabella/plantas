@@ -35,10 +35,20 @@ const DiagnosePlantOutputSchema = z.object({
 });
 export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
 
-
 export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
   return diagnosePlantFlow(input);
 }
+
+const diagnosePlantPrompt = ai.definePrompt({
+    name: 'diagnosePlantPrompt',
+    input: { schema: DiagnosePlantInputSchema },
+    output: { schema: DiagnosePlantOutputSchema },
+    prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde siempre en español.
+Aquí está la información:
+Descripción: {{{description}}}
+Foto: {{media url=photoDataUri}}`,
+});
+
 
 const diagnosePlantFlow = ai.defineFlow(
   {
@@ -47,19 +57,7 @@ const diagnosePlantFlow = ai.defineFlow(
     outputSchema: DiagnosePlantOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde siempre en español.
-Aquí está la información:
-Descripción: ${input.description}
-Foto: ${input.photoDataUri}`,
-        output: {
-            format: 'json',
-            schema: DiagnosePlantOutputSchema,
-        }
-    });
-
-    const output = llmResponse.output();
+    const { output } = await diagnosePlantPrompt(input);
     if (!output) {
       throw new Error("El modelo no generó una respuesta válida.");
     }
@@ -100,6 +98,13 @@ export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutp
     return getPlantInfoFlow(input);
 }
 
+const getPlantInfoPrompt = ai.definePrompt({
+    name: 'getPlantInfoPrompt',
+    input: { schema: PlantInfoInputSchema },
+    output: { schema: PlantInfoOutputSchema },
+    prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "{{{plantName}}}". Responde siempre en español.`,
+});
+
 const getPlantInfoFlow = ai.defineFlow(
     {
         name: 'getPlantInfoFlow',
@@ -107,16 +112,7 @@ const getPlantInfoFlow = ai.defineFlow(
         outputSchema: PlantInfoOutputSchema,
     },
     async (input) => {
-        const llmResponse = await ai.generate({
-            model: 'googleai/gemini-1.5-flash',
-            prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}". Responde siempre en español.`,
-            output: {
-                format: 'json',
-                schema: PlantInfoOutputSchema,
-            }
-        });
-
-        const output = llmResponse.output();
+        const { output } = await getPlantInfoPrompt(input);
         if (!output) {
           throw new Error("El modelo no generó una respuesta válida.");
         }
