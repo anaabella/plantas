@@ -1,5 +1,3 @@
-# Firebase Studio
+# PlantPal
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+Este es el repositorio para la aplicación PlantPal.
