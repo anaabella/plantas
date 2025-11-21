@@ -117,10 +117,10 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto">
-          {/* Columna Izquierda: Galería o Imagen Principal */}
+        <div className={`py-4 max-h-[70vh] overflow-y-auto ${!isCommunityView ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : ''}`}>
+          {/* Columna Izquierda / Contenido Principal: Galería o Imagen Principal */}
           <div className="space-y-4">
-            {isCommunityView || galleryImages.length <= 1 ? (
+            {galleryImages.length <= 1 ? (
                 <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
                     <Image
                         src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
@@ -148,9 +148,9 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         </Button>
                     </div>
                  ) : (
-                    <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4 border">
+                    <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
                        <Image
-                           src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                           src={galleryImages[0].imageUrl || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                            alt={`Main image of ${plant.name}`}
                            fill
                            className="object-cover"
@@ -160,7 +160,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                  <Carousel opts={{ align: "start" }} className="w-full px-12">
                     <CarouselContent>
                     {galleryImages.map((image, index) => (
-                        <CarouselItem key={index} className="basis-1/3">
+                        <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
                         <div className="p-1">
                             <div
                             className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
@@ -182,31 +182,22 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                     <CarouselPrevious />
                     <CarouselNext />
                 </Carousel>
-                <div className="space-y-2">
-                    <label htmlFor={`image-upload-${plant.id}`} className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
-                        <Upload className="mr-2 h-4 w-4" />
-                        <span>Subir Nueva Foto</span>
-                    </label>
-                    <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                </div>
+                {!isCommunityView && (
+                    <div className="space-y-2">
+                        <label htmlFor={`image-upload-${plant.id}`} className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
+                            <Upload className="mr-2 h-4 w-4" />
+                            <span>Subir Nueva Foto</span>
+                        </label>
+                        <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </div>
+                )}
                 </>
             )}
           </div>
 
-          {/* Columna Derecha: Información */}
-          <div className="space-y-4">
-             {isCommunityView ? (
-                 <>
-                    <InfoSection icon={acquisitionIcons[plant.acquisitionType] || <ShoppingBag className="h-5 w-5" />} title="Adoptada como">
-                        {plant.acquisitionType}
-                        {plant.acquisitionType === 'compra' && plant.price && ` - $${plant.price}`}
-                        {plant.acquisitionType === 'intercambio' && plant.exchangeSource && ` - por ${plant.exchangeSource}`}
-                        {plant.acquisitionType === 'regalo' && plant.giftFrom && ` - de ${plant.giftFrom}`}
-                        {plant.acquisitionType === 'rescatada' && plant.rescuedFrom && ` - de ${plant.rescuedFrom}`}
-                    </InfoSection>
-                 </>
-             ) : (
-                <>
+          {/* Columna Derecha: Información (oculta en vista comunidad) */}
+          {!isCommunityView && (
+              <div className="space-y-4">
                     <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
                         <div className="text-primary">{Icon}</div>
                         <div>
@@ -231,9 +222,8 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         {plant.notes}
                     </InfoSection>
                     </div>
-                </>
-             )}
-          </div>
+              </div>
+          )}
         </div>
 
         <DialogFooter className="col-span-1 md:col-span-2">

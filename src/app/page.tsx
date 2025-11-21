@@ -28,7 +28,7 @@ import {
   getRedirectResult,
 } from 'firebase/auth';
 import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot } from 'firebase/firestore';
+import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
@@ -83,6 +83,7 @@ export type WishlistItem = {
   name: string;
   notes?: string;
   image?: string;
+  plantId?: string; // To link to the original plant
 };
 
 type View = 'my-plants' | 'community' | 'wishlist';
@@ -300,6 +301,36 @@ export default function GardenApp() {
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar: ${error.message}` });
     }
   };
+  
+  const handleToggleWishlist = async (plant: Plant) => {
+    if (!user || !firestore) {
+        toast({ variant: "destructive", title: "Necesitas iniciar sesión", description: "Inicia sesión para añadir plantas a tu lista de deseos." });
+        return;
+    }
+
+    const wishlistRef = collection(firestore, `users/${user.uid}/wishlist`);
+    const q = query(wishlistRef, where("plantId", "==", plant.id));
+    const existing = await getDocs(q);
+
+    if (existing.empty) {
+        // Add to wishlist
+        await addDoc(wishlistRef, {
+            name: plant.name,
+            image: plant.image,
+            plantId: plant.id
+        });
+        toast({ 
+            title: "¡Añadido a tus deseos!",
+            description: `Se ha notificado a ${plant.ownerName || 'el dueño'} que te interesa su planta ${plant.name}.`
+        });
+    } else {
+        // Remove from wishlist
+        const batch = writeBatch(firestore);
+        existing.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        toast({ title: "Eliminado de tus deseos" });
+    }
+  };
 
   // -- UI Handlers --
   const openPlantDetails = (plant: Plant) => {
@@ -341,6 +372,10 @@ export default function GardenApp() {
         .filter(item => item.needsWatering || item.needsPhoto);
   }, [plants]);
 
+  const wishlistPlantIds = useMemo(() => {
+      return new Set(wishlist.map(item => item.plantId));
+  }, [wishlist]);
+
   // -- Main Render --
   return (
     <div className="min-h-screen bg-secondary/50 font-body text-foreground">
@@ -377,7 +412,15 @@ export default function GardenApp() {
           <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} />
         )}
         {view === 'community' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantDetails} isLoading={isCommunityLoading} isCommunity={true} />
+          <PlantsGrid
+            plants={filteredPlants}
+            onPlantClick={openPlantDetails}
+            isLoading={isCommunityLoading}
+            isCommunity={true}
+            onToggleWishlist={handleToggleWishlist}
+            wishlistPlantIds={wishlistPlantIds}
+            user={user}
+          />
         )}
         {view === 'wishlist' && (
           <WishlistGrid
@@ -408,7 +451,7 @@ export default function GardenApp() {
         plant={selectedPlant}
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
-        onUpdatePlant={(id, data) => handleUpdatePlant(id, data)}
+        onUpdatePlant={(id:string, data:any) => handleUpdatePlant(id, data)}
         isCommunityView={view === 'community'}
       />
       <WishlistFormDialog
@@ -577,7 +620,7 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -615,66 +658,79 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-      {plants.map((plant: Plant) => (
-        <div key={plant.id} className="group">
-            <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
-             <Image
-                src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                alt={plant.name}
-                width={400}
-                height={500}
-                className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-            />
-            {plant.status !== 'viva' && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="flex flex-col items-center text-white/90">
-                        {plant.status === 'fallecida' && <HeartCrack className="h-8 w-8 sm:h-10 sm:w-10" />}
-                        {plant.status === 'intercambiada' && <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10" />}
-                        <p className="mt-2 font-semibold capitalize text-sm sm:text-base">{plant.status}</p>
-                    </div>
+      {plants.map((plant: Plant) => {
+        const isInWishlist = wishlistPlantIds?.has(plant.id);
+        
+        return (
+            <div key={plant.id} className="group">
+                <div className="relative overflow-hidden rounded-lg">
+                <div className="cursor-pointer" onClick={() => onPlantClick(plant)}>
+                    <Image
+                        src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                        alt={plant.name}
+                        width={400}
+                        height={500}
+                        className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                    />
                 </div>
-            )}
-            {isCommunity && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center gap-2">
-                 <Avatar className="h-8 w-8 border-2 border-background">
-                   <AvatarImage src={plant.ownerPhotoURL} />
-                   <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
-                 </Avatar>
-                 <div>
-                    <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
-                    <span className="text-xs text-white/80 hidden sm:inline">{plant.ownerName}</span>
-                 </div>
-               </div>
-            )}
-          </div>
-          <div className="p-2 bg-transparent">
-              {!isCommunity ? (
-                <>
-                    <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
-                    <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
-                        </div>
-                        <div className="flex items-center gap-2 capitalize">
-                            {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
-                            <span>
-                                {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
-                            </span>
-                        </div>
-                         <div className="flex items-center gap-2 capitalize">
-                            {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
-                            <span>{plant.startType}</span>
+                {plant.status !== 'viva' && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="flex flex-col items-center text-white/90">
+                            {plant.status === 'fallecida' && <HeartCrack className="h-8 w-8 sm:h-10 sm:w-10" />}
+                            {plant.status === 'intercambiada' && <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10" />}
+                            <p className="mt-2 font-semibold capitalize text-sm sm:text-base">{plant.status}</p>
                         </div>
                     </div>
-                    <div className='mt-2'>
-                        <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
-                    </div>
-                </>
-              ) : null }
-          </div>
-        </div>
-      ))}
+                )}
+                {isCommunity && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
+                     <div onClick={() => onPlantClick(plant)} className='flex items-center gap-2 cursor-pointer flex-grow min-w-0'>
+                        <Avatar className="h-8 w-8 border-2 border-background">
+                           <AvatarImage src={plant.ownerPhotoURL} />
+                           <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className='min-w-0'>
+                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
+                            <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
+                        </div>
+                     </div>
+                     {user && (
+                         <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={() => onToggleWishlist(plant)}>
+                           <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                         </Button>
+                     )}
+                   </div>
+                )}
+              </div>
+              <div className="p-2 bg-transparent">
+                  {!isCommunity ? (
+                    <>
+                        <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                        <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
+                            </div>
+                            <div className="flex items-center gap-2 capitalize">
+                                {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
+                                <span>
+                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
+                                </span>
+                            </div>
+                             <div className="flex items-center gap-2 capitalize">
+                                {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
+                                <span>{plant.startType}</span>
+                            </div>
+                        </div>
+                        <div className='mt-2'>
+                            <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
+                        </div>
+                    </>
+                  ) : null }
+              </div>
+            </div>
+        );
+      })}
     </div>
   );
 }
@@ -729,5 +785,3 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
     </div>
   );
 }
-
-    
