@@ -267,6 +267,10 @@ export default function GardenApp() {
       toast({ title: "Planta actualizada", description: "Los cambios se han guardado." });
       setIsEditDialogOpen(false);
       setEditingPlant(null);
+       // Also update the selected plant if it's the one being edited, to reflect changes in detail view
+      if (selectedPlant && selectedPlant.id === plantId) {
+        setSelectedPlant(prev => prev ? { ...prev, ...updatedData } : null);
+      }
     } catch (error: any) {
       console.error("Error updating plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo actualizar la planta: ${error.message}` });
@@ -601,7 +605,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               </PopoverContent>
             </Popover>
           ) : (
-            <Button onClick={onLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
+            <Button onClick={handleLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
           )}
         </div>
       </div>

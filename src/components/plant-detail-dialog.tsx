@@ -19,7 +19,7 @@ import { useMemo, useState } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import ImageComparisonSlider from './image-comparison-slider';
 import { Input } from './ui/input';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -61,23 +61,27 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
   const [afterImage, setAfterImage] = useState<string | null>(null);
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const galleryImages = useMemo(() => {
     if (!plant) return [];
-    const mainImage = plant.image ? [{ imageUrl: plant.image, date: plant.createdAt?.toDate()?.toISOString() || plant.date }] : [];
+    const mainImage = plant.image ? [{ imageUrl: plant.image, date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date }] : [];
     const eventPhotos = (plant.events || [])
       .filter(e => e.type === 'foto' && e.note)
       .map(e => ({ imageUrl: e.note, date: e.date }));
     
+    // Combine, create a Set to remove duplicates by imageUrl, then convert back to array
     const allImages = [...mainImage, ...eventPhotos];
-    
-    return allImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [plant]);
 
   if (!plant) return null;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!firestore || isCommunityView) return;
+    if (!firestore || isCommunityView || !user) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -85,7 +89,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         const imageUrl = reader.result as string;
         const newEvent = {
           id: new Date().getTime().toString(),
-          type: 'foto',
+          type: 'foto' as const,
           date: new Date().toISOString(),
           note: imageUrl,
         };
@@ -117,13 +121,20 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           </DialogDescription>
         </DialogHeader>
         
-        <div className={`py-4 max-h-[70vh] overflow-y-auto ${!isCommunityView ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : ''}`}>
-          {/* Columna Izquierda / Contenido Principal: Galería o Imagen Principal */}
+        <div className="py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-4">
-            {galleryImages.length <= 1 ? (
+            {beforeImage && afterImage ? (
+                <div className="space-y-2">
+                    <h4 className="font-headline text-md font-semibold">Antes y Después</h4>
+                    <ImageComparisonSlider before={beforeImage} after={afterImage} />
+                    <Button variant="outline" size="sm" onClick={() => { setBeforeImage(null); setAfterImage(null); }}>
+                    Limpiar Comparación
+                    </Button>
+                </div>
+            ) : (
                 <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
                     <Image
-                        src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                        src={galleryImages.length > 0 ? galleryImages[0].imageUrl : 'https://placehold.co/400x500/A0D995/333333?text=?'}
                         alt={`Main image of ${plant.name}`}
                         fill
                         className="object-cover"
@@ -137,93 +148,82 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         </div>
                     )}
                 </div>
-            ) : (
+            )}
+            
+            {galleryImages.length > 1 && (
                 <>
-                 {beforeImage && afterImage ? (
-                    <div className="space-y-2">
-                        <h4 className="font-headline text-md font-semibold">Antes y Después</h4>
-                        <ImageComparisonSlider before={beforeImage} after={afterImage} />
-                        <Button variant="outline" size="sm" onClick={() => { setBeforeImage(null); setAfterImage(null); }}>
-                        Limpiar Comparación
-                        </Button>
-                    </div>
-                 ) : (
-                    <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
-                       <Image
-                           src={galleryImages[0].imageUrl || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                           alt={`Main image of ${plant.name}`}
-                           fill
-                           className="object-cover"
-                       />
-                   </div>
-                 )}
-                 <Carousel opts={{ align: "start" }} className="w-full px-12">
-                    <CarouselContent>
-                    {galleryImages.map((image, index) => (
-                        <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
-                        <div className="p-1">
-                            <div
-                            className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
-                            onClick={() => {
-                                if (!beforeImage || (beforeImage && afterImage)) {
-                                setBeforeImage(image.imageUrl);
-                                setAfterImage(null);
-                                } else if (beforeImage !== image.imageUrl) {
-                                setAfterImage(image.imageUrl);
-                                }
-                            }}
-                            >
-                            <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                    <h4 className="font-headline text-md font-semibold">Galería</h4>
+                    <Carousel opts={{ align: "start" }} className="w-full px-12">
+                        <CarouselContent>
+                        {galleryImages.map((image, index) => (
+                            <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
+                            <div className="p-1">
+                                <div
+                                    className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
+                                    onClick={() => {
+                                        if (!beforeImage || (beforeImage && afterImage)) {
+                                            setBeforeImage(image.imageUrl);
+                                            setAfterImage(null);
+                                        } else if (beforeImage !== image.imageUrl) {
+                                            setAfterImage(image.imageUrl);
+                                        }
+                                    }}
+                                >
+                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                                    <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
+                                        {format(parseISO(image.date), 'dd/MM/yy')}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        </CarouselItem>
-                    ))}
-                    </CarouselContent>
-                    <CarouselPrevious />
-                    <CarouselNext />
-                </Carousel>
-                {!isCommunityView && (
-                    <div className="space-y-2">
-                        <label htmlFor={`image-upload-${plant.id}`} className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
-                            <Upload className="mr-2 h-4 w-4" />
-                            <span>Subir Nueva Foto</span>
-                        </label>
-                        <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                    </div>
-                )}
+                            </CarouselItem>
+                        ))}
+                        </CarouselContent>
+                        <CarouselPrevious />
+                        <CarouselNext />
+                    </Carousel>
                 </>
             )}
-          </div>
 
-          {/* Columna Derecha: Información (oculta en vista comunidad) */}
-          {!isCommunityView && (
-              <div className="space-y-4">
-                    <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
-                        <div className="text-primary">{Icon}</div>
-                        <div>
-                        <p className="font-semibold capitalize">{acquisitionType}</p>
-                        {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
-                        {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
-                        {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
-                        {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
-                        </div>
+            {!isCommunityView && user?.uid === plant.ownerId && (
+                <div className="space-y-2 pt-4">
+                    <label htmlFor={`image-upload-${plant.id}`} className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
+                        <Upload className="mr-2 h-4 w-4" />
+                        <span>Subir Foto Actual</span>
+                    </label>
+                    <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </div>
+            )}
+
+             <Separator className="my-4" />
+            
+             <div className="space-y-4">
+                <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
+                    <div className="text-primary">{Icon}</div>
+                    <div>
+                    <p className="font-semibold capitalize">{acquisitionType}</p>
+                    {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
+                    {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
+                    {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
+                    {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
                     </div>
-                
-                    <Separator />
-
-                    <div className="space-y-4">
-                        <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                            {plant.location}
-                        </InfoSection>
-                        <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
-                            {plant.startType}
-                        </InfoSection>
+                </div>
+            
+                <div className="grid grid-cols-2 gap-4">
+                    <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
+                        {plant.location}
+                    </InfoSection>
+                    <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
+                        {plant.startType}
+                    </InfoSection>
+                </div>
+                 {plant.notes && (
                     <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
                         {plant.notes}
                     </InfoSection>
-                    </div>
-              </div>
-          )}
+                 )}
+            </div>
+
+          </div>
         </div>
 
         <DialogFooter className="col-span-1 md:col-span-2">
