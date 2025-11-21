@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -18,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTrigger,
   AlertDialogTitle,
+  AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -276,7 +276,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     <div className="grid grid-cols-3 gap-2">
                         {galleryImages.map((image, index) => (
                             <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
-                                <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                                <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
                                 <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
                                     {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
                                 </div>
