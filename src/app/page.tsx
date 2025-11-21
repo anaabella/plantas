@@ -238,8 +238,13 @@ export default function GardenApp() {
   const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'>) => {
     if (!user || !firestore) return;
     try {
-      await addDoc(collection(firestore, 'plants'), {
+      const plantDataWithGallery = {
         ...newPlantData,
+        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
+      };
+
+      await addDoc(collection(firestore, 'plants'), {
+        ...plantDataWithGallery,
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
@@ -282,6 +287,9 @@ export default function GardenApp() {
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
       toast({ title: "Planta eliminada" });
+      setIsEditDialogOpen(false); // Close edit dialog if open
+      setSelectedPlant(null); // Deselect if it was being viewed
+      setIsDetailOpen(false);
     } catch (error: any) {
       console.error("Error deleting plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar la planta: ${error.message}` });

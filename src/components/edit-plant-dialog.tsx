@@ -107,9 +107,12 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     onSave(plant.id, editedPlant);
   };
   
-  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string }, statusChange?: Plant['status']) => {
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
     if (!firestore || !user || !editedPlant) return;
-    const newEvent = { ...event, id: new Date().getTime().toString(), note: event.note || '' };
+    
+    const eventNote = event.type === 'foto' ? "Se añadió una nueva foto" : (event.note || '');
+    const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote };
+    
     let updatedEvents = [...(editedPlant.events || []), newEvent];
     // Sort events after adding to make sure they are in order
     updatedEvents = updatedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -120,9 +123,16 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (event.type === 'riego') {
         updatePayload.lastWatered = event.date;
     }
-    if (event.type === 'foto' && event.note) {
+    if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
-        updatePayload.image = event.note; // Update main image to the latest one
+        updatePayload.image = event.imageData; // Update main image to the latest one
+        // Add image to gallery structure if not already there, this might need refinement
+        const newGalleryEntry = { imageUrl: event.imageData, date: event.date };
+        const currentGallery = editedPlant.gallery || [];
+        // Prevent duplicates
+        if (!currentGallery.some(g => g.imageUrl === newGalleryEntry.imageUrl)) {
+            updatePayload.gallery = [newGalleryEntry, ...currentGallery];
+        }
         toast({ title: 'Nueva foto añadida' });
     }
     if (statusChange) {
@@ -166,7 +176,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   }
   
   const handlePhotoCaptured = (photoDataUri: string) => {
-    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], note: photoDataUri});
+    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: photoDataUri});
     setIsCameraOpen(false);
   };
 
@@ -174,22 +184,34 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     const file = event.target.files?.[0];
     if (file) {
         compressImage(file, (compressedDataUrl) => {
-            handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], note: compressedDataUrl});
+            handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: compressedDataUrl});
         });
     }
   };
 
   const galleryImages = useMemo(() => {
     if (!editedPlant) return [];
-    // Include the main image if it exists
-    const mainImage = editedPlant.image ? [{ imageUrl: editedPlant.image, date: editedPlant.lastPhotoUpdate || editedPlant.createdAt?.toDate()?.toISOString() || editedPlant.date }] : [];
-    // Get all photos from events
-    const eventPhotos = (editedPlant.events || [])
-      .filter(e => e.type === 'foto' && e.note)
-      .map(e => ({ imageUrl: e.note, date: e.date }));
     
-    // Combine, create a Set to remove duplicates by imageUrl, then convert back to array
-    const allImages = [...mainImage, ...eventPhotos];
+    // Use the dedicated gallery field first
+    let allImages = [...(editedPlant.gallery || [])];
+
+    // Fallback to old event-based photos if gallery is empty
+    if (allImages.length === 0) {
+        const eventPhotos = (editedPlant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date }));
+        allImages.push(...eventPhotos);
+    }
+
+    // Include the main image if it's not already in the gallery
+    if (editedPlant.image && !allImages.some(img => img.imageUrl === editedPlant.image)) {
+        allImages.push({ 
+            imageUrl: editedPlant.image, 
+            date: editedPlant.lastPhotoUpdate || editedPlant.createdAt?.toDate()?.toISOString() || editedPlant.date 
+        });
+    }
+    
+    // Create a Set to remove duplicates by imageUrl, then convert back to array
     const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
@@ -219,40 +241,17 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
-        <DialogHeader className="flex-row items-center justify-between pr-10">
-            <div>
-              <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-              <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
-            </div>
-             <div className="flex items-center gap-2 flex-shrink-0">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                      <AlertDialogHeader>
-                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                      </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-                      </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+        <DialogHeader className="pr-10">
+          <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
+          <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
         </DialogHeader>
 
          <Tabs defaultValue="log" className="w-full">
-            <div className='flex justify-between items-center'>
-                <TabsList>
-                    <TabsTrigger value="log">Bitácora</TabsTrigger>
-                    <TabsTrigger value="gallery">Galería</TabsTrigger>
-                    <TabsTrigger value="edit">Editar</TabsTrigger>
-                </TabsList>
-            </div>
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="log">Bitácora</TabsTrigger>
+                <TabsTrigger value="gallery">Galería</TabsTrigger>
+                <TabsTrigger value="edit">Editar</TabsTrigger>
+            </TabsList>
             <ScrollArea className="h-[60vh] p-1 mt-4">
                 <TabsContent value="log" className='p-1'>
                     <div className="flex items-center justify-between mb-4">
@@ -266,7 +265,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <Button variant="outline" size="sm" onClick={() => handleAddEvent({type: 'nota', date: new Date().toISOString().split('T')[0], note: 'Se intercambió un gajo'})}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié gajo</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChange('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChange('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
-                        
                     </div>
                     <div className="space-y-3">
                         {editedPlant.events?.map((event: PlantEvent) => (
@@ -328,7 +326,24 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                             {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
                         </div>
                     </div>
-                     <div className="flex justify-end mt-6">
+                     <div className="mt-6 flex justify-between items-center">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+                              </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
                     </div>
                 </TabsContent>
