@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
