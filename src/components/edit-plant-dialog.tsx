@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart, Skull, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { diagnosePlant, getPlantInfo, type DiagnosePlantOutput, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
+import { diagnosePlant, getPlantInfo, type DiagnoseOutput, type InfoOutput as PlantInfoOutput } from '@/ai/plantFlows';
 import type { Plant, PlantEvent } from '@/app/page';
 import { PlantInfoDisplay } from '@/components/plant-info-display';
 import { useFirestore, useUser } from '@/firebase';
@@ -80,7 +80,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [newEventNote, setNewEventNote] = useState("");
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [isNotePopoverOpen, setIsNotePopoverOpen] = useState(false);
-  const [diagnoseResult, setDiagnoseResult] = useState<DiagnosePlantOutput | null>(null);
+  const [diagnoseResult, setDiagnoseResult] = useState<DiagnoseOutput | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
   const [isInfoLoading, setIsInfoLoading] = useState(false);
@@ -384,7 +384,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 });
 
 
-function AIDiagnosisResult({ result }: { result: DiagnosePlantOutput }) {
+function AIDiagnosisResult({ result }: { result: DiagnoseOutput }) {
   if (!result) return null;
   const { identification, diagnosis } = result;
 

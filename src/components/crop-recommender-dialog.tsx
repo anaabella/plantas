@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, memo } from 'react';
-import { recommendCrops, type CropRecommenderOutput } from '@/ai/flows/vegetable-recommender-flow';
+import { recommendCrops, type CropRecommenderOutput } from '@/ai/plantFlows';
 
 
 export const CropRecommenderDialog = memo(function CropRecommenderDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (isOpen: boolean) => void }) {

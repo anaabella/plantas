@@ -31,8 +31,8 @@ import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
-import { identifyPlant, type IdentifyPlantOutput } from '@/ai/flows/identify-plant-flow';
+import { getPlantInfo, type InfoOutput as PlantInfoOutput } from '@/ai/plantFlows';
+import { identifyPlant, type IdentifyOutput as IdentifyPlantOutput } from '@/ai/plantFlows';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
 import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
@@ -770,7 +770,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
       
       setIsAiLoading(true);
       try {
-        const result: IdentifyPlantOutput = await identifyPlant({ photoDataUri });
+        const result = await identifyPlant({ photoDataUri });
         if (result.isPlant) {
           onSave({ name: result.commonName, notes: `Nombre científico: ${result.latinName}` });
           toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
