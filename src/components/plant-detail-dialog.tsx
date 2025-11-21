@@ -70,16 +70,31 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
 
   const galleryImages = useMemo(() => {
     if (!plant) return [];
-    const mainImage = plant.image ? [{ imageUrl: plant.image, date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date }] : [];
-    const eventPhotos = (plant.events || [])
-      .filter(e => e.type === 'foto' && e.note)
-      .map(e => ({ imageUrl: e.note, date: e.date }));
     
-    // Combine, create a Set to remove duplicates by imageUrl, then convert back to array
-    const allImages = [...mainImage, ...eventPhotos];
+    // Use the dedicated gallery field first
+    let allImages = [...(plant.gallery || [])];
+
+    // Fallback to old event-based photos if gallery is empty
+    if (allImages.length === 0) {
+        const eventPhotos = (plant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date }));
+        allImages.push(...eventPhotos);
+    }
+
+    // Include the main image if it's not already in the gallery
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
+        allImages.push({ 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date 
+        });
+    }
+    
+    // Create a Set to remove duplicates by imageUrl, then convert back to array
     const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
+    // Sort by date, most recent first
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [plant]);
 
@@ -96,13 +111,19 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           id: new Date().getTime().toString(),
           type: 'foto' as const,
           date: new Date().toISOString(),
-          note: imageUrl,
+          note: "Se añadió una nueva foto",
         };
         const updatedEvents = [...(plant.events || []), newEvent];
+        
+        const newGalleryEntry = { imageUrl: imageUrl, date: newEvent.date };
+        const currentGallery = plant.gallery || [];
+        const updatedGallery = [newGalleryEntry, ...currentGallery];
+
         const updatedData = {
             image: imageUrl, // Update main image
             lastPhotoUpdate: newEvent.date,
-            events: updatedEvents
+            events: updatedEvents,
+            gallery: updatedGallery
         };
         onUpdatePlant(plant.id, updatedData);
       };
@@ -135,7 +156,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                       alt={`Main image of ${plant.name}`}
                       fill
                       className="object-cover"
-                      unoptimized={galleryImages.length === 0}
+                      unoptimized={true}
                   />
                   {plant.status === 'fallecida' && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -180,38 +201,38 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                     <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                 </div>
             )}
-
-             <Separator className="my-4" />
-            
-             <div className="space-y-4">
-                <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
-                    <div className="text-primary">{Icon}</div>
-                    <div>
-                    <p className="font-semibold capitalize">Adoptada como {acquisitionType}</p>
-                    {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
-                    {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
-                    {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
-                    {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
+             
+             {!isCommunityView && (
+                <>
+                    <Separator className="my-4" />
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
+                            <div className="text-primary">{Icon}</div>
+                            <div>
+                            <p className="font-semibold capitalize">Adoptada como {acquisitionType}</p>
+                            {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
+                            {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
+                            {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
+                            {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
+                            </div>
+                        </div>
+                    
+                        <div className="grid grid-cols-2 gap-4">
+                            <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
+                                {plant.location}
+                            </InfoSection>
+                            <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
+                                {plant.startType}
+                            </InfoSection>
+                        </div>
+                        {plant.notes && (
+                            <InfoSection icon={<Home className="h-5 w-5" />} title="Notas">
+                                {plant.notes}
+                            </InfoSection>
+                        )}
                     </div>
-                </div>
-            
-               {!isCommunityView && (
-                    <div className="grid grid-cols-2 gap-4">
-                        <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                            {plant.location}
-                        </InfoSection>
-                        <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
-                            {plant.startType}
-                        </InfoSection>
-                    </div>
-                )}
-                 {plant.notes && !isCommunityView && (
-                    <InfoSection icon={<Home className="h-5 w-5" />} title="Notas">
-                        {plant.notes}
-                    </InfoSection>
-                 )}
-            </div>
-
+                </>
+             )}
           </div>
         </div>
 
