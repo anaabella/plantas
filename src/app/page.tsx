@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Search, Sprout, ListTodo, Bot, LogIn, LogOut, Users, Carrot, BarChart3,
+  Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle
 } from 'lucide-react';
@@ -31,17 +31,13 @@ import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getPlantInfo, type InfoOutput as PlantInfoOutput } from '@/ai/plantFlows';
-import { identifyPlant, type IdentifyOutput as IdentifyPlantOutput } from '@/ai/plantFlows';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
 import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
-import { CropRecommenderDialog } from '@/components/crop-recommender-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlantInfoDialog } from '@/components/plant-info-dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -119,13 +115,6 @@ export default function GardenApp() {
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
-
-  const [isCropRecommenderOpen, setIsCropRecommenderOpen] = useState(false);
-  
-  const [isPlantInfoOpen, setIsPlantInfoOpen] = useState(false);
-  const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
-  const [isPlantInfoLoading, setIsPlantInfoLoading] = useState(false);
-  const [currentPlantInfoName, setCurrentPlantInfoName] = useState("");
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -313,9 +302,8 @@ export default function GardenApp() {
   };
 
   // -- UI Handlers --
-  const openPlantDetails = (plant: Plant, info?: PlantInfoOutput | null) => {
+  const openPlantDetails = (plant: Plant) => {
     setSelectedPlant(plant);
-    setPlantInfo(info || null);
     setIsDetailOpen(true);
   };
   
@@ -328,47 +316,7 @@ export default function GardenApp() {
     setEditingWishlistItem(item || null);
     setIsWishlistFormOpen(true);
   };
-
-  const handleFetchPlantInfo = async (plantName: string) => {
-      if (!plantName) return;
-      setIsPlantInfoLoading(true);
-      setIsPlantInfoOpen(true);
-      setCurrentPlantInfoName(plantName);
-      try {
-          const info = await getPlantInfo({ plantName });
-          setPlantInfo(info);
-      } catch (error) {
-          console.error("Error fetching plant info:", error);
-          toast({
-              variant: "destructive",
-              title: "Error de IA",
-              description: "No se pudo obtener la información de la planta."
-          });
-          setPlantInfo(null);
-      } finally {
-          setIsPlantInfoLoading(false);
-      }
-  };
-
-  const handleCommunityPlantClick = async (plant: Plant) => {
-    setIsPlantInfoLoading(true);
-    openPlantDetails(plant, null); // Open with loading state
-    try {
-      const info = await getPlantInfo({ plantName: plant.name });
-      openPlantDetails(plant, info); // Re-open with AI info
-    } catch (error) {
-      console.error("Error fetching plant info:", error);
-      toast({
-          variant: "destructive",
-          title: "Error de IA",
-          description: "No se pudo obtener la información de la planta."
-      });
-      openPlantDetails(plant, null); // Open without AI info on error
-    } finally {
-      setIsPlantInfoLoading(false);
-    }
-  };
-
+  
   // -- Computed Data --
   const filteredPlants = useMemo(() => {
     const source = view === 'my-plants' ? plants : communityPlants;
@@ -406,7 +354,6 @@ export default function GardenApp() {
         onOpenWishlist={() => setView('wishlist')}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenStats={() => setIsStatsOpen(true)}
-        onOpenCropRecommender={() => setIsCropRecommenderOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -430,7 +377,7 @@ export default function GardenApp() {
           <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} />
         )}
         {view === 'community' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={handleCommunityPlantClick} isLoading={isCommunityLoading} isCommunity={true} />
+          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantDetails} isLoading={isCommunityLoading} isCommunity={true} />
         )}
         {view === 'wishlist' && (
           <WishlistGrid
@@ -464,18 +411,7 @@ export default function GardenApp() {
         setIsOpen={setIsDetailOpen}
         onUpdatePlant={(id, data) => handleUpdatePlant(id, data)}
         isCommunityView={view === 'community'}
-        aiInfo={plantInfo}
-        isAiInfoLoading={isPlantInfoLoading}
       />
-      {isPlantInfoOpen && (
-        <PlantInfoDialog
-            isOpen={isPlantInfoOpen}
-            setIsOpen={setIsPlantInfoOpen}
-            plantName={currentPlantInfoName}
-            info={plantInfo}
-            isLoading={isPlantInfoLoading}
-        />
-      )}
       <WishlistFormDialog
         isOpen={isWishlistFormOpen}
         setIsOpen={setIsWishlistFormOpen}
@@ -486,23 +422,18 @@ export default function GardenApp() {
         isOpen={isCalendarOpen}
         setIsOpen={setIsCalendarOpen}
         plants={plants}
-        onFetchPlantInfo={handleFetchPlantInfo}
       />
       <StatsDialog
         isOpen={isStatsOpen}
         setIsOpen={setIsStatsOpen}
         plants={plants}
       />
-      <CropRecommenderDialog
-        isOpen={isCropRecommenderOpen}
-        setIsOpen={setIsCropRecommenderOpen}
-      />
     </div>
   );
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, onOpenCropRecommender, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -541,8 +472,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          <Button variant="ghost" size="icon" onClick={onOpenCropRecommender}><Carrot className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>
+          {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
@@ -749,45 +679,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false }: an
 }
 
 // Wishlist Grid
-function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
-  const [isAiSearchOpen, setIsAiSearchOpen] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
   
-  const handleAiSearchClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const photoDataUri = e.target?.result as string;
-      if (!photoDataUri) return;
-      
-      setIsAiLoading(true);
-      try {
-        const result = await identifyPlant({ photoDataUri });
-        if (result.isPlant) {
-          onSave({ name: result.commonName, notes: `Nombre científico: ${result.latinName}` });
-          toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
-        } else {
-          toast({ variant: 'destructive', title: "No es una planta", description: "La IA no pudo identificar una planta en la imagen." });
-        }
-      } catch (error) {
-        console.error("Error identifying plant:", error);
-        toast({ variant: 'destructive', title: "Error de IA", description: "No se pudo identificar la planta." });
-      } finally {
-        setIsAiLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-  
-  if (items.length === 0 && !isAiLoading) {
+  if (items.length === 0) {
     return (
       <div className="text-center py-16">
         <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -795,10 +689,6 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
         <p className="mt-1 text-sm text-muted-foreground">Añade las plantas que te gustaría tener.</p>
         <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
             <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
-            <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
-                <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}
-            </Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
         </div>
       </div>
     );
@@ -808,12 +698,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
     <div className="space-y-4">
       <div className="text-right flex flex-col sm:flex-row justify-end gap-4">
         <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
-        <Button variant="outline" onClick={handleAiSearchClick} disabled={isAiLoading}>
-            <Bot className="mr-2 h-4 w-4" /> {isAiLoading ? 'Identificando...' : 'Buscar por Foto (IA)'}
-        </Button>
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
       </div>
-       {isAiLoading && <p className="text-center text-muted-foreground">Identificando planta con IA...</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item: WishlistItem) => (
           <div key={item.id} className="p-4 bg-background rounded-lg border flex flex-col">
@@ -843,5 +728,3 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
     </div>
   );
 }
-
-    

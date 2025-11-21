@@ -24,13 +24,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Bot, Leaf, Heart, Skull, Upload } from 'lucide-react';
+import { Trash2, Save, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { diagnosePlant, getPlantInfo, type DiagnoseOutput, type InfoOutput as PlantInfoOutput } from '@/ai/plantFlows';
 import type { Plant, PlantEvent } from '@/app/page';
-import { PlantInfoDisplay } from '@/components/plant-info-display';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
@@ -80,17 +77,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [newEventNote, setNewEventNote] = useState("");
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [isNotePopoverOpen, setIsNotePopoverOpen] = useState(false);
-  const [diagnoseResult, setDiagnoseResult] = useState<DiagnoseOutput | null>(null);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [plantInfo, setPlantInfo] = useState<PlantInfoOutput | null>(null);
-  const [isInfoLoading, setIsInfoLoading] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     setEditedPlant(plant);
-    setDiagnoseResult(null); // Reset diagnosis on new plant
-    setPlantInfo(null); // Reset info on new plant
   }, [plant]);
   
   const handleChange = (field: keyof Plant, value: any) => {
@@ -149,39 +140,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     setNewEventDate(new Date().toISOString().split('T')[0]);
     setIsNotePopoverOpen(false);
   };
-
-  const handleDiagnose = async () => {
-    if (!editedPlant.image) {
-      alert("Se necesita una imagen para el diagnóstico.");
-      return;
-    }
-    setIsDiagnosing(true);
-    try {
-      const result = await diagnosePlant({
-        photoDataUri: editedPlant.image,
-        description: `La planta se llama ${editedPlant.name}. Notas adicionales: ${editedPlant.notes || 'ninguna'}`
-      });
-      setDiagnoseResult(result);
-    } catch (error) {
-      console.error(error);
-      alert("Error al obtener el diagnóstico.");
-    } finally {
-      setIsDiagnosing(false);
-    }
-  };
-
-  const handleFetchInfo = async () => {
-      setIsInfoLoading(true);
-      try {
-          const info = await getPlantInfo({ plantName: editedPlant.name });
-          setPlantInfo(info);
-      } catch (error) {
-          console.error("Error fetching plant info:", error);
-      } finally {
-          setIsInfoLoading(false);
-      }
-  };
-
+  
   const handlePhotoCaptured = (photoDataUri: string) => {
     handleChange('image', photoDataUri);
     setIsCameraOpen(false);
@@ -226,7 +185,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                 <TabsList className="w-full sm:w-auto">
                     <TabsTrigger value="details" className='flex-1 sm:flex-initial'>Detalles</TabsTrigger>
                     <TabsTrigger value="log" className='flex-1 sm:flex-initial'>Bitácora</TabsTrigger>
-                    <TabsTrigger value="ai-diag" className='flex-1 sm:flex-initial'>IA</TabsTrigger>
                 </TabsList>
             </div>
             
@@ -324,29 +282,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
                 </div>
             </TabsContent>
-
-            <TabsContent value="ai-diag" className="overflow-y-auto max-h-[65vh] p-1">
-                 <div className="text-center p-4 rounded-lg bg-secondary/50">
-                    <h3 className="font-semibold">Diagnóstico con IA</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Usa IA para analizar una foto de tu planta y obtener un diagnóstico de salud y recomendaciones.</p>
-                    <Button onClick={handleDiagnose} disabled={isDiagnosing || !editedPlant.image}>
-                        {isDiagnosing ? "Analizando..." : <><Bot className="mr-2 h-4 w-4" /> Analizar Foto Principal</>}
-                    </Button>
-                </div>
-                {isDiagnosing && <Skeleton className="h-40 w-full mt-4" />}
-                {diagnoseResult && <AIDiagnosisResult result={diagnoseResult} />}
-
-                <div className="text-center p-4 rounded-lg bg-secondary/50 mt-4">
-                    <h3 className="font-semibold">Obtener Info con IA</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Obtén información detallada sobre tu planta, como cuidados, datos curiosos y más.</p>
-                    <Button onClick={handleFetchInfo} disabled={isInfoLoading}>
-                        {isInfoLoading ? "Buscando..." : <><Bot className="mr-2 h-4 w-4" /> Obtener Info de "{editedPlant.name}"</>}
-                    </Button>
-                </div>
-                {isInfoLoading && <Skeleton className="h-40 w-full mt-4" />}
-                {plantInfo && <PlantInfoDisplay info={plantInfo} />}
-            </TabsContent>
-
         </Tabs>
         
         <DialogFooter className="mt-4 flex-col sm:flex-row sm:justify-between w-full">
@@ -382,31 +317,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     </>
   );
 });
-
-
-function AIDiagnosisResult({ result }: { result: DiagnoseOutput }) {
-  if (!result) return null;
-  const { identification, diagnosis } = result;
-
-  return (
-    <div className="mt-4 space-y-4 text-sm">
-      <div className="p-3 rounded-lg border bg-background">
-        <h4 className="font-semibold flex items-center"><Leaf className="mr-2 h-4 w-4 text-primary" />Identificación</h4>
-        <p><strong>Nombre Común:</strong> {identification.commonName}</p>
-        <p><strong>Nombre Latino:</strong> {identification.latinName}</p>
-        {!identification.isPlant && <div className="mt-2 text-red-500">No parece ser una planta</div>}
-      </div>
-      <div className="p-3 rounded-lg border bg-background">
-        <h4 className="font-semibold flex items-center"><Heart className="mr-2 h-4 w-4 text-primary" />Diagnóstico de Salud</h4>
-        <div className={`mt-1 font-bold ${diagnosis.isHealthy ? 'text-green-600' : 'text-red-600'}`}>
-            {diagnosis.isHealthy ? 'Saludable' : 'Necesita Atención'}
-        </div>
-        <p className="mt-2"><strong>Análisis:</strong> {diagnosis.diagnosis}</p>
-        <p className="mt-2"><strong>Recomendación:</strong> {diagnosis.recommendation}</p>
-      </div>
-    </div>
-  );
-}
 
 const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
   <div className="space-y-1">

@@ -10,14 +10,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History } from 'lucide-react';
 import type { Plant } from '@/app/page';
 
-export function CalendarDialog({ isOpen, setIsOpen, plants, onFetchPlantInfo }: any) {
+export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
     const [date, setDate] = useState<Date | undefined>(new Date());
 
     const allEvents = useMemo(() => {
@@ -52,13 +51,6 @@ export function CalendarDialog({ isOpen, setIsOpen, plants, onFetchPlantInfo }: 
         plaga: <Bug className="h-5 w-5 text-red-500" />,
         fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
         nota: <History className="h-5 w-5 text-yellow-500" />,
-    };
-
-    const handlePlantInfoSelect = (plantId: string) => {
-        const plant = plants.find((p:Plant) => p.id === plantId);
-        if (plant) {
-            onFetchPlantInfo(plant.name);
-        }
     };
 
      const exportToIcs = () => {
@@ -129,17 +121,6 @@ export function CalendarDialog({ isOpen, setIsOpen, plants, onFetchPlantInfo }: 
                             </div>
                         </div>
                         <Separator />
-                        <div>
-                             <h3 className="font-semibold mb-2">Recomendaciones del Mes</h3>
-                             <Select onValueChange={handlePlantInfoSelect}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una planta..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {plants.map((p:Plant) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
-                        </div>
                     </div>
                 </div>
                  <DialogFooter>

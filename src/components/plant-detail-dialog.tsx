@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Droplets, Scissors, HeartCrack, Upload, Skull, Bot } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Droplets, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
@@ -20,8 +20,6 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import ImageComparisonSlider from './image-comparison-slider';
 import { Input } from './ui/input';
 import { useFirestore } from '@/firebase';
-import { PlantInfoDisplay } from './plant-info-display';
-import { Skeleton } from './ui/skeleton';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -29,8 +27,6 @@ interface PlantDetailDialogProps {
   setIsOpen: (isOpen: boolean) => void;
   onUpdatePlant: (id: string, updatedData: Partial<Plant>) => void;
   isCommunityView?: boolean;
-  aiInfo?: any | null;
-  isAiInfoLoading?: boolean;
 }
 
 const acquisitionIcons:any = {
@@ -53,7 +49,7 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
   );
 }
 
-export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView, aiInfo, isAiInfoLoading }: PlantDetailDialogProps) {
+export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView }: PlantDetailDialogProps) {
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
   const [afterImage, setAfterImage] = useState<string | null>(null);
   const firestore = useFirestore();
@@ -182,53 +178,30 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           </div>
 
           <div className="space-y-4">
-             { isCommunityView ? (
-                <>
-                    <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                        {plant.location}
-                    </InfoSection>
-                    <Separator />
-                    <div className='flex items-center text-muted-foreground text-sm gap-2'>
-                        <Bot size={16} />
-                        <span>Información generada por IA</span>
-                    </div>
-                    {isAiInfoLoading && (
-                      <div className='space-y-2'>
-                        <Skeleton className="h-16 w-full" />
-                        <Skeleton className="h-24 w-full" />
-                      </div>
-                    )}
-                    {aiInfo && <PlantInfoDisplay info={aiInfo} />}
-                    {!aiInfo && !isAiInfoLoading && <p className='text-sm text-muted-foreground'>No se pudo cargar la información de la IA.</p>}
-                </>
-             ) : (
-                <>
-                    <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
-                        <div className="text-primary">{Icon}</div>
-                        <div>
-                        <p className="font-semibold capitalize">{acquisitionType}</p>
-                        {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
-                        {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
-                        {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
-                        {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
-                        </div>
-                    </div>
-                
-                    <Separator />
+            <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
+                <div className="text-primary">{Icon}</div>
+                <div>
+                <p className="font-semibold capitalize">{acquisitionType}</p>
+                {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
+                {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
+                {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
+                {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
+                </div>
+            </div>
+        
+            <Separator />
 
-                    <div className="space-y-4">
-                        <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                            {plant.location}
-                        </InfoSection>
-                        <InfoSection icon={<Scissors className="h-5 w-5" />} title="Comienzo como">
-                            {plant.startType}
-                        </InfoSection>
-                    <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
-                        {plant.notes}
-                    </InfoSection>
-                    </div>
-                </>
-             )}
+            <div className="space-y-4">
+                <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
+                    {plant.location}
+                </InfoSection>
+                <InfoSection icon={<Scissors className="h-5 w-5" />} title="Comienzo como">
+                    {plant.startType}
+                </InfoSection>
+            <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
+                {plant.notes}
+            </InfoSection>
+            </div>
           </div>
         </div>
 
@@ -239,5 +212,3 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
     </Dialog>
   );
 }
-
-    
