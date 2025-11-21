@@ -32,7 +32,7 @@ import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, quer
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPlantInfo, type PlantInfoOutput } from '@/ai/flows/diagnose-plant-flow';
-import { identifyPlant } from '@/ai/flows/identify-plant-flow';
+import { identifyPlant, type IdentifyPlantOutput } from '@/ai/flows/identify-plant-flow';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
 import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
@@ -313,8 +313,9 @@ export default function GardenApp() {
   };
 
   // -- UI Handlers --
-  const openPlantDetails = (plant: Plant) => {
+  const openPlantDetails = (plant: Plant, info?: PlantInfoOutput | null) => {
     setSelectedPlant(plant);
+    setPlantInfo(info || null);
     setIsDetailOpen(true);
   };
   
@@ -347,6 +348,25 @@ export default function GardenApp() {
       } finally {
           setIsPlantInfoLoading(false);
       }
+  };
+
+  const handleCommunityPlantClick = async (plant: Plant) => {
+    setIsPlantInfoLoading(true);
+    openPlantDetails(plant, null); // Open with loading state
+    try {
+      const info = await getPlantInfo({ plantName: plant.name });
+      openPlantDetails(plant, info); // Re-open with AI info
+    } catch (error) {
+      console.error("Error fetching plant info:", error);
+      toast({
+          variant: "destructive",
+          title: "Error de IA",
+          description: "No se pudo obtener la información de la planta."
+      });
+      openPlantDetails(plant, null); // Open without AI info on error
+    } finally {
+      setIsPlantInfoLoading(false);
+    }
   };
 
   // -- Computed Data --
@@ -410,10 +430,7 @@ export default function GardenApp() {
           <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} />
         )}
         {view === 'community' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={(plant) => {
-              openPlantDetails(plant);
-              handleFetchPlantInfo(plant.name);
-            }} isLoading={isCommunityLoading} isCommunity={true} />
+          <PlantsGrid plants={filteredPlants} onPlantClick={handleCommunityPlantClick} isLoading={isCommunityLoading} isCommunity={true} />
         )}
         {view === 'wishlist' && (
           <WishlistGrid
@@ -446,6 +463,9 @@ export default function GardenApp() {
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
         onUpdatePlant={(id, data) => handleUpdatePlant(id, data)}
+        isCommunityView={view === 'community'}
+        aiInfo={plantInfo}
+        isAiInfoLoading={isPlantInfoLoading}
       />
       {isPlantInfoOpen && (
         <PlantInfoDialog
@@ -750,7 +770,7 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
       
       setIsAiLoading(true);
       try {
-        const result = await identifyPlant({ photoDataUri });
+        const result: IdentifyPlantOutput = await identifyPlant({ photoDataUri });
         if (result.isPlant) {
           onSave({ name: result.commonName, notes: `Nombre científico: ${result.latinName}` });
           toast({ title: "¡Planta Identificada!", description: `${result.commonName} ha sido añadida a tu lista de deseos.` });
@@ -823,3 +843,5 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew, onSave }: any) {
     </div>
   );
 }
+
+    
