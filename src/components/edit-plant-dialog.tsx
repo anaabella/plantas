@@ -132,7 +132,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleQuickAddEvent = (type: PlantEvent['type']) => {
     let note = "";
     switch (type) {
-        case 'riego': note = "Agua añadida."; break;
         case 'poda': note = "Poda de mantenimiento realizada."; break;
         case 'transplante': note = "Movida a una maceta más grande."; break;
         case 'fertilizante': note = "Nutrientes añadidos."; break;
@@ -243,7 +242,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     <h3 className="font-semibold">Eventos Rápidos</h3>
                  </div>
                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">
-                    <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('riego')}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleAddEvent({ type: 'riego', date: new Date().toISOString().split('T')[0], note: "Agua añadida."})}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
@@ -355,3 +354,5 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
     </Select>
   </div>
 );
+
+    
