@@ -113,7 +113,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                     <div className="space-y-4">
                         <div>
                             <h3 className="font-semibold mb-2">Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : ''}</h3>
-                             <ScrollArea className="h-[250px] md:h-96 w-full pr-3">
+                             <ScrollArea className="h-[250px] md:h-[400px] w-full pr-3">
                                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                                     <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
                                         {eventIcons[event.type]}
