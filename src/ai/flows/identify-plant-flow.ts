@@ -32,6 +32,7 @@ const identifyPlantPrompt = ai.definePrompt({
     name: 'identifyPlantPrompt',
     input: { schema: IdentifyPlantInputSchema },
     output: { schema: IdentifyPlantOutputSchema },
+    model: 'googleai/gemini-1.5-flash-latest',
     prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde siempre en español.
 Foto: {{media url=photoDataUri}}`,
 });

@@ -40,10 +40,11 @@ export async function diagnosePlant(input: DiagnosePlantInput): Promise<Diagnose
 }
 
 const diagnosePlantPrompt = ai.definePrompt({
-    name: 'diagnosePlantPrompt',
-    input: { schema: DiagnosePlantInputSchema },
-    output: { schema: DiagnosePlantOutputSchema },
-    prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde siempre en español.
+  name: 'diagnosePlantPrompt',
+  input: { schema: DiagnosePlantInputSchema },
+  output: { schema: DiagnosePlantOutputSchema },
+  model: 'googleai/gemini-1.5-flash-latest',
+  prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde siempre en español.
 Aquí está la información:
 Descripción: {{{description}}}
 Foto: {{media url=photoDataUri}}`,
@@ -74,48 +75,49 @@ const PlantInfoInputSchema = z.object({
 export type PlantInfoInput = z.infer<typeof PlantInfoInputSchema>;
 
 const PlantInfoOutputSchema = z.object({
-    careInfo: z.object({
-        light: z.string().describe('Condiciones de luz ideales para la planta.'),
-        water: z.string().describe('Necesidades de riego.'),
-        temperature: z.string().describe('Rango de temperatura ideal.'),
-    }),
-    seasonalCare: z.object({
-        fertilize: z.string().describe('La mejor estación o época del año para fertilizar la planta (ej. "Primavera y verano").'),
-        prune: z.string().describe('La mejor estación o época del año para podar la planta (ej. "Finales de invierno").'),
-        repot: z.string().describe('La mejor estación o época del año para transplantar la planta (ej. "Primavera").'),
-    }),
-    generalInfo: z.object({
-        maxHeight: z.string().describe('Altura máxima que puede alcanzar la planta en condiciones ideales.'),
-        bloomSeason: z.string().describe('La estación o época del año en que la planta suele florecer.'),
-        flowerColors: z.string().describe('Una lista de los colores de flores que puede tener la planta.'),
-    }),
-    funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
+  careInfo: z.object({
+    light: z.string().describe('Condiciones de luz ideales para la planta.'),
+    water: z.string().describe('Necesidades de riego.'),
+    temperature: z.string().describe('Rango de temperatura ideal.'),
+  }),
+  seasonalCare: z.object({
+    fertilize: z.string().describe('La mejor estación o época del año para fertilizar la planta (ej. "Primavera y verano").'),
+    prune: z.string().describe('La mejor estación o época del año para podar la planta (ej. "Finales de invierno").'),
+    repot: z.string().describe('La mejor estación o época del año para transplantar la planta (ej. "Primavera").'),
+  }),
+  generalInfo: z.object({
+    maxHeight: z.string().describe('Altura máxima que puede alcanzar la planta en condiciones ideales.'),
+    bloomSeason: z.string().describe('La estación o época del año en que la planta suele florecer.'),
+    flowerColors: z.string().describe('Una lista de los colores de flores que puede tener la planta.'),
+  }),
+  funFact: z.string().describe('Un dato curioso o interesante sobre la planta.'),
 });
 export type PlantInfoOutput = z.infer<typeof PlantInfoOutputSchema>;
 
 
 export async function getPlantInfo(input: PlantInfoInput): Promise<PlantInfoOutput> {
-    return getPlantInfoFlow(input);
+  return getPlantInfoFlow(input);
 }
 
 const getPlantInfoPrompt = ai.definePrompt({
-    name: 'getPlantInfoPrompt',
-    input: { schema: PlantInfoInputSchema },
-    output: { schema: PlantInfoOutputSchema },
-    prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "{{{plantName}}}". Responde siempre en español.`,
+  name: 'getPlantInfoPrompt',
+  input: { schema: PlantInfoInputSchema },
+  output: { schema: PlantInfoOutputSchema },
+  model: 'googleai/gemini-1.5-flash-latest',
+  prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "{{{plantName}}}". Responde siempre en español.`,
 });
 
 const getPlantInfoFlow = ai.defineFlow(
-    {
-        name: 'getPlantInfoFlow',
-        inputSchema: PlantInfoInputSchema,
-        outputSchema: PlantInfoOutputSchema,
-    },
-    async (input) => {
-        const { output } = await getPlantInfoPrompt(input);
-        if (!output) {
-          throw new Error("El modelo no generó una respuesta válida.");
-        }
-        return output;
+  {
+    name: 'getPlantInfoFlow',
+    inputSchema: PlantInfoInputSchema,
+    outputSchema: PlantInfoOutputSchema,
+  },
+  async (input) => {
+    const { output } = await getPlantInfoPrompt(input);
+    if (!output) {
+      throw new Error("El modelo no generó una respuesta válida.");
     }
+    return output;
+  }
 );

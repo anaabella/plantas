@@ -34,6 +34,7 @@ const cropRecommenderPrompt = ai.definePrompt({
     name: 'cropRecommenderPrompt',
     input: { schema: CropRecommenderInputSchema },
     output: { schema: CropRecommenderOutputSchema },
+    model: 'googleai/gemini-1.5-flash-latest',
     prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("{{{userQuery}}}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
 });
 
