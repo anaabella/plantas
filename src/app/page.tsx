@@ -738,7 +738,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 
 // Wishlist Grid
 function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
-  
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -753,32 +752,45 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-right flex flex-col sm:flex-row justify-end gap-4">
+    <div>
+      <div className="text-right mb-4">
         <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
         {items.map((item: WishlistItem) => (
-          <div key={item.id} className="p-4 bg-background rounded-lg border flex flex-col">
-            <div className="flex-grow">
-              <h4 className="font-bold text-lg">{item.name}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
+          <div key={item.id} className="group relative">
+            <div className="relative overflow-hidden rounded-lg">
+                <Image
+                    src={item.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                    alt={item.name}
+                    width={400}
+                    height={500}
+                    className="object-cover w-full h-auto aspect-[4/5]"
+                />
+                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="flex gap-2">
+                         <Button variant="secondary" size="sm" onClick={() => onEdit(item)}>Editar</Button>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm">Eliminar</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                <AlertDialogDescription>Se eliminará "{item.name}" de tu lista de deseos.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(item.id)}>Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                </div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Editar</Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                    <AlertDialogDescription>Se eliminará "{item.name}" de tu lista de deseos.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(item.id)}>Eliminar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            <div className="p-2 bg-transparent">
+               <h3 className="font-headline text-lg font-bold truncate">{item.name}</h3>
+               {item.notes && <p className="text-sm text-muted-foreground truncate">{item.notes}</p>}
             </div>
           </div>
         ))}
