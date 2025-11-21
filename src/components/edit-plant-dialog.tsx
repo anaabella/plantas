@@ -25,7 +25,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -81,6 +81,16 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
     reader.readAsDataURL(file);
 };
 
+interface QuickEventButtonProps {
+  eventType: PlantEvent['type'];
+  plantEvents: PlantEvent[];
+  onAdd: (type: PlantEvent['type']) => void;
+  onRemove: (eventId: string) => void;
+  children: React.ReactNode;
+  variant?: ButtonProps['variant'];
+  size?: ButtonProps['size'];
+}
+
 // Componente para los botones de eventos rápidos con menú contextual
 const QuickEventButton = ({
   eventType,
@@ -90,15 +100,7 @@ const QuickEventButton = ({
   children,
   variant = 'outline',
   size = 'sm',
-}: {
-  eventType: PlantEvent['type'];
-  plantEvents: PlantEvent[];
-  onAdd: (type: PlantEvent['type']) => void;
-  onRemove: (eventId: string) => void;
-  children: React.ReactNode;
-  variant?: 'outline' | 'destructive';
-  size?: 'sm';
-}) => {
+}: QuickEventButtonProps) => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   
   const findLastEventId = () => {
