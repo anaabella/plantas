@@ -1,4 +1,4 @@
-# **App Name**: PlantPal PWA
+# **App Name**: PlantPal PWA 
 
 ## Core Features:
 
