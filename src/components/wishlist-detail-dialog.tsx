@@ -16,9 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Trash2, Edit, CheckSquare, ListTodo } from 'lucide-react';
+import { Trash2, Edit, CheckSquare } from 'lucide-react';
 import Image from 'next/image';
 import type { WishlistItem } from '@/app/page';
 
