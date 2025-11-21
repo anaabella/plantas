@@ -199,6 +199,10 @@ export default function GardenApp() {
     try {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        // User closed the popup, this is not an error, so we do nothing.
+        return;
+      }
       console.error("Error initiating sign-in popup:", error);
        if (error.code === 'auth/unauthorized-domain') {
           toast({
@@ -551,6 +555,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
             <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
               <Plus className="h-5 w-5 mr-2" />
               <span className="hidden lg:inline">Añadir Planta</span>
+              <span className="sm:hidden lg:hidden">Añadir</span>
             </Button>
           )}
         </nav>
@@ -820,5 +825,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-    
