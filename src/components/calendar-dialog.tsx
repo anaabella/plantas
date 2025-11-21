@@ -15,6 +15,7 @@ import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History } from 'lucide-react';
 import type { Plant } from '@/app/page';
+import { ScrollArea } from './ui/scroll-area';
 
 export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
     const [date, setDate] = useState<Date | undefined>(new Date());
@@ -53,7 +54,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         return stats;
     }, [allEvents, date]);
     
-    const eventIcons = {
+    const eventIcons: { [key: string]: React.ReactNode } = {
         riego: <Droplets className="h-5 w-5 text-blue-500" />,
         poda: <Scissors className="h-5 w-5 text-gray-500" />,
         transplante: <Shovel className="h-5 w-5 text-orange-500" />,
@@ -70,6 +71,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         foto: <Camera className="h-4 w-4 text-purple-500" />,
         plaga: <Bug className="h-4 w-4 text-red-500" />,
         fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
+        nota: <History className="h-4 w-4 text-yellow-500" />,
     };
 
     return (
@@ -92,7 +94,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                             modifiers={{ daysWithEvents }}
                             modifiersStyles={{ daysWithEvents: { borderColor: 'hsl(var(--primary))', borderWidth: '2px', borderRadius: '9999px' } }}
                         />
-                         <div className="mt-4 w-full p-4 border rounded-lg">
+                         <div className="mt-4 w-full max-w-[350px] p-4 border rounded-lg">
                              <h4 className="font-semibold mb-3 text-center">Resumen Mensual</h4>
                              <div className="grid grid-cols-3 gap-2 text-xs text-center">
                                 {Object.entries(statIcons).map(([type, icon]) => (
@@ -110,10 +112,10 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                     </div>
                     <div className="space-y-4">
                         <div>
-                            <h3 className="font-semibold mb-2">Eventos del día</h3>
-                             <div className="max-h-[80vh] md:max-h-96 overflow-y-auto space-y-2 pr-2">
+                            <h3 className="font-semibold mb-2">Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : ''}</h3>
+                             <ScrollArea className="h-[250px] md:h-96 w-full pr-3">
                                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
-                                    <div key={event.id} className="flex items-start gap-3 p-2 rounded-md bg-secondary/50">
+                                    <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
                                         {eventIcons[event.type]}
                                         <div>
                                             <p className="font-semibold">{event.plantName}</p>
@@ -121,9 +123,8 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                                         </div>
                                     </div>
                                 )) : <p className="text-sm text-muted-foreground text-center py-4">No hay eventos para este día.</p>}
-                            </div>
+                            </ScrollArea>
                         </div>
-                        <Separator />
                     </div>
                 </div>
                  <DialogFooter>

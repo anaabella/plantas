@@ -563,13 +563,15 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
           )}
            {user && (
             <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
-              <Plus className="h-5 w-5 mr-2" />Añadir Planta
+              <Plus className="h-5 w-5 mr-2" />
+              <span className="hidden lg:inline">Añadir Planta</span>
             </Button>
           )}
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
           {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>}
+          {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
@@ -589,7 +591,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
                 <Separator />
                 <div className="p-1">
                     <Button variant="ghost" className="w-full justify-start" onClick={onOpenWishlist}><ListTodo className="mr-2 h-4 w-4" />Lista de Deseos</Button>
-                    <Button variant="ghost" className="w-full justify-start" onClick={onOpenStats}><BarChart3 className="mr-2 h-4 w-4" />Estadísticas</Button>
                     <Separator className='my-1' />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

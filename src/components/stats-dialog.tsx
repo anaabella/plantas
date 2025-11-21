@@ -52,7 +52,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-2xl w-[95vw] rounded-lg">
         <DialogHeader><DialogTitle>Estadísticas del Jardín</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 py-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4 py-4">
           <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
           <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
           <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />

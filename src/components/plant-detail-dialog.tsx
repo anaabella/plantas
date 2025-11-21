@@ -150,7 +150,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         
         <div className="py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-4">
-              <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
+              <div className="relative h-64 sm:h-96 w-full rounded-lg overflow-hidden mb-4 border">
                   <Image
                       src={galleryImages.length > 0 ? galleryImages[0].imageUrl : 'https://placehold.co/400x500/A0D995/333333?text=?'}
                       alt={`Main image of ${plant.name}`}
@@ -168,13 +168,13 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                   )}
               </div>
             
-            {galleryImages.length > 0 && (
+            {galleryImages.length > 1 && (
                 <>
                     <h4 className="font-headline text-md font-semibold">Galería</h4>
                     <Carousel opts={{ align: "start" }} className="w-full px-12">
                         <CarouselContent>
                         {galleryImages.map((image, index) => (
-                            <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
+                            <CarouselItem key={index} className="basis-1/2 sm:basis-1/3 md:basis-1/4">
                             <div className="p-1" onClick={() => handleOpenImageDetail(index)}>
                                 <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent cursor-pointer">
                                     <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
@@ -217,7 +217,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                             </div>
                         </div>
                     
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
                                 {plant.location}
                             </InfoSection>
