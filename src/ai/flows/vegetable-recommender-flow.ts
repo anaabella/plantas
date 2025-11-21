@@ -40,18 +40,17 @@ const cropRecommenderFlow = ai.defineFlow(
   async (input) => {
     const llmResponse = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas.
-Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(CropRecommenderOutputSchema.shape)}.
-Para cada recomendación en el array 'recommendations', proporciona: name, timeToHarvest, y plantingLocation.
-Sé claro y conciso. Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.`,
+        prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
+        output: {
+            format: 'json',
+            schema: CropRecommenderOutputSchema,
+        }
     });
     
-    const textResponse = llmResponse.text();
-    try {
-        return JSON.parse(textResponse);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON:", textResponse);
-        throw new Error("El modelo no pudo generar recomendaciones.");
+    const output = llmResponse.output();
+    if (!output) {
+      throw new Error("El modelo no pudo generar recomendaciones.");
     }
+    return output;
   }
 );

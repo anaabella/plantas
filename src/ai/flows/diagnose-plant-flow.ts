@@ -49,23 +49,21 @@ const diagnosePlantFlow = ai.defineFlow(
   async (input) => {
     const llmResponse = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud.
-Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
-- identification: isPlant (boolean), commonName, latinName.
-- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
-Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.
+        prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud. Responde siempre en español.
 Aquí está la información:
 Descripción: ${input.description}
 Foto: ${input.photoDataUri}`,
+        output: {
+            format: 'json',
+            schema: DiagnosePlantOutputSchema,
+        }
     });
 
-    const textResponse = llmResponse.text();
-    try {
-        return JSON.parse(textResponse);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON:", textResponse);
-        throw new Error("El modelo generó un diagnóstico con formato incorrecto.");
+    const output = llmResponse.output();
+    if (!output) {
+      throw new Error("El modelo no generó una respuesta válida.");
     }
+    return output;
   }
 );
 
@@ -111,21 +109,17 @@ const getPlantInfoFlow = ai.defineFlow(
     async (input) => {
         const llmResponse = await ai.generate({
             model: 'googleai/gemini-1.5-flash',
-            prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}".
-Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(PlantInfoOutputSchema.shape)}.
-- careInfo: luz, agua, temperatura.
-- seasonalCare: fertilizar, podar, transplantar (indica la estación).
-- generalInfo: altura máxima, época de floración, colores de flores.
-- funFact: un dato curioso.
-Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.`,
+            prompt: `Actúa como un experto en botánica. Proporciona información sobre la planta llamada "${input.plantName}". Responde siempre en español.`,
+            output: {
+                format: 'json',
+                schema: PlantInfoOutputSchema,
+            }
         });
 
-        const textResponse = llmResponse.text();
-        try {
-            return JSON.parse(textResponse);
-        } catch (e) {
-            console.error("Failed to parse LLM response as JSON:", textResponse);
-            throw new Error("El modelo generó una respuesta con formato incorrecto.");
+        const output = llmResponse.output();
+        if (!output) {
+          throw new Error("El modelo no generó una respuesta válida.");
         }
+        return output;
     }
 );

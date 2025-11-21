@@ -38,21 +38,18 @@ const identifyPlantFlow = ai.defineFlow(
   async (input) => {
     const llmResponse = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
-        prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
-Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(IdentifyPlantOutputSchema.shape)}.
-- isPlant: boolean que confirma si es una planta.
-- commonName: El nombre común más conocido.
-- latinName: El nombre científico/latino.
-Responde de forma concisa y directa. Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.
+        prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde siempre en español.
 Foto: ${input.photoDataUri}`,
+        output: {
+            format: 'json',
+            schema: IdentifyPlantOutputSchema,
+        }
     });
     
-    const textResponse = llmResponse.text();
-    try {
-        return JSON.parse(textResponse);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON:", textResponse);
+    const output = llmResponse.output();
+    if (!output) {
         throw new Error("El modelo no pudo identificar la planta.");
     }
+    return output;
   }
 );
