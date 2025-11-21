@@ -1,7 +1,7 @@
 'use server';
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
-import 'dotenv/config';
+// src/ai/genkit.ts -- HARDCODE TEMPORAL
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 // -----------------------------------------------------------------------------
 // TEMPORARY FIX: Hard-coded API Key
