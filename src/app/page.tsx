@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -707,16 +707,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         
         return (
             <div key={plant.id} className="group">
-                <div className="relative overflow-hidden rounded-lg">
-                <div className="cursor-pointer" onClick={() => onPlantClick(plant)}>
-                    <Image
-                        src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                        alt={plant.name}
-                        width={400}
-                        height={500}
-                        className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                    />
-                </div>
+              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
+                <Image
+                    src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                    alt={plant.name}
+                    width={400}
+                    height={500}
+                    className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                />
                 {plant.status !== 'viva' && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <div className="flex flex-col items-center text-white/90">
@@ -728,7 +726,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                 )}
                 {isCommunity && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <div onClick={() => onPlantClick(plant)} className='flex items-center gap-2 cursor-pointer flex-grow min-w-0'>
+                     <div className='flex items-center gap-2 flex-grow min-w-0'>
                         <Avatar className="h-8 w-8 border-2 border-background">
                            <AvatarImage src={plant.ownerPhotoURL} />
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
@@ -739,7 +737,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                         </div>
                      </div>
                      {user && (
-                         <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={() => onToggleWishlist(plant)}>
+                         <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); onToggleWishlist(plant); }}>
                            <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
                          </Button>
                      )}

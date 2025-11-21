@@ -12,12 +12,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Droplets, Scissors, HeartCrack, Upload, Skull, Home, Package } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import ImageComparisonSlider from './image-comparison-slider';
 import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
 
@@ -58,8 +57,6 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
 }
 
 export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView }: PlantDetailDialogProps) {
-  const [beforeImage, setBeforeImage] = useState<string | null>(null);
-  const [afterImage, setAfterImage] = useState<string | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
 
@@ -123,32 +120,22 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         
         <div className="py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-4">
-            {beforeImage && afterImage ? (
-                <div className="space-y-2">
-                    <h4 className="font-headline text-md font-semibold">Antes y Después</h4>
-                    <ImageComparisonSlider before={beforeImage} after={afterImage} />
-                    <Button variant="outline" size="sm" onClick={() => { setBeforeImage(null); setAfterImage(null); }}>
-                    Limpiar Comparación
-                    </Button>
-                </div>
-            ) : (
-                <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
-                    <Image
-                        src={galleryImages.length > 0 ? galleryImages[0].imageUrl : 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                        alt={`Main image of ${plant.name}`}
-                        fill
-                        className="object-cover"
-                    />
-                    {plant.status === 'fallecida' && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="flex flex-col items-center text-white">
-                            <HeartCrack className="h-16 w-16" />
-                            <p className="mt-2 text-lg font-bold font-headline">Descansando</p>
-                        </div>
-                        </div>
-                    )}
-                </div>
-            )}
+              <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
+                  <Image
+                      src={galleryImages.length > 0 ? galleryImages[0].imageUrl : 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                      alt={`Main image of ${plant.name}`}
+                      fill
+                      className="object-cover"
+                  />
+                  {plant.status === 'fallecida' && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="flex flex-col items-center text-white">
+                          <HeartCrack className="h-16 w-16" />
+                          <p className="mt-2 text-lg font-bold font-headline">Descansando</p>
+                      </div>
+                      </div>
+                  )}
+              </div>
             
             {galleryImages.length > 1 && (
                 <>
@@ -158,17 +145,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         {galleryImages.map((image, index) => (
                             <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
                             <div className="p-1">
-                                <div
-                                    className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
-                                    onClick={() => {
-                                        if (!beforeImage || (beforeImage && afterImage)) {
-                                            setBeforeImage(image.imageUrl);
-                                            setAfterImage(null);
-                                        } else if (beforeImage !== image.imageUrl) {
-                                            setAfterImage(image.imageUrl);
-                                        }
-                                    }}
-                                >
+                                <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent">
                                     <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
                                     <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
                                         {format(parseISO(image.date), 'dd/MM/yy')}
@@ -200,7 +177,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                 <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
                     <div className="text-primary">{Icon}</div>
                     <div>
-                    <p className="font-semibold capitalize">{acquisitionType}</p>
+                    <p className="font-semibold capitalize">Adoptada como {acquisitionType}</p>
                     {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
                     {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
                     {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
@@ -208,16 +185,18 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                     </div>
                 </div>
             
-                <div className="grid grid-cols-2 gap-4">
-                    <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                        {plant.location}
-                    </InfoSection>
-                    <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
-                        {plant.startType}
-                    </InfoSection>
-                </div>
-                 {plant.notes && (
-                    <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
+               {!isCommunityView && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
+                            {plant.location}
+                        </InfoSection>
+                        <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
+                            {plant.startType}
+                        </InfoSection>
+                    </div>
+                )}
+                 {plant.notes && !isCommunityView && (
+                    <InfoSection icon={<Home className="h-5 w-5" />} title="Notas">
                         {plant.notes}
                     </InfoSection>
                  )}
