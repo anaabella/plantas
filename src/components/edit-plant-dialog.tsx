@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -35,6 +34,7 @@ import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 
 // Función para comprimir imágenes
@@ -78,6 +78,7 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
   
   const [newEventNote, setNewEventNote] = useState("");
@@ -122,6 +123,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (event.type === 'foto' && event.note) {
         updatePayload.lastPhotoUpdate = event.date;
         updatePayload.image = event.note; // Update main image to the latest one
+        toast({ title: 'Nueva foto añadida' });
     }
     if (statusChange) {
         updatePayload.status = statusChange;
