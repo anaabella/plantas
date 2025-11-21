@@ -68,7 +68,7 @@ export const getPlantInfo = ai.defineFlow(
   { name: 'getPlantInfo', inputSchema: InfoInputSchema, outputSchema: InfoOutputSchema },
   async ({ plantName }) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-pro-latest', // ✅ modelo texto
+      model: 'googleai/gemini-pro', // ✅ modelo texto
       prompt: `Actúa como experto en botánica. Proporciona información de la planta "${plantName}". Responde SIEMPRE en español.`,
       output: { schema: InfoOutputSchema },
     });
@@ -142,7 +142,7 @@ export const recommendCrops = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-        model: 'googleai/gemini-1.5-pro-latest',
+        model: 'googleai/gemini-pro',
         prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
         output: { schema: CropRecommenderOutputSchema },
     });
