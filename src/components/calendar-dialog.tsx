@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Separator } from '@/components/ui/separator';
 import { useState, useMemo } from 'react';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -83,51 +82,51 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                         Visualiza los eventos de tus plantas y planifica cuidados futuros.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    <div className='flex flex-col items-center gap-4'>
-                        <Calendar
-                            mode="single"
-                            selected={date}
-                            onSelect={setDate}
-                            className="rounded-md border self-center"
-                            locale={es}
-                            modifiers={{ daysWithEvents }}
-                            modifiersStyles={{ daysWithEvents: { borderColor: 'hsl(var(--primary))', borderWidth: '2px', borderRadius: '9999px' } }}
-                        />
-                         <div className="w-full max-w-[350px] p-4 border rounded-lg">
-                             <h4 className="font-semibold mb-3 text-center">Resumen Mensual</h4>
-                             <div className="grid grid-cols-3 gap-2 text-xs text-center">
-                                {Object.entries(statIcons).map(([type, icon]) => (
-                                    monthlyStats[type] > 0 && (
-                                        <div key={type} className="flex flex-col items-center justify-center p-1 bg-secondary/50 rounded-md">
-                                            {icon}
-                                            <span className='font-bold text-lg'>{monthlyStats[type]}</span>
-                                            <span className='capitalize text-muted-foreground'>{type}</span>
-                                        </div>
-                                    )
-                                ))}
-                             </div>
-                             {Object.keys(monthlyStats).length === 0 && <p className="text-sm text-muted-foreground text-center">Sin eventos este mes.</p>}
-                         </div>
-                    </div>
-                    <div>
-                        <h3 className="font-semibold mb-2">Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : ''}</h3>
-                        <ScrollArea className="h-[40vh] md:h-full w-full pr-3 border rounded-md">
-                            <div className='p-2'>
-                                {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
-                                    <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
-                                        {eventIcons[event.type]}
-                                        <div>
-                                            <p className="font-semibold">{event.plantName}</p>
-                                            <p className="text-sm text-muted-foreground capitalize">{event.type}: {event.note}</p>
-                                        </div>
-                                    </div>
-                                )) : <p className="text-sm text-muted-foreground text-center py-4">No hay eventos para este día.</p>}
-                            </div>
-                        </ScrollArea>
-                    </div>
-                </div>
-                 <DialogFooter>
+                <ScrollArea className="max-h-[70vh]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
+                      <div className='flex flex-col items-center gap-4'>
+                          <Calendar
+                              mode="single"
+                              selected={date}
+                              onSelect={setDate}
+                              className="rounded-md border self-center"
+                              locale={es}
+                              modifiers={{ daysWithEvents }}
+                              modifiersStyles={{ daysWithEvents: { borderColor: 'hsl(var(--primary))', borderWidth: '2px', borderRadius: '9999px' } }}
+                          />
+                           <div className="w-full max-w-[350px] p-4 border rounded-lg">
+                               <h4 className="font-semibold mb-3 text-center">Resumen Mensual</h4>
+                               <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                                  {Object.entries(statIcons).map(([type, icon]) => (
+                                      monthlyStats[type] > 0 && (
+                                          <div key={type} className="flex flex-col items-center justify-center p-1 bg-secondary/50 rounded-md">
+                                              {icon}
+                                              <span className='font-bold text-lg'>{monthlyStats[type]}</span>
+                                              <span className='capitalize text-muted-foreground'>{type}</span>
+                                          </div>
+                                      )
+                                  ))}
+                               </div>
+                               {Object.keys(monthlyStats).length === 0 && <p className="text-sm text-muted-foreground text-center">Sin eventos este mes.</p>}
+                           </div>
+                      </div>
+                      <div className="mt-4 md:mt-0">
+                          <h3 className="font-semibold mb-2">Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : ''}</h3>
+                          <div className='p-2 border rounded-md min-h-[200px]'>
+                              {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
+                                  <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
+                                      {eventIcons[event.type]}
+                                      <div>
+                                          <p className="font-semibold">{event.plantName}</p>
+                                          <p className="text-sm text-muted-foreground capitalize">{event.type}: {event.note}</p>
+                                      </div>
+                                  </div>
+                              )) : <p className="text-sm text-muted-foreground text-center py-4">No hay eventos para este día.</p>}
+                          </div>
+                      </div>
+                  </div>
+                </ScrollArea>
+                 <DialogFooter className="pt-4">
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
