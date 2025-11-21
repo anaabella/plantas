@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, memo, useEffect } from 'react';
 import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera, Upload } from 'lucide-react';
@@ -55,70 +55,69 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
     reader.readAsDataURL(file);
 };
 
+const emptyPlant = {
+  name: '',
+  date: new Date().toISOString().split('T')[0],
+  status: 'viva' as Plant['status'],
+  image: '',
+  startType: 'planta' as Plant['startType'],
+  location: 'interior' as Plant['location'],
+  acquisitionType: 'compra' as Plant['acquisitionType'],
+  price: '',
+  giftFrom: '',
+  exchangeSource: '',
+  rescuedFrom: '',
+  notes: '',
+};
 
-export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave }: any) {
-  const [name, setName] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [status, setStatus] = useState<Plant['status']>('viva');
-  const [image, setImage] = useState('');
-  const [startType, setStartType] = useState<Plant['startType']>('planta');
-  const [location, setLocation] = useState<Plant['location']>('interior');
-  const [acquisitionType, setAcquisitionType] = useState<Plant['acquisitionType']>('compra');
-  const [price, setPrice] = useState('');
-  const [giftFrom, setGiftFrom] = useState('');
-  const [exchangeSource, setExchangeSource] = useState('');
-  const [rescuedFrom, setRescuedFrom] = useState('');
-  const [notes, setNotes] = useState('');
+
+export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
+  const [plant, setPlant] = useState(emptyPlant);
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setPlant(prev => ({
+          ...emptyPlant,
+          ...prev,
+          name: initialData.name || '',
+          image: initialData.image || '',
+        }));
+      } else {
+        setPlant(emptyPlant);
+      }
+    }
+  }, [isOpen, initialData]);
+
+  const handleChange = (field: keyof Plant, value: any) => {
+    setPlant(prev => ({...prev, [field]: value}));
+  }
 
   const handleSubmit = () => {
-    // Basic validation
-    if (!name || !date) {
+    if (!plant.name || !plant.date) {
       alert("El nombre y la fecha son obligatorios.");
       return;
     }
 
     const newPlantData: Partial<Plant> = {
-      name,
-      date,
-      status,
-      image,
-      startType,
-      location,
-      acquisitionType,
-      notes,
+      ...plant,
       events: [],
     };
     
-    if (acquisitionType === 'compra' && price) newPlantData.price = price;
-    if (acquisitionType === 'regalo' && giftFrom) newPlantData.giftFrom = giftFrom;
-    if (acquisitionType === 'intercambio' && exchangeSource) newPlantData.exchangeSource = exchangeSource;
-    if (acquisitionType === 'rescatada' && rescuedFrom) newPlantData.rescuedFrom = rescuedFrom;
+    if (plant.acquisitionType !== 'compra') delete newPlantData.price;
+    if (plant.acquisitionType !== 'regalo') delete newPlantData.giftFrom;
+    if (plant.acquisitionType !== 'intercambio') delete newPlantData.exchangeSource;
+    if (plant.acquisitionType !== 'rescatada') delete newPlantData.rescuedFrom;
 
     onSave(newPlantData);
-    
-    // Reset form
-    setName('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setStatus('viva');
-    setImage('');
-    setStartType('planta');
-    setLocation('interior');
-    setAcquisitionType('compra');
-    setPrice('');
-    setGiftFrom('');
-    setRescuedFrom('');
-    setExchangeSource('');
-    setNotes('');
-
     setIsOpen(false);
   };
 
   const handlePhotoCaptured = (photoDataUri: string) => {
-    setImage(photoDataUri);
+    handleChange('image', photoDataUri);
     setIsCameraOpen(false);
   };
 
@@ -126,7 +125,7 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
     const file = event.target.files?.[0];
     if (file) {
       compressImage(file, (compressedDataUrl) => {
-        setImage(compressedDataUrl);
+        handleChange('image', compressedDataUrl);
       });
     }
   };
@@ -171,14 +170,14 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
         <ScrollArea className='max-h-[70vh]'>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                 <div className="space-y-4">
-                    <InputGroup label="Nombre de la Planta" value={name} onChange={(e:any) => setName(e.target.value)} />
-                    <InputGroup type="date" label="Fecha de Adquisición" value={date} onChange={(e:any) => setDate(e.target.value)} />
-                    <SelectGroup label="Tipo de Adquisición" value={acquisitionType} onValueChange={setAcquisitionType} options={acquisitionTypeOptions} />
+                    <InputGroup label="Nombre de la Planta" value={plant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                    <InputGroup type="date" label="Fecha de Adquisición" value={plant.date} onChange={(e:any) => handleChange('date', e.target.value)} />
+                    <SelectGroup label="Tipo de Adquisición" value={plant.acquisitionType} onValueChange={(v: any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                     
-                    {acquisitionType === 'compra' && <InputGroup label="Precio" value={price} onChange={(e:any) => setPrice(e.target.value)} placeholder="$0.00" />}
-                    {acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={giftFrom} onChange={(e:any) => setGiftFrom(e.target.value)} placeholder="Nombre" />}
-                    {acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={exchangeSource} onChange={(e:any) => setExchangeSource(e.target.value)} placeholder="Ej: un esqueje" />}
-                    {acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={rescuedFrom} onChange={(e:any) => setRescuedFrom(e.target.value)} placeholder="Ubicación" />}
+                    {plant.acquisitionType === 'compra' && <InputGroup label="Precio" value={plant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                    {plant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={plant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                    {plant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={plant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                    {plant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={plant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
 
                 </div>
                 <div className="space-y-4">
@@ -194,14 +193,14 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                             </Button>
                         </div>
                     </div>
-                    {image && <img src={image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
+                    {plant.image && <img src={plant.image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
 
-                    <SelectGroup label="Comienzo como" value={startType} onValueChange={setStartType} options={startTypeOptions} />
-                    <SelectGroup label="Ubicación" value={location} onValueChange={setLocation} options={locationOptions} />
+                    <SelectGroup label="Comienzo como" value={plant.startType} onValueChange={(v: any) => handleChange('startType', v)} options={startTypeOptions} />
+                    <SelectGroup label="Ubicación" value={plant.location} onValueChange={(v: any) => handleChange('location', v)} options={locationOptions} />
                 </div>
             </div>
             <div className='p-4 pt-0'>
-             <Textarea placeholder="Notas adicionales sobre la planta..." value={notes} onChange={(e:any) => setNotes(e.target.value)} />
+             <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
             </div>
         </ScrollArea>
         <DialogFooter className='p-4 pt-0'>
@@ -218,5 +217,3 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
     </>
   );
 });
-
-    

@@ -45,6 +45,7 @@ import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
 
 // Tipos
 export type Plant = {
@@ -112,8 +113,12 @@ export default function GardenApp() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [plantToAddFromWishlist, setPlantToAddFromWishlist] = useState<Partial<Plant> | null>(null);
+
   const [isWishlistFormOpen, setIsWishlistFormOpen] = useState(false);
   const [editingWishlistItem, setEditingWishlistItem] = useState<WishlistItem | null>(null);
+  const [selectedWishlistItem, setSelectedWishlistItem] = useState<WishlistItem | null>(null);
+  const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -241,6 +246,12 @@ export default function GardenApp() {
         createdAt: serverTimestamp(),
       });
       toast({ title: "¡Planta añadida!", description: `${newPlantData.name} se ha unido a tu jardín.` });
+      
+      // If added from wishlist, remove from wishlist
+      if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
+        await handleDeleteWishlistItem(plantToAddFromWishlist.id);
+        setPlantToAddFromWishlist(null);
+      }
       setIsAddDialogOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
@@ -297,6 +308,8 @@ export default function GardenApp() {
     try {
       await deleteDoc(doc(firestore, `users/${user.uid}/wishlist`, id));
       toast({ title: "Artículo eliminado" });
+      setIsWishlistDetailOpen(false);
+      setSelectedWishlistItem(null);
     } catch (error: any) {
       console.error("Error deleting wishlist item:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar: ${error.message}` });
@@ -333,6 +346,16 @@ export default function GardenApp() {
     }
   };
 
+  const handleGotItFromWishlist = (item: WishlistItem) => {
+    setPlantToAddFromWishlist({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+    });
+    setIsWishlistDetailOpen(false);
+    setIsAddDialogOpen(true);
+  };
+
   // -- UI Handlers --
   const openPlantDetails = (plant: Plant) => {
     setSelectedPlant(plant);
@@ -346,7 +369,13 @@ export default function GardenApp() {
 
   const openWishlistForm = (item?: WishlistItem) => {
     setEditingWishlistItem(item || null);
+    setIsWishlistDetailOpen(false); // Close detail if editing
     setIsWishlistFormOpen(true);
+  };
+
+  const openWishlistDetail = (item: WishlistItem) => {
+    setSelectedWishlistItem(item);
+    setIsWishlistDetailOpen(true);
   };
   
   // -- Computed Data --
@@ -386,7 +415,7 @@ export default function GardenApp() {
         user={user}
         onLogin={handleLogin}
         onLogout={handleLogout}
-        onAddPlant={() => setIsAddDialogOpen(true)}
+        onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
         onOpenWishlist={() => setView('wishlist')}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenStats={() => setIsStatsOpen(true)}
@@ -426,8 +455,7 @@ export default function GardenApp() {
         {view === 'wishlist' && (
           <WishlistGrid
             items={filteredWishlist}
-            onEdit={openWishlistForm}
-            onDelete={handleDeleteWishlistItem}
+            onItemClick={openWishlistDetail}
             onAddNew={() => openWishlistForm(undefined)}
           />
         )}
@@ -438,6 +466,7 @@ export default function GardenApp() {
         isOpen={isAddDialogOpen}
         setIsOpen={setIsAddDialogOpen}
         onSave={handleAddPlant}
+        initialData={plantToAddFromWishlist}
       />
       {editingPlant && (
         <EditPlantDialog
@@ -461,6 +490,16 @@ export default function GardenApp() {
         onSave={handleSaveWishlistItem}
         item={editingWishlistItem}
       />
+       {selectedWishlistItem && (
+        <WishlistDetailDialog
+          item={selectedWishlistItem}
+          isOpen={isWishlistDetailOpen}
+          setIsOpen={setIsWishlistDetailOpen}
+          onGotIt={handleGotItFromWishlist}
+          onEdit={openWishlistForm}
+          onDelete={handleDeleteWishlistItem}
+        />
+      )}
       <CalendarDialog
         isOpen={isCalendarOpen}
         setIsOpen={setIsCalendarOpen}
@@ -737,7 +776,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 }
 
 // Wishlist Grid
-function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
+function WishlistGrid({ items, onItemClick, onAddNew }: any) {
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -758,35 +797,15 @@ function WishlistGrid({ items, onEdit, onDelete, onAddNew }: any) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
         {items.map((item: WishlistItem) => (
-          <div key={item.id} className="group relative">
+          <div key={item.id} className="group relative cursor-pointer" onClick={() => onItemClick(item)}>
             <div className="relative overflow-hidden rounded-lg">
                 <Image
                     src={item.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                     alt={item.name}
                     width={400}
                     height={500}
-                    className="object-cover w-full h-auto aspect-[4/5]"
+                    className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                 />
-                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="flex gap-2">
-                         <Button variant="secondary" size="sm" onClick={() => onEdit(item)}>Editar</Button>
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm">Eliminar</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                                <AlertDialogDescription>Se eliminará "{item.name}" de tu lista de deseos.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(item.id)}>Eliminar</AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-                </div>
             </div>
             <div className="p-2 bg-transparent">
                <h3 className="font-headline text-lg font-bold truncate">{item.name}</h3>
