@@ -9,7 +9,8 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-// Esquema de entrada para el flujo de diagnóstico.
+// ----------------- DIAGNOSE PLANT -----------------
+
 const DiagnosePlantInputSchema = z.object({
   photoDataUri: z
     .string()
@@ -20,7 +21,6 @@ const DiagnosePlantInputSchema = z.object({
 });
 export type DiagnosePlantInput = z.infer<typeof DiagnosePlantInputSchema>;
 
-// Esquema de salida para el flujo de diagnóstico.
 const DiagnosePlantOutputSchema = z.object({
   identification: z.object({
     isPlant: z.boolean().describe('Confirma si la imagen contiene una planta o no.'),
@@ -35,16 +35,42 @@ const DiagnosePlantOutputSchema = z.object({
 });
 export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
 
-/**
- * Función exportada que el cliente llamará para diagnosticar.
- * Invoca el flujo de Genkit y devuelve su resultado.
- */
+
 export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
   return diagnosePlantFlow(input);
 }
 
+const diagnosePlantFlow = ai.defineFlow(
+  {
+    name: 'diagnosePlantFlow',
+    inputSchema: DiagnosePlantInputSchema,
+    outputSchema: DiagnosePlantOutputSchema,
+  },
+  async (input) => {
+    const llmResponse = await ai.generate({
+        model: 'googleai/gemini-1.5-flash',
+        prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud.
+Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
+- identification: isPlant (boolean), commonName, latinName.
+- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
+Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.
+Aquí está la información:
+Descripción: ${input.description}
+Foto: ${input.photoDataUri}`,
+    });
 
-// ----------- Flujo para Información General de la Planta -----------
+    const textResponse = llmResponse.text();
+    try {
+        return JSON.parse(textResponse);
+    } catch (e) {
+        console.error("Failed to parse LLM response as JSON:", textResponse);
+        throw new Error("El modelo generó un diagnóstico con formato incorrecto.");
+    }
+  }
+);
+
+
+// ----------------- GET PLANT INFO -----------------
 
 const PlantInfoInputSchema = z.object({
   plantName: z.string().describe('El nombre de la planta sobre la que se busca información.'),
@@ -102,34 +128,4 @@ Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que n
             throw new Error("El modelo generó una respuesta con formato incorrecto.");
         }
     }
-);
-
-
-const diagnosePlantFlow = ai.defineFlow(
-  {
-    name: 'diagnosePlantFlow',
-    inputSchema: DiagnosePlantInputSchema,
-    outputSchema: DiagnosePlantOutputSchema,
-  },
-  async input => {
-    const llmResponse = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
-        prompt: `Actúa como un botánico experto. Analiza la imagen y la descripción de una planta para diagnosticar su salud.
-Responde únicamente con un objeto JSON que siga estrictamente este esquema Zod: ${JSON.stringify(DiagnosePlantOutputSchema.shape)}.
-- identification: isPlant (boolean), commonName, latinName.
-- diagnosis: isHealthy (boolean), diagnosis (análisis detallado), recommendation (pasos a seguir).
-Responde siempre en español. No incluyas \`\`\`json o cualquier otra cosa que no sea el objeto JSON.
-Aquí está la información:
-Descripción: ${input.description}
-Foto: ${input.photoDataUri}`,
-    });
-
-    const textResponse = llmResponse.text();
-    try {
-        return JSON.parse(textResponse);
-    } catch (e) {
-        console.error("Failed to parse LLM response as JSON:", textResponse);
-        throw new Error("El modelo generó un diagnóstico con formato incorrecto.");
-    }
-  }
 );

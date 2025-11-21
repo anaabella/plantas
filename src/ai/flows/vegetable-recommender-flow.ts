@@ -10,34 +10,27 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-// Esquema de entrada para la descripción del usuario.
 const CropRecommenderInputSchema = z.object({
   userQuery: z.string().describe('La descripción del usuario sobre el espacio disponible para la huerta (ej. "balcón soleado", "patio con sombra").'),
 });
 export type CropRecommenderInput = z.infer<typeof CropRecommenderInputSchema>;
 
-// Esquema para una recomendación individual.
 const CropRecommendationSchema = z.object({
   name: z.string().describe('El nombre de la hortaliza o fruta recomendada.'),
   timeToHarvest: z.string().describe('El tiempo estimado desde la siembra hasta la cosecha (ej. "60-70 días", "2-3 años").'),
   plantingLocation: z.string().describe('Una recomendación de dónde plantarla (ej. "Pleno sol, en maceta grande o directo en tierra").'),
 });
 
-// Esquema de salida que contiene una lista de recomendaciones.
 const CropRecommenderOutputSchema = z.object({
   recommendations: z.array(CropRecommendationSchema).describe('Una lista de hortalizas o frutas recomendadas para plantar.'),
 });
 export type CropRecommenderOutput = z.infer<typeof CropRecommenderOutputSchema>;
 
 
-/**
- * Función exportada que el cliente llamará para obtener recomendaciones.
- */
 export async function recommendCrops(input: CropRecommenderInput): Promise<CropRecommenderOutput> {
   return cropRecommenderFlow(input);
 }
 
-// Definición del flujo de Genkit.
 const cropRecommenderFlow = ai.defineFlow(
   {
     name: 'cropRecommenderFlow',

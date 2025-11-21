@@ -8,7 +8,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-// Esquema de entrada
 const IdentifyPlantInputSchema = z.object({
   photoDataUri: z
     .string()
@@ -18,7 +17,6 @@ const IdentifyPlantInputSchema = z.object({
 });
 export type IdentifyPlantInput = z.infer<typeof IdentifyPlantInputSchema>;
 
-// Esquema de salida
 const IdentifyPlantOutputSchema = z.object({
   isPlant: z.boolean().describe('Confirma si la imagen contiene una planta.'),
   commonName: z.string().describe('El nombre común de la planta identificada.'),
@@ -26,9 +24,7 @@ const IdentifyPlantOutputSchema = z.object({
 });
 export type IdentifyPlantOutput = z.infer<typeof IdentifyPlantOutputSchema>;
 
-/**
- * Identifica una planta a partir de una imagen.
- */
+
 export async function identifyPlant(input: IdentifyPlantInput): Promise<IdentifyPlantOutput> {
   return identifyPlantFlow(input);
 }
@@ -39,7 +35,7 @@ const identifyPlantFlow = ai.defineFlow(
     inputSchema: IdentifyPlantInputSchema,
     outputSchema: IdentifyPlantOutputSchema,
   },
-  async input => {
+  async (input) => {
     const llmResponse = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
         prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla.
