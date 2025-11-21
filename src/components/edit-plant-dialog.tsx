@@ -231,23 +231,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     <TabsTrigger value="gallery">Galería</TabsTrigger>
                     <TabsTrigger value="edit">Editar</TabsTrigger>
                 </TabsList>
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2"/>Eliminar Planta</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </div>
             <ScrollArea className="h-[60vh] p-1 mt-4">
                 <TabsContent value="log" className='p-1'>
@@ -342,6 +325,23 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         </div>
                     </div>
                      <div className="flex justify-end mt-6">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" className='mr-2'><Trash2 className="h-4 w-4 mr-2"/>Eliminar Planta</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                         <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
                     </div>
                 </TabsContent>

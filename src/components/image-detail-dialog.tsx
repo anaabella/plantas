@@ -2,6 +2,9 @@
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import Image from 'next/image';
 
@@ -21,12 +24,18 @@ export function ImageDetailDialog({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-4xl w-full p-2 bg-transparent border-none shadow-none">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Vista detallada de la imagen</DialogTitle>
+          <DialogDescription>
+            Una vista ampliada de la imagen de la planta seleccionada.
+          </DialogDescription>
+        </DialogHeader>
         <div className="relative aspect-auto w-full h-[80vh]">
           <Image
             src={imageUrl}
             alt="Vista detallada de la imagen"
-            layout="fill"
-            objectFit="contain"
+            fill
+            className="object-contain"
           />
         </div>
       </DialogContent>
