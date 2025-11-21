@@ -193,9 +193,28 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
             <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
             <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
+          <div className='flex gap-2'>
+            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] p-1">
@@ -291,26 +310,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
           )}
         </ScrollArea>
         
-        <DialogFooter className="mt-4 flex-col sm:flex-row sm:justify-between w-full">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/>Eliminar</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        <DialogFooter className="mt-4 flex-col sm:flex-row sm:justify-end w-full">
           <div className='flex gap-2 justify-end'>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
             {isEditing && <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>}
           </div>
         </DialogFooter>
@@ -354,5 +356,3 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
     </Select>
   </div>
 );
-
-    
