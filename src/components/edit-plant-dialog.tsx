@@ -257,7 +257,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold">Eventos Rápidos</h3>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-6">
+                    <div className="flex flex-wrap gap-2 mb-6">
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
