@@ -530,7 +530,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin: handleLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -616,7 +616,7 @@ function Header({ view, onViewChange, user, onLogin: handleLogin, onLogout, onAd
               </PopoverContent>
             </Popover>
           ) : (
-            <Button onClick={handleLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
+            <Button onClick={onLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
           )}
         </div>
       </div>
