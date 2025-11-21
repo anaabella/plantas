@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Droplets, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Droplets, Scissors, HeartCrack, Upload, Skull, Home, Package } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
@@ -36,6 +36,14 @@ const acquisitionIcons:any = {
   rescatada: <Skull className="h-5 w-5" />,
 };
 
+const startIcons: { [key in Plant['startType']]: React.ReactElement } = {
+    planta: <Sun className="h-5 w-5" />,
+    gajo: <Scissors className="h-5 w-5" />,
+    raiz: <Package className="h-5 w-5" />,
+    semilla: <Home className="h-5 w-5" />,
+};
+
+
 function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) {
   if (!children) return null;
   return (
@@ -43,7 +51,7 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
       <div className="flex-shrink-0 text-muted-foreground pt-1">{icon}</div>
       <div>
         <h4 className="font-semibold font-headline">{title}</h4>
-        <p className="text-sm text-muted-foreground">{children}</p>
+        <p className="text-sm text-muted-foreground capitalize">{children}</p>
       </div>
     </div>
   );
@@ -110,63 +118,70 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto">
+          {/* Columna Izquierda: Galería o Imagen Principal */}
           <div className="space-y-4">
-             <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4 border">
-                <Image
-                    src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                    alt={`Main image of ${plant.name}`}
-                    fill
-                    className="object-cover"
-                />
-                {plant.status === 'fallecida' && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="flex flex-col items-center text-white">
-                        <HeartCrack className="h-16 w-16" />
-                        <p className="mt-2 text-lg font-bold font-headline">Descansando</p>
-                    </div>
-                    </div>
-                )}
-             </div>
-
-            {!isCommunityView && galleryImages.length > 1 && (
-              <Carousel opts={{ align: "start" }} className="w-full px-12">
-                <CarouselContent>
-                  {galleryImages.map((image, index) => (
-                    <CarouselItem key={index} className="basis-1/3">
-                      <div className="p-1">
-                        <div
-                          className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
-                          onClick={() => {
-                            if (!beforeImage || (beforeImage && afterImage)) {
-                              setBeforeImage(image.imageUrl);
-                              setAfterImage(null);
-                            } else {
-                              setAfterImage(image.imageUrl);
-                            }
-                          }}
-                        >
-                          <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+            {isCommunityView || galleryImages.length <= 1 ? (
+                <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4 border">
+                    <Image
+                        src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                        alt={`Main image of ${plant.name}`}
+                        fill
+                        className="object-cover"
+                    />
+                    {plant.status === 'fallecida' && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="flex flex-col items-center text-white">
+                            <HeartCrack className="h-16 w-16" />
+                            <p className="mt-2 text-lg font-bold font-headline">Descansando</p>
                         </div>
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious />
-                <CarouselNext />
-              </Carousel>
-            )}
-
-            {!isCommunityView && beforeImage && afterImage && (
-              <div className="space-y-2">
-                 <h4 className="font-headline text-md font-semibold">Antes y Después</h4>
-                <ImageComparisonSlider before={beforeImage} after={afterImage} />
-                <Button variant="outline" size="sm" onClick={() => { setBeforeImage(null); setAfterImage(null); }}>
-                  Limpiar Comparación
-                </Button>
-              </div>
-            )}
-            
-            {!isCommunityView && (
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <>
+                 {beforeImage && afterImage ? (
+                    <div className="space-y-2">
+                        <h4 className="font-headline text-md font-semibold">Antes y Después</h4>
+                        <ImageComparisonSlider before={beforeImage} after={afterImage} />
+                        <Button variant="outline" size="sm" onClick={() => { setBeforeImage(null); setAfterImage(null); }}>
+                        Limpiar Comparación
+                        </Button>
+                    </div>
+                 ) : (
+                    <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4 border">
+                       <Image
+                           src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                           alt={`Main image of ${plant.name}`}
+                           fill
+                           className="object-cover"
+                       />
+                   </div>
+                 )}
+                 <Carousel opts={{ align: "start" }} className="w-full px-12">
+                    <CarouselContent>
+                    {galleryImages.map((image, index) => (
+                        <CarouselItem key={index} className="basis-1/3">
+                        <div className="p-1">
+                            <div
+                            className={`relative aspect-square w-full cursor-pointer rounded-md overflow-hidden border-2 hover:border-primary ${beforeImage === image.imageUrl || afterImage === image.imageUrl ? 'border-primary' : 'border-transparent'}`}
+                            onClick={() => {
+                                if (!beforeImage || (beforeImage && afterImage)) {
+                                setBeforeImage(image.imageUrl);
+                                setAfterImage(null);
+                                } else if (beforeImage !== image.imageUrl) {
+                                setAfterImage(image.imageUrl);
+                                }
+                            }}
+                            >
+                            <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                            </div>
+                        </div>
+                        </CarouselItem>
+                    ))}
+                    </CarouselContent>
+                    <CarouselPrevious />
+                    <CarouselNext />
+                </Carousel>
                 <div className="space-y-2">
                     <label htmlFor={`image-upload-${plant.id}`} className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
                         <Upload className="mr-2 h-4 w-4" />
@@ -174,34 +189,50 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                     </label>
                     <Input id={`image-upload-${plant.id}`} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                 </div>
+                </>
             )}
           </div>
 
+          {/* Columna Derecha: Información */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
-                <div className="text-primary">{Icon}</div>
-                <div>
-                <p className="font-semibold capitalize">{acquisitionType}</p>
-                {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
-                {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
-                {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
-                {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
-                </div>
-            </div>
-        
-            <Separator />
+             {isCommunityView ? (
+                 <>
+                    <InfoSection icon={acquisitionIcons[plant.acquisitionType] || <ShoppingBag className="h-5 w-5" />} title="Adoptada como">
+                        {plant.acquisitionType}
+                        {plant.acquisitionType === 'compra' && plant.price && ` - $${plant.price}`}
+                        {plant.acquisitionType === 'intercambio' && plant.exchangeSource && ` - por ${plant.exchangeSource}`}
+                        {plant.acquisitionType === 'regalo' && plant.giftFrom && ` - de ${plant.giftFrom}`}
+                        {plant.acquisitionType === 'rescatada' && plant.rescuedFrom && ` - de ${plant.rescuedFrom}`}
+                    </InfoSection>
+                 </>
+             ) : (
+                <>
+                    <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
+                        <div className="text-primary">{Icon}</div>
+                        <div>
+                        <p className="font-semibold capitalize">{acquisitionType}</p>
+                        {plant.acquisitionType === 'compra' && plant.price && <p className="text-sm text-muted-foreground">${plant.price}</p>}
+                        {plant.acquisitionType === 'intercambio' && <p className="text-sm text-muted-foreground">{plant.exchangeSource}</p>}
+                        {plant.acquisitionType === 'regalo' && <p className="text-sm text-muted-foreground">De: {plant.giftFrom || 'un amigo'}</p>}
+                        {plant.acquisitionType === 'rescatada' && <p className="text-sm text-muted-foreground">De: {plant.rescuedFrom || 'la calle'}</p>}
+                        </div>
+                    </div>
+                
+                    <Separator />
 
-            <div className="space-y-4">
-                <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
-                    {plant.location}
-                </InfoSection>
-                <InfoSection icon={<Scissors className="h-5 w-5" />} title="Comienzo como">
-                    {plant.startType}
-                </InfoSection>
-            <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
-                {plant.notes}
-            </InfoSection>
-            </div>
+                    <div className="space-y-4">
+                        <InfoSection icon={<Sun className="h-5 w-5" />} title="Ubicación">
+                            {plant.location}
+                        </InfoSection>
+                        <InfoSection icon={startIcons[plant.startType] || <Package className="h-5 w-5" />} title="Comienzo como">
+                            {plant.startType}
+                        </InfoSection>
+                    <InfoSection icon={<Droplets className="h-5 w-5" />} title="Notas">
+                        {plant.notes}
+                    </InfoSection>
+                    </div>
+                </>
+             )}
           </div>
         </div>
 
