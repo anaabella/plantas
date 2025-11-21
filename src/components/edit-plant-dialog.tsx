@@ -277,9 +277,25 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                                         <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveEvent(event.id)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción no se puede deshacer.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         ))}
                         {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
