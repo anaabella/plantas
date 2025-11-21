@@ -58,6 +58,7 @@ export function WishlistDetailDialog({
             alt={item.name}
             layout="fill"
             objectFit="cover"
+            unoptimized={!item.image}
           />
         </div>
 

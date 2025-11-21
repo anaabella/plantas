@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -635,6 +635,7 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
                                             width={400}
                                             height={500}
                                             className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                                            unoptimized={!plant.image}
                                         />
                                         <div className="absolute top-0 right-0 m-2 flex flex-col gap-2">
                                             {needsWatering && (
@@ -714,6 +715,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     width={400}
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                    unoptimized={!plant.image}
                 />
                 {plant.status !== 'viva' && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -807,6 +809,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
                     width={400}
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                    unoptimized={!item.image}
                 />
             </div>
             <div className="p-2 bg-transparent">

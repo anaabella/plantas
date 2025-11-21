@@ -15,10 +15,11 @@ import type { Plant } from '@/app/page';
 import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
+import { ImageDetailDialog } from './image-detail-dialog';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -59,6 +60,13 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
 export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView }: PlantDetailDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+
+  const handleOpenImageDetail = (imageUrl: string) => {
+    setSelectedImageUrl(imageUrl);
+    setIsImageDetailOpen(true);
+  };
 
   const galleryImages = useMemo(() => {
     if (!plant) return [];
@@ -106,6 +114,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
   const Icon = acquisitionIcons[acquisitionType];
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
         <DialogHeader>
@@ -126,6 +135,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                       alt={`Main image of ${plant.name}`}
                       fill
                       className="object-cover"
+                      unoptimized={galleryImages.length === 0}
                   />
                   {plant.status === 'fallecida' && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -137,15 +147,15 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                   )}
               </div>
             
-            {galleryImages.length > 1 && (
+            {galleryImages.length > 0 && (
                 <>
                     <h4 className="font-headline text-md font-semibold">Galería</h4>
                     <Carousel opts={{ align: "start" }} className="w-full px-12">
                         <CarouselContent>
                         {galleryImages.map((image, index) => (
                             <CarouselItem key={index} className="basis-1/3 md:basis-1/4">
-                            <div className="p-1">
-                                <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent">
+                            <div className="p-1" onClick={() => handleOpenImageDetail(image.imageUrl)}>
+                                <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent cursor-pointer">
                                     <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
                                     <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
                                         {format(parseISO(image.date), 'dd/MM/yy')}
@@ -210,5 +220,11 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         </DialogFooter>
       </DialogContent>
     </Dialog>
+     <ImageDetailDialog 
+        isOpen={isImageDetailOpen} 
+        setIsOpen={setIsImageDetailOpen}
+        imageUrl={selectedImageUrl}
+    />
+    </>
   );
 }
