@@ -28,7 +28,7 @@ export const diagnosePlant = ai.defineFlow(
   { name: 'diagnosePlant', inputSchema: DiagnoseInputSchema, outputSchema: DiagnoseOutputSchema },
   async ({ photoDataUri, description }) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-pro-vision', // ✅ modelo con visión
+      model: 'gemini-pro-vision', // ✅ modelo con visión
       prompt: `Actúa como botánico experto. Analiza la imagen y la descripción. Responde SIEMPRE en español.\nDescripción: ${description}`,
       media: [{ contentType: photoDataUri.split(';')[0].split(':')[1], data: photoDataUri.split(',')[1] }],
       output: { schema: DiagnoseOutputSchema },
@@ -68,7 +68,7 @@ export const getPlantInfo = ai.defineFlow(
   { name: 'getPlantInfo', inputSchema: InfoInputSchema, outputSchema: InfoOutputSchema },
   async ({ plantName }) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-pro', // ✅ modelo texto
+      model: 'gemini-pro', // ✅ modelo texto
       prompt: `Actúa como experto en botánica. Proporciona información de la planta "${plantName}". Responde SIEMPRE en español.`,
       output: { schema: InfoOutputSchema },
     });
@@ -104,7 +104,7 @@ export const identifyPlant = ai.defineFlow(
   },
   async ({ photoDataUri }) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-pro-vision',
+      model: 'gemini-pro-vision',
       prompt: `Analiza la siguiente imagen de una planta. Tu única tarea es identificarla. Responde siempre en español.`,
       media: [{ contentType: photoDataUri.split(';')[0].split(':')[1], data: photoDataUri.split(',')[1] }],
       output: { schema: IdentifyPlantOutputSchema },
@@ -142,7 +142,7 @@ export const recommendCrops = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-        model: 'googleai/gemini-pro',
+        model: 'gemini-pro',
         prompt: `Actúa como un experto en horticultura. Basado en la descripción del espacio de un usuario ("${input.userQuery}"), recomienda de 3 a 5 hortalizas o frutas. Sé claro y conciso. Responde siempre en español.`,
         output: { schema: CropRecommenderOutputSchema },
     });
