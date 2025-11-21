@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,12 @@ import {
   AlertDialogFooter,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -317,7 +323,6 @@ export default function GardenApp() {
       setSelectedWishlistItem(null);
     } catch (error: any) {
       console.error("Error deleting wishlist item:", error);
-      toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar: ${error.message}` });
     }
   };
   
@@ -444,7 +449,7 @@ export default function GardenApp() {
         )}
 
         {view === 'my-plants' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} />
+          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} />
         )}
         {view === 'community' && (
           <PlantsGrid
@@ -668,7 +673,7 @@ function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -708,9 +713,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {plants.map((plant: Plant) => {
         const isInWishlist = wishlistPlantIds?.has(plant.id);
-        
-        return (
-            <div key={plant.id} className="group">
+        const cardContent = (
+          <div className="group">
               <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
                 <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
@@ -777,6 +781,42 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
               </div>
             </div>
         );
+        
+        if (isCommunity) {
+          return <div key={plant.id}>{cardContent}</div>;
+        }
+
+        return (
+          <AlertDialog key={plant.id}>
+            <ContextMenu>
+                <ContextMenuTrigger>
+                  {cardContent}
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <AlertDialogTrigger asChild>
+                    <ContextMenuItem className="text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar Planta
+                    </ContextMenuItem>
+                  </AlertDialogTrigger>
+                </ContextMenuContent>
+            </ContextMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta "{plant.name}" y todos sus datos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDeletePlant(plant.id)}>
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        );
       })}
     </div>
   );
@@ -825,3 +865,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
