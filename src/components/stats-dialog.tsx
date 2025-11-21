@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import type { Plant } from '@/app/page';
-import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, Download, Skull } from 'lucide-react';
+import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home } from 'lucide-react';
 
 export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const stats = useMemo(() => {
@@ -17,52 +17,23 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
     const alive = plants.filter((p:Plant) => p.status === 'viva').length;
     const deceased = plants.filter((p:Plant) => p.status === 'fallecida').length;
     const traded = plants.filter((p: Plant) => p.status === 'intercambiada').length;
+    
     const acquisition = plants.reduce((acc:any, p:Plant) => {
       acc[p.acquisitionType] = (acc[p.acquisitionType] || 0) + 1;
       return acc;
     }, {});
+    
     const location = plants.reduce((acc:any, p:Plant) => {
       acc[p.location] = (acc[p.location] || 0) + 1;
       return acc;
     }, {});
 
-    return { total, alive, deceased, traded, acquisition, location };
+    const totalSpent = plants
+      .filter((p: Plant) => p.acquisitionType === 'compra' && p.price)
+      .reduce((sum: number, p: Plant) => sum + parseFloat(p.price || '0'), 0);
+
+    return { total, alive, deceased, traded, acquisition, location, totalSpent };
   }, [plants]);
-
-  const exportToCsv = () => {
-    const headers = [
-        "ID", "Nombre", "Fecha Adquisicion", "Estado", "Ultimo Riego", "Tipo Comienzo", 
-        "Ubicacion", "Tipo Adquisicion", "Precio", "Regalo De", "Rescatada De", 
-        "Fuente Intercambio", "Destino Intercambio", "Ultima Foto", "Notas"
-    ];
-    
-    const rows = plants.map((p: Plant) => [
-        p.id,
-        `"${p.name?.replace(/"/g, '""')}"`,
-        p.date,
-        p.status,
-        p.lastWatered || "",
-        p.startType,
-        p.location,
-        p.acquisitionType,
-        p.price || "",
-        p.giftFrom || "",
-        p.rescuedFrom || "",
-        p.exchangeSource || "",
-        p.exchangeDest || "",
-        p.lastPhotoUpdate || "",
-        `"${p.notes?.replace(/"/g, '""') || ""}"`
-    ].join(','));
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "plantas.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
 
   const StatCard = ({ icon: Icon, label, value, color }: any) => (
@@ -85,18 +56,19 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
           <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
           <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
           <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
-          <StatCard icon={DollarSign} label="Compradas" value={stats.acquisition.compra || 0} color="bg-yellow-500" />
-          <StatCard icon={Gift} label="Regaladas" value={stats.acquisition.regalo || 0} color="bg-pink-500" />
-          <StatCard icon={ArrowRightLeft} label="Intercambiadas" value={stats.acquisition.intercambio || 0} color="bg-purple-500" />
-          <StatCard icon={Skull} label="Rescatadas" value={stats.acquisition.rescatada || 0} color="bg-gray-500" />
+          <StatCard icon={ArrowRightLeft} label="Intercambiadas" value={stats.traded} color="bg-purple-500" />
           <StatCard icon={Sun} label="Exterior" value={stats.location.exterior || 0} color="bg-orange-500" />
           <StatCard icon={Home} label="Interior" value={stats.location.interior || 0} color="bg-indigo-500" />
+          <StatCard icon={Gift} label="Regaladas" value={stats.acquisition.regalo || 0} color="bg-pink-500" />
+           <StatCard 
+            icon={DollarSign} 
+            label="Gastos Totales" 
+            value={`$${stats.totalSpent.toFixed(2)}`} 
+            color="bg-yellow-500" 
+          />
         </div>
         <DialogFooter>
-            <Button variant="outline" onClick={exportToCsv}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar a CSV
-            </Button>
+            <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

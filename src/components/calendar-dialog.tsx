@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { useState, useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History } from 'lucide-react';
 import type { Plant } from '@/app/page';
@@ -43,6 +43,16 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
 
     const selectedDayEvents = date ? eventsByDay[format(date, 'yyyy-MM-dd')] || [] : [];
     
+    const monthlyStats = useMemo(() => {
+        if (!date) return {};
+        const monthEvents = allEvents.filter(event => isSameMonth(parseISO(event.date), date));
+        const stats = monthEvents.reduce((acc: any, event) => {
+            acc[event.type] = (acc[event.type] || 0) + 1;
+            return acc;
+        }, {});
+        return stats;
+    }, [allEvents, date]);
+    
     const eventIcons = {
         riego: <Droplets className="h-5 w-5 text-blue-500" />,
         poda: <Scissors className="h-5 w-5 text-gray-500" />,
@@ -53,32 +63,13 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         nota: <History className="h-5 w-5 text-yellow-500" />,
     };
 
-     const exportToIcs = () => {
-        let icsString = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//PlantPal//NONSGML v1.0//EN\n';
-
-        allEvents.forEach(event => {
-            const eventDate = new Date(event.date);
-            const formattedDate = format(eventDate, "yyyyMMdd'T'HHmmss'Z'");
-            const summary = `${event.type.charAt(0).toUpperCase() + event.type.slice(1)}: ${event.plantName}`;
-            
-            icsString += 'BEGIN:VEVENT\n';
-            icsString += `UID:${event.id}@plantpal.app\n`;
-            icsString += `DTSTAMP:${formattedDate}\n`;
-            icsString += `DTSTART;VALUE=DATE:${format(eventDate, 'yyyyMMdd')}\n`;
-            icsString += `SUMMARY:${summary}\n`;
-            icsString += `DESCRIPTION:${event.note.replace(/\n/g, '\\n')}\n`;
-            icsString += 'END:VEVENT\n';
-        });
-
-        icsString += 'END:VCALENDAR';
-
-        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'plantpal_events.ics';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const statIcons: { [key: string]: React.ReactNode } = {
+        riego: <Droplets className="h-4 w-4 text-blue-500" />,
+        poda: <Scissors className="h-4 w-4 text-gray-500" />,
+        transplante: <Shovel className="h-4 w-4 text-orange-500" />,
+        foto: <Camera className="h-4 w-4 text-purple-500" />,
+        plaga: <Bug className="h-4 w-4 text-red-500" />,
+        fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
     };
 
     return (
@@ -101,14 +92,26 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                             modifiers={{ daysWithEvents }}
                             modifiersStyles={{ daysWithEvents: { borderColor: 'hsl(var(--primary))', borderWidth: '2px', borderRadius: '9999px' } }}
                         />
-                         <div className="mt-4">
-                            <Button onClick={exportToIcs}>Exportar Eventos (.ics)</Button>
-                        </div>
+                         <div className="mt-4 w-full p-4 border rounded-lg">
+                             <h4 className="font-semibold mb-3 text-center">Resumen Mensual</h4>
+                             <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                                {Object.entries(statIcons).map(([type, icon]) => (
+                                    monthlyStats[type] > 0 && (
+                                        <div key={type} className="flex flex-col items-center justify-center p-1 bg-secondary/50 rounded-md">
+                                            {icon}
+                                            <span className='font-bold text-lg'>{monthlyStats[type]}</span>
+                                            <span className='capitalize text-muted-foreground'>{type}</span>
+                                        </div>
+                                    )
+                                ))}
+                             </div>
+                             {Object.keys(monthlyStats).length === 0 && <p className="text-sm text-muted-foreground text-center">Sin eventos este mes.</p>}
+                         </div>
                     </div>
                     <div className="space-y-4">
                         <div>
                             <h3 className="font-semibold mb-2">Eventos del día</h3>
-                             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                             <div className="max-h-[80vh] md:max-h-96 overflow-y-auto space-y-2 pr-2">
                                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                                     <div key={event.id} className="flex items-start gap-3 p-2 rounded-md bg-secondary/50">
                                         {eventIcons[event.type]}
