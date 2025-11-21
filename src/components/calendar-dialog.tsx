@@ -83,7 +83,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                         Visualiza los eventos de tus plantas y planifica cuidados futuros.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] md:max-h-auto overflow-y-auto md:overflow-y-visible">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                     <div className='flex flex-col items-center gap-4'>
                         <Calendar
                             mode="single"
@@ -113,7 +113,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                     <div className="space-y-4">
                         <div>
                             <h3 className="font-semibold mb-2">Eventos para el {date ? format(date, "d 'de' MMMM", { locale: es }) : ''}</h3>
-                             <ScrollArea className="h-[250px] md:h-[430px] w-full pr-3">
+                             <ScrollArea className="h-[45vh] md:h-[430px] w-full pr-3">
                                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                                     <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
                                         {eventIcons[event.type]}
