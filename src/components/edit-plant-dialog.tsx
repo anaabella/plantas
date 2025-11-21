@@ -16,7 +16,6 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogHeader,
-  AlertDialogFooter,
   AlertDialogTrigger,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
@@ -329,9 +328,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
             </ScrollArea>
         </Tabs>
         
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
     <CameraCaptureDialog 
