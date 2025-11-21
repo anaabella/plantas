@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,9 @@ import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { ScrollArea } from './ui/scroll-area';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import Image from 'next/image';
+import { Separator } from './ui/separator';
 
 // Función para comprimir imágenes
 const compressImage = (file: File, callback: (dataUrl: string) => void) => {
@@ -154,7 +157,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   }
   
   const handlePhotoCaptured = (photoDataUri: string) => {
-    handleChange('image', photoDataUri);
+    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], note: photoDataUri});
     setIsCameraOpen(false);
   };
 
@@ -162,10 +165,24 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     const file = event.target.files?.[0];
     if (file) {
         compressImage(file, (compressedDataUrl) => {
-            handleChange('image', compressedDataUrl);
+            handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], note: compressedDataUrl});
         });
     }
   };
+
+  const galleryImages = useMemo(() => {
+    if (!editedPlant) return [];
+    const mainImage = editedPlant.image ? [{ imageUrl: editedPlant.image, date: editedPlant.lastPhotoUpdate || editedPlant.createdAt?.toDate()?.toISOString() || editedPlant.date }] : [];
+    const eventPhotos = (editedPlant.events || [])
+      .filter(e => e.type === 'foto' && e.note)
+      .map(e => ({ imageUrl: e.note, date: e.date }));
+    
+    const allImages = [...mainImage, ...eventPhotos];
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [editedPlant]);
 
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
@@ -238,7 +255,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                  <div className="space-y-1">
                     <label className="text-sm font-medium text-muted-foreground">Imagen Principal</label>
                     <div className="flex gap-2">
-                      <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                      <Input type="file" accept="image/*" onChange={(e) => compressImage(e.target.files![0], (data) => handleChange('image', data))} ref={fileInputRef} className="hidden" />
                       <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="mr-2 h-4 w-4" /> Subir
                       </Button>
@@ -257,11 +274,40 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
             </div>
           ) : (
              <div>
+                <div className="mb-6">
+                    <h3 className="font-semibold mb-2">Galería</h3>
+                     <Carousel opts={{ align: "start" }} className="w-full">
+                        <CarouselContent className="-ml-2">
+                        {galleryImages.map((image, index) => (
+                            <CarouselItem key={index} className="pl-2 basis-1/3 md:basis-1/4">
+                            <div className="p-1">
+                                <div className="relative aspect-square w-full rounded-md overflow-hidden border">
+                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                                    <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
+                                        {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
+                                    </div>
+                                </div>
+                            </div>
+                            </CarouselItem>
+                        ))}
+                         {galleryImages.length === 0 && <p className="text-sm text-center text-muted-foreground py-4 px-4">No hay fotos en la galería.</p>}
+                        </CarouselContent>
+                    </Carousel>
+                    <div className="flex gap-2 mt-2">
+                        <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                        <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="mr-2 h-4 w-4" /> Subir
+                        </Button>
+                        <Button variant="outline" size="sm" className="w-full" onClick={() => setIsCameraOpen(true)}>
+                            <Camera className="mr-2 h-4 w-4" /> Capturar
+                        </Button>
+                    </div>
+                </div>
+                <Separator className="my-4"/>
                  <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Eventos Rápidos</h3>
                  </div>
-                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">
-                    <Button variant="outline" size="sm" onClick={() => handleAddEvent({ type: 'riego', date: new Date().toISOString().split('T')[0], note: "Agua añadida."})}><Droplets className="mr-1 h-4 w-4"/>Regar</Button>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-6">
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('poda')}><Scissors className="mr-1 h-4 w-4"/>Podar</Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('transplante')}><Shovel className="mr-1 h-4 w-4"/>Transplantar</Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAddEvent('fertilizante')}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</Button>
