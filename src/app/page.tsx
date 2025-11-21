@@ -138,6 +138,7 @@ export default function GardenApp() {
     setIsLoading(true);
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      userPlants.sort((a, b) => a.name.localeCompare(b.name));
       setPlants(userPlants);
       setIsLoading(false);
     }, error => {
@@ -162,6 +163,7 @@ export default function GardenApp() {
     setIsCommunityLoading(true);
     const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
       const allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      allPlants.sort((a, b) => a.name.localeCompare(b.name));
       setCommunityPlants(allPlants);
       setIsCommunityLoading(false);
     }, error => {
@@ -183,6 +185,7 @@ export default function GardenApp() {
     }
     const unsubscribe = onSnapshot(wishlistQuery, snapshot => {
       const userWishlist = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WishlistItem));
+      userWishlist.sort((a, b) => a.name.localeCompare(b.name));
       setWishlist(userWishlist);
     }, error => {
       console.error("Error fetching wishlist:", error);
@@ -723,7 +726,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     width={400}
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                    unoptimized={!plant.image}
+                    unoptimized={true}
                 />
                 {plant.status !== 'viva' && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -817,7 +820,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
                     width={400}
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                    unoptimized={!item.image}
+                    unoptimized={true}
                 />
             </div>
             <div className="p-2 bg-transparent">
