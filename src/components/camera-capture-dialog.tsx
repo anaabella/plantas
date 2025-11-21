@@ -174,5 +174,3 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
         </Dialog>
     );
 }
-
-    

@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -31,7 +32,7 @@ import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { ScrollArea } from './ui/scroll-area';
-import Image from 'next/image';
+import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
 
@@ -40,7 +41,7 @@ import { ImageDetailDialog } from './image-detail-dialog';
 const compressImage = (file: File, callback: (dataUrl: string) => void) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-        const img = new Image();
+        const img = new window.Image();
         img.onload = () => {
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 800;
@@ -216,9 +217,30 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
-        <DialogHeader className="pr-10">
-            <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-            <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+        <DialogHeader className="flex-row items-center justify-between pr-10">
+            <div>
+              <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
+              <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+            </div>
+             <div className="flex items-center gap-2 flex-shrink-0">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+                      </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
         </DialogHeader>
 
          <Tabs defaultValue="log" className="w-full">
@@ -276,7 +298,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     <div className="grid grid-cols-3 gap-2">
                         {galleryImages.map((image, index) => (
                             <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
-                                <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
+                                <NextImage src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
                                 <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
                                     {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
                                 </div>
@@ -305,23 +327,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         </div>
                     </div>
                      <div className="flex justify-end mt-6">
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" className='mr-2'><Trash2 className="h-4 w-4 mr-2"/>Eliminar Planta</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
                         <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
                     </div>
                 </TabsContent>
