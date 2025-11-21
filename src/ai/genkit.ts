@@ -18,6 +18,7 @@ if (!apiKey || apiKey === "AIzaSy_REPLACE_WITH_YOUR_VALID_API_KEY") {
   throw new Error("CRITICAL ERROR: GOOGLE_GENAI_API_KEY is missing or is still the placeholder. Please add your valid API key to src/ai/genkit.ts");
 }
 
+console.log('KEY cargada:', apiKey.slice(0, 10), '...');
 
 export const ai = genkit({
   plugins: [
