@@ -23,10 +23,9 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import {
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
   signOut,
-  getRedirectResult,
 } from 'firebase/auth';
 import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
@@ -193,12 +192,15 @@ export default function GardenApp() {
     return () => unsubscribe();
   }, [wishlistQuery]);
 
-  useEffect(() => {
+  // -- Auth Handlers --
+  const handleLogin = async () => {
     if (!auth) return;
-    getRedirectResult(auth)
-      .catch((error) => {
-        console.error("Firebase redirect error:", error);
-        if (error.code === 'auth/unauthorized-domain') {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error("Error initiating sign-in popup:", error);
+       if (error.code === 'auth/unauthorized-domain') {
           toast({
             variant: "destructive",
             title: "Dominio no autorizado",
@@ -208,26 +210,10 @@ export default function GardenApp() {
         } else {
           toast({
             variant: "destructive",
-            title: "Error de inicio de sesión",
-            description: "No se pudo completar el inicio de sesión. Revisa la consola para más detalles.",
+            title: "Error al iniciar sesión",
+            description: "No se pudo iniciar el proceso de autenticación con Google.",
           });
         }
-      });
-  }, [auth, toast]);
-
-  // -- Auth Handlers --
-  const handleLogin = async () => {
-    if (!auth) return;
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error("Error initiating sign-in redirect:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al iniciar sesión",
-        description: "No se pudo iniciar el proceso de autenticación con Google.",
-      });
     }
   };
 
@@ -834,3 +820,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
