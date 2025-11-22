@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -53,6 +53,7 @@ import { cn } from '@/lib/utils';
 import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
+import { SettingsDialog } from '@/components/settings-dialog';
 
 
 // Tipos
@@ -135,6 +136,7 @@ export default function GardenApp() {
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
@@ -567,6 +569,7 @@ export default function GardenApp() {
         onOpenWishlist={() => setView('wishlist')}
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -685,6 +688,10 @@ export default function GardenApp() {
         setIsOpen={setIsCalendarOpen}
         plants={plants}
       />
+       <SettingsDialog
+        isOpen={isSettingsOpen}
+        setIsOpen={setIsSettingsOpen}
+      />
       <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
@@ -698,7 +705,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) => {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
@@ -774,6 +781,12 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <Button variant="ghost" className="w-full justify-start mt-1" onClick={onOpenSettings}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Ajustes
+                    </Button>
+                    
                     <Button variant="destructive" className="w-full justify-start mt-1" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
                 </div>
               </PopoverContent>
