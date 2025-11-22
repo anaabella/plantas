@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
-  Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
+  HeartCrack, Leaf, Moon, Sun,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell
 } from 'lucide-react';
 import NextImage from 'next/image';
@@ -43,8 +43,7 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -451,18 +450,6 @@ export default function GardenApp() {
     return wishlist.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [wishlist, searchTerm]);
 
-  const plantsNeedingAttention = useMemo(() => {
-    const today = new Date();
-    return plants
-        .filter(plant => plant.status === 'viva')
-        .map(plant => {
-            const needsWatering = !plant.lastWatered || differenceInDays(today, new Date(plant.lastWatered)) > 7;
-            const needsPhoto = !plant.lastPhotoUpdate || differenceInDays(today, new Date(plant.lastPhotoUpdate)) > 30;
-            return { plant, needsWatering, needsPhoto };
-        })
-        .filter(item => item.needsWatering || item.needsPhoto);
-  }, [plants]);
-
   const wishlistPlantIds = useMemo(() => {
       return new Set(wishlist.map(item => item.plantId));
   }, [wishlist]);
@@ -494,10 +481,6 @@ export default function GardenApp() {
           </div>
         </div>
         
-        {view === 'my-plants' && plantsNeedingAttention.length > 0 && (
-            <AttentionSection plantsNeedingAttention={plantsNeedingAttention} onPlantClick={openPlantEditor} />
-        )}
-
         {view === 'my-plants' && (
           <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} />
         )}
@@ -631,7 +614,11 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
             </Button>
            )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
-          {user && <Button variant="ghost" size="icon" onClick={onOpenWishlist}><ListTodo className="h-5 w-5"/></Button>}
+          {user && (
+             <Button variant="ghost" size="icon" onClick={onOpenWishlist}>
+                <ListTodo className="h-5 w-5" />
+             </Button>
+          )}
 
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
@@ -682,56 +669,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
       </div>
     </header>
   );
-}
-
-// Attention Section
-function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
-    return (
-        <div className="mb-8">
-            <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
-                <AlertCircle className="mr-2 h-6 w-6 text-yellow-500" />
-                Necesitan Atención
-            </h2>
-            <Carousel opts={{ align: "start", loop: false }} className="w-full">
-                <CarouselContent className="-ml-4">
-                    {plantsNeedingAttention.map(({ plant, needsWatering, needsPhoto }: any) => (
-                        <CarouselItem key={plant.id} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
-                            <div className="p-1">
-                                <div onClick={() => onPlantClick(plant)} className="cursor-pointer group">
-                                    <div className="relative overflow-hidden rounded-lg border">
-                                        <NextImage
-                                            src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                                            alt={plant.name}
-                                            width={400}
-                                            height={500}
-                                            className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                                            unoptimized={!plant.image}
-                                        />
-                                        <div className="absolute top-0 right-0 m-2 flex flex-col gap-2">
-                                            {needsWatering && (
-                                                <div className="p-2 rounded-full bg-blue-500/80 text-white" title="Necesita Riego">
-                                                    <Droplets className="h-5 w-5" />
-                                                </div>
-                                            )}
-                                            {needsPhoto && (
-                                                <div className="p-2 rounded-full bg-purple-500/80 text-white" title="Necesita Foto">
-                                                    <Camera className="h-5 w-5" />
-                                                </div>
-                                            )}
-                                        </div>
-                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
-                                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-            </Carousel>
-            <Separator className="mt-8"/>
-        </div>
-    );
 }
 
 // Plants Grid
