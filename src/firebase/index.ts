@@ -4,7 +4,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -24,6 +24,21 @@ export function initializeFirebase() {
         console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
       }
       firebaseApp = initializeApp(firebaseConfig);
+    }
+    
+    // Enable offline persistence
+    try {
+      const firestore = getFirestore(firebaseApp);
+      enableIndexedDbPersistence(firestore)
+        .catch((err) => {
+          if (err.code == 'failed-precondition') {
+            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+          } else if (err.code == 'unimplemented') {
+            console.log('The current browser does not support all of the features required to enable persistence.');
+          }
+        });
+    } catch (e) {
+      console.error("Failed to enable Firestore persistence", e);
     }
 
     return getSdks(firebaseApp);

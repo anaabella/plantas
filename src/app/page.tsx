@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -53,9 +53,19 @@ import { cn } from '@/lib/utils';
 import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
+import { SettingsDialog } from '@/components/settings-dialog';
 
 
 // Tipos
+export type UserProfile = {
+  id: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  tags?: string[];
+  eventIconConfiguration?: Partial<Record<PlantEvent['type'], string>>;
+};
+
 export type Plant = {
   id: string;
   name: string;
@@ -80,6 +90,7 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
+  tags?: string[];
 };
 
 export type PlantEvent = {
@@ -135,10 +146,13 @@ export default function GardenApp() {
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
+
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Debounce effect for search
   useEffect(() => {
@@ -150,6 +164,21 @@ export default function GardenApp() {
       clearTimeout(handler);
     };
   }, [inputValue]);
+
+  // Fetch user profile for custom settings
+    useEffect(() => {
+        if (!user || !firestore) {
+            setUserProfile(null);
+            return;
+        }
+        const userRef = doc(firestore, 'users', user.uid);
+        const unsubscribe = onSnapshot(userRef, (doc) => {
+            if (doc.exists()) {
+                setUserProfile({ id: doc.id, ...doc.data() } as UserProfile);
+            }
+        });
+        return () => unsubscribe();
+    }, [user, firestore]);
 
   // Request notification permission
   useEffect(() => {
@@ -567,6 +596,7 @@ export default function GardenApp() {
         onOpenWishlist={() => setView('wishlist')}
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -641,6 +671,7 @@ export default function GardenApp() {
         setIsOpen={setIsAddDialogOpen}
         onSave={handleAddPlant}
         initialData={plantToAddFromWishlist}
+        userProfile={userProfile}
       />
       {editingPlant && (
         <EditPlantDialog
@@ -649,6 +680,7 @@ export default function GardenApp() {
           setIsOpen={setIsEditDialogOpen}
           onSave={handleUpdatePlant}
           onDelete={handleDeletePlant}
+          userProfile={userProfile}
         />
       )}
        <PlantDetailDialog
@@ -684,6 +716,12 @@ export default function GardenApp() {
         isOpen={isCalendarOpen}
         setIsOpen={setIsCalendarOpen}
         plants={plants}
+        userProfile={userProfile}
+      />
+       <SettingsDialog
+        isOpen={isSettingsOpen}
+        setIsOpen={setIsSettingsOpen}
+        userProfile={userProfile}
       />
       <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
@@ -691,13 +729,14 @@ export default function GardenApp() {
         images={getGalleryImages(selectedPlant)}
         startIndex={imageDetailStartIndex}
         plant={selectedPlant}
+        onDeleteImage={() => {}} // No-op for community/main page view
     />
     </div>
   );
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
@@ -773,6 +812,12 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <Button variant="ghost" className="w-full justify-start mt-1" onClick={onOpenSettings}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Ajustes
+                    </Button>
+                    
                     <Button variant="destructive" className="w-full justify-start mt-1" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
                 </div>
               </PopoverContent>
@@ -929,6 +974,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
+                             {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
                             {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
