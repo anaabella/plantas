@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useRef, memo, useEffect } from 'react';
 import type { Plant } from '@/app/page';
-import { Camera } from 'lucide-react';
+import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { ImageCropDialog } from './image-crop-dialog';
 
@@ -65,7 +65,8 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
   const [plant, setPlant] = useState(emptyPlant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,8 +117,8 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
       reader.readAsDataURL(file);
     }
     // Reset file input to allow selecting the same file again
-    if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+    if (event.target) {
+        event.target.value = "";
     }
   };
 
@@ -160,11 +161,16 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                          <Button variant="outline" className='w-full' onClick={() => fileInputRef.current?.click()}>
-                              <Camera className="h-4 w-4 mr-2" /> Añadir Foto
-                          </Button>
-                          <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
-
+                          <div className="grid grid-cols-2 gap-2">
+                                <Button variant="outline" onClick={() => uploadInputRef.current?.click()}>
+                                    <Upload className="h-4 w-4 mr-2" /> Subir
+                                </Button>
+                                <Button variant="outline" onClick={() => captureInputRef.current?.click()}>
+                                    <Camera className="h-4 w-4 mr-2" /> Capturar
+                                </Button>
+                          </div>
+                          <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
+                          <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
                       </div>
       
                       {plant.image && <img src={plant.image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}

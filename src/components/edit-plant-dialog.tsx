@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -222,7 +222,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
@@ -377,8 +378,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
       };
       reader.readAsDataURL(file);
     }
-    if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+    if (event.target) {
+        event.target.value = "";
     }
   };
 
@@ -402,7 +403,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
@@ -528,11 +529,15 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       </div>
                   </TabsContent>
                   <TabsContent value="gallery" className='p-1'>
-                      <div className="flex gap-2 mb-4">
-                          <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                              <Camera className="mr-2 h-4 w-4" /> Añadir Foto
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                          <Button variant="outline" size="sm" onClick={() => uploadInputRef.current?.click()}>
+                              <Upload className="mr-2 h-4 w-4" /> Subir Foto
                           </Button>
-                          <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+                          <Button variant="outline" size="sm" onClick={() => captureInputRef.current?.click()}>
+                              <Camera className="mr-2 h-4 w-4" /> Capturar Foto
+                          </Button>
+                          <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
+                          <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                           {galleryImages.map((image, index) => (
