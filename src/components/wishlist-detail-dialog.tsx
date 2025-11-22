@@ -44,7 +44,7 @@ export function WishlistDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md w-[95vw] rounded-lg">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">{item.name}</DialogTitle>
           {item.notes && (
@@ -58,11 +58,11 @@ export function WishlistDetailDialog({
             alt={item.name}
             layout="fill"
             objectFit="cover"
-            unoptimized={!item.image}
+            unoptimized={true}
           />
         </div>
 
-        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+        <DialogFooter className="flex-col gap-2">
           <Button onClick={() => onGotIt(item)} className="w-full">
             <CheckSquare className="mr-2 h-4 w-4" /> La he conseguido
           </Button>
