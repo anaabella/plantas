@@ -34,7 +34,7 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
             setCapturedImage(null); // Reset captured image when dialog opens
             const getCameraPermission = async () => {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                     setHasCameraPermission(true);
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
@@ -107,7 +107,7 @@ export function CameraCaptureDialog({ isOpen, setIsOpen, onPhotoCaptured }: { is
         // Re-request camera permission and stream
         const getCameraPermission = async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
                 }

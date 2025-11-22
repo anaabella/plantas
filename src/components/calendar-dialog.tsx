@@ -12,8 +12,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { useState, useMemo } from 'react';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History } from 'lucide-react';
-import type { Plant } from '@/app/page';
+import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Sprout, Plus, Skull } from 'lucide-react';
+import type { Plant, PlantEvent } from '@/app/page';
 import { ScrollArea } from './ui/scroll-area';
 
 export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
@@ -53,17 +53,20 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         return stats;
     }, [allEvents, date]);
     
-    const eventIcons: { [key: string]: React.ReactNode } = {
-        riego: <Droplets className="h-5 w-5 text-blue-500" />,
-        poda: <Scissors className="h-5 w-5 text-gray-500" />,
-        transplante: <Shovel className="h-5 w-5 text-orange-500" />,
-        foto: <Camera className="h-5 w-5 text-purple-500" />,
-        plaga: <Bug className="h-5 w-5 text-red-500" />,
-        fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
-        nota: <History className="h-5 w-5 text-yellow-500" />,
+    const eventIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
+      riego: <Droplets className="h-5 w-5 text-blue-500" />,
+      poda: <Scissors className="h-5 w-5 text-gray-500" />,
+      transplante: <Shovel className="h-5 w-5 text-orange-500" />,
+      foto: <Camera className="h-5 w-5 text-purple-500" />,
+      plaga: <Bug className="h-5 w-5 text-red-500" />,
+      fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
+      nota: <History className="h-5 w-5 text-yellow-500" />,
+      revivida: <Plus className="h-5 w-5 text-green-500" />,
+      fallecida: <Skull className="h-5 w-5 text-red-500" />,
+      esqueje: <Sprout className="h-5 w-5 text-cyan-500" />,
     };
 
-    const statIcons: { [key: string]: React.ReactNode } = {
+    const statIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
         riego: <Droplets className="h-4 w-4 text-blue-500" />,
         poda: <Scissors className="h-4 w-4 text-gray-500" />,
         transplante: <Shovel className="h-4 w-4 text-orange-500" />,
@@ -71,6 +74,9 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         plaga: <Bug className="h-4 w-4 text-red-500" />,
         fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
         nota: <History className="h-4 w-4 text-yellow-500" />,
+        revivida: <Plus className="h-4 w-4 text-green-500" />,
+        fallecida: <Skull className="h-4 w-4 text-red-500" />,
+        esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
     };
 
     return (
@@ -115,7 +121,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                           <div className='p-2 border rounded-md min-h-[200px] flex-1'>
                               {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                                   <div key={event.id} className="flex items-start gap-3 p-2 mb-2 rounded-md bg-secondary/50">
-                                      {eventIcons[event.type]}
+                                      {eventIcons[event.type as PlantEvent['type']]}
                                       <div>
                                           <p className="font-semibold">{event.plantName}</p>
                                           <p className="text-sm text-muted-foreground capitalize">{event.type}: {event.note}</p>
