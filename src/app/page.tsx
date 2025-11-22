@@ -557,22 +557,17 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
           {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
           <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
+          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo} size="icon" className="sm:hidden"><span className="sr-only">Deseos</span></NavButton>}
+          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo} className="hidden sm:flex">Deseos</NavButton>}
           {user && (
-            <Button variant="ghost" size="icon" onClick={onAddPlant} className="sm:hidden">
-              <Plus className="h-5 w-5" />
-            </Button>
-          )}
-           {user && (
-            <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
-              <Plus className="h-5 w-5 mr-2" />
-              <span className="hidden lg:inline">Añadir Planta</span>
-              <span className="sm:hidden lg:hidden">Añadir</span>
+            <Button variant="outline" onClick={onAddPlant} className="ml-auto sm:ml-2">
+              <Plus className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Añadir</span>
             </Button>
           )}
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={() => onViewChange('wishlist')}><ListTodo className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
