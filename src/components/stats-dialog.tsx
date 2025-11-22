@@ -14,6 +14,7 @@ import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, P
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ScrollArea } from './ui/scroll-area';
 
 export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
   const stats = useMemo(() => {
@@ -77,62 +78,62 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
             <DialogTitle>Estadísticas del Jardín</DialogTitle>
             <DialogDescription>Un resumen visual de tu colección de plantas.</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 py-4">
-          <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
-          <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
-           <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
-           <StatCard 
-            icon={DollarSign} 
-            label="Gastos Totales" 
-            value={`$${stats.totalSpent.toFixed(2)}`} 
-            color="bg-yellow-500" 
-          />
-        </div>
+        <ScrollArea className="max-h-[70vh] pr-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 py-4">
+            <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
+            <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
+            <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
+            <StatCard 
+              icon={DollarSign} 
+              label="Gastos Totales" 
+              value={`$${stats.totalSpent.toFixed(2)}`} 
+              color="bg-yellow-500" 
+            />
+          </div>
 
-        <div className='grid md:grid-cols-2 gap-4'>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Estado de las Plantas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="w-full h-[200px]">
-                        <ResponsiveContainer>
-                            <BarChart data={stats.statusData} layout="vertical" margin={{ left: 20 }}>
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: 'hsl(var(--muted))' }}
-                                    content={<ChartTooltipContent hideLabel />}
-                                />
-                                <Bar dataKey="value" radius={5} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Origen de las Plantas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="w-full h-[200px]">
-                        <ResponsiveContainer>
-                            <BarChart data={stats.acquisitionData} layout="vertical" margin={{ left: 20 }}>
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: 'hsl(var(--muted))' }}
-                                    content={<ChartTooltipContent hideLabel />}
-                                />
-                                <Bar dataKey="value" radius={5} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-        </div>
-
-
+          <div className='grid md:grid-cols-2 gap-4'>
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Estado de las Plantas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <ChartContainer config={chartConfig} className="w-full h-[200px]">
+                          <ResponsiveContainer>
+                              <BarChart data={stats.statusData} layout="vertical" margin={{ left: 20 }}>
+                                  <XAxis type="number" hide />
+                                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
+                                  <Tooltip
+                                      cursor={{ fill: 'hsl(var(--muted))' }}
+                                      content={<ChartTooltipContent hideLabel />}
+                                  />
+                                  <Bar dataKey="value" radius={5} />
+                              </BarChart>
+                          </ResponsiveContainer>
+                      </ChartContainer>
+                  </CardContent>
+              </Card>
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Origen de las Plantas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <ChartContainer config={chartConfig} className="w-full h-[200px]">
+                          <ResponsiveContainer>
+                              <BarChart data={stats.acquisitionData} layout="vertical" margin={{ left: 20 }}>
+                                  <XAxis type="number" hide />
+                                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
+                                  <Tooltip
+                                      cursor={{ fill: 'hsl(var(--muted))' }}
+                                      content={<ChartTooltipContent hideLabel />}
+                                  />
+                                  <Bar dataKey="value" radius={5} />
+                              </BarChart>
+                          </ResponsiveContainer>
+                      </ChartContainer>
+                  </CardContent>
+              </Card>
+          </div>
+        </ScrollArea>
         <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
         </DialogFooter>
