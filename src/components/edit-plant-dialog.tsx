@@ -65,7 +65,7 @@ const QuickEventButton = ({
   onRemove,
   children,
   variant = 'outline',
-  size = 'sm',
+  size = 'icon',
   tooltip,
   ...props
 }: QuickEventButtonProps) => {
@@ -509,15 +509,17 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const galleryImages = useMemo(() => getGalleryImages(editedPlant), [editedPlant]);
 
   const eventsByAttempt = useMemo(() => {
-    const grouped: { [attempt: number]: PlantEvent[] } = {};
-    (editedPlant.events || []).forEach((event: PlantEvent) => {
-        const attempt = event.attempt || 1;
-        if (!grouped[attempt]) {
-            grouped[attempt] = [];
-        }
-        grouped[attempt].push(event);
-    });
-    return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a));
+      const grouped: { [attempt: number]: PlantEvent[] } = {};
+      const sortedEvents = [...(editedPlant.events || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      sortedEvents.forEach((event: PlantEvent) => {
+          const attempt = event.attempt || 1;
+          if (!grouped[attempt]) {
+              grouped[attempt] = [];
+          }
+          grouped[attempt].push(event);
+      });
+      return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a));
   }, [editedPlant.events]);
 
 
