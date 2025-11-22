@@ -5,7 +5,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogFooter,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useEffect, useState } from 'react';
@@ -13,6 +25,9 @@ import type { EmblaCarouselType } from 'embla-carousel-react'
 import type { Plant } from '@/app/page';
 import { formatDistanceStrict, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Button } from './ui/button';
+import { Trash2 } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 interface ImageDetailDialogProps {
   images: { imageUrl: string; date: string, attempt?: number }[];
@@ -20,6 +35,7 @@ interface ImageDetailDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   plant: Plant | null;
+  onDeleteImage: (imageUrl: string) => void;
 }
 
 export function ImageDetailDialog({
@@ -28,7 +44,9 @@ export function ImageDetailDialog({
   isOpen,
   setIsOpen,
   plant,
+  onDeleteImage,
 }: ImageDetailDialogProps) {
+  const { user } = useUser();
   const [api, setApi] = useState<EmblaCarouselType>()
 
   useEffect(() => {
@@ -44,6 +62,8 @@ export function ImageDetailDialog({
   }
 
   if (!isOpen || !images || images.length === 0) return null;
+
+  const isOwner = plant && user && plant.ownerId === user.uid;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -76,6 +96,30 @@ export function ImageDetailDialog({
                       <div className="absolute bottom-4 bg-black/60 text-white text-center text-sm py-1 px-3 rounded-full">
                           {timeSinceAcquisition}
                       </div>
+
+                      {isOwner && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon" className="absolute top-4 right-4 z-10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente esta foto de la galería.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDeleteImage(image.imageUrl)}>
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                 </CarouselItem>
               )

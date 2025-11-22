@@ -393,6 +393,29 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: croppedImageDataUrl});
     setImageToCrop(null);
   };
+    
+  const handleDeleteImage = async (imageUrlToDelete: string) => {
+    if (!firestore || !user || !editedPlant) return;
+    
+    const updatedGallery = editedPlant.gallery?.filter(img => img.imageUrl !== imageUrlToDelete) || [];
+    const updatePayload: Partial<Plant> = { gallery: updatedGallery };
+    
+    // If the deleted image was the main image, set a new main image
+    if (editedPlant.image === imageUrlToDelete) {
+        updatePayload.image = updatedGallery.length > 0 ? updatedGallery[0].imageUrl : '';
+    }
+
+    const plantRef = doc(firestore, 'plants', editedPlant.id);
+    await updateDoc(plantRef, updatePayload);
+    
+    setEditedPlant(prev => ({...prev, ...updatePayload }));
+    toast({ title: 'Foto eliminada' });
+
+    // If the detail view is open, we might need to close it if no images are left
+    if(updatedGallery.length === 0){
+        setIsImageDetailOpen(false);
+    }
+  };
 
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
@@ -618,6 +641,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
           images={galleryImages}
           startIndex={imageDetailStartIndex}
           plant={plant}
+          onDeleteImage={handleDeleteImage}
       />
        <NewAttemptDialog 
           isOpen={isNewAttemptOpen}

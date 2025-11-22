@@ -254,6 +254,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         images={galleryImages}
         startIndex={imageDetailStartIndex}
         plant={plant}
+        onDeleteImage={() => {}} // This is a read-only view
     />
     </>
   );

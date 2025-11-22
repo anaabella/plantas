@@ -691,13 +691,14 @@ export default function GardenApp() {
         images={getGalleryImages(selectedPlant)}
         startIndex={imageDetailStartIndex}
         plant={selectedPlant}
+        onDeleteImage={() => {}} // No-op for community/main page view
     />
     </div>
   );
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
