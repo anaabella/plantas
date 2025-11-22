@@ -202,9 +202,14 @@ export default function GardenApp() {
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     
-    const baseQuery = query(collection(firestore, 'plants'), where("name", ">", ""), where("status", "==", "viva"));
+    let baseQuery = query(collection(firestore, 'plants'), where("status", "==", "viva"), where("name", ">", ""));
 
-    return user ? query(baseQuery, where('ownerId', '!=', user.uid)) : baseQuery;
+    if (user) {
+        // Inequality filter must be last
+        return query(baseQuery, where('ownerId', '!=', user.uid));
+    }
+    
+    return baseQuery;
   }, [firestore, user]);
 
   useEffect(() => {
