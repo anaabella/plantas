@@ -205,7 +205,6 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Simplified query to avoid composite index
     return query(
       collection(firestore, 'plants'),
       orderBy("createdAt", "desc")
@@ -895,7 +894,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                 )}
                 {isCommunity && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <Link href={`/users/${plant.ownerId}`} className='flex items-center gap-2 flex-grow min-w-0' onClick={(e) => e.stopPropagation()}>
+                     <div className='flex items-center gap-2 flex-grow min-w-0' onClick={(e) => e.stopPropagation()}>
                         <Avatar className="h-8 w-8 border-2 border-background">
                            <AvatarImage src={plant.ownerPhotoURL} />
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
@@ -904,7 +903,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate group-hover:underline">{plant.name}</h3>
                             <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
                         </div>
-                     </Link>
+                     </div>
                      {user && (
                          <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); onToggleWishlist(plant); }}>
                            <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
