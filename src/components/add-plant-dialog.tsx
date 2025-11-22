@@ -18,7 +18,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { ImageCropDialog } from './image-crop-dialog';
 
 
-const emptyPlant = {
+const getEmptyPlant = () => ({
   name: '',
   type: '',
   date: new Date().toISOString().split('T')[0],
@@ -32,7 +32,7 @@ const emptyPlant = {
   exchangeSource: '',
   rescuedFrom: '',
   notes: '',
-};
+});
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
     <div className="space-y-1">
@@ -62,7 +62,7 @@ SelectGroup.displayName = 'SelectGroup';
 
 
 export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
-  const [plant, setPlant] = useState(emptyPlant);
+  const [plant, setPlant] = useState(getEmptyPlant());
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -75,17 +75,18 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
   }, []);
 
   useEffect(() => {
+    // This effect now ONLY runs when the dialog opens, to set initial state.
     if (isOpen) {
+      const emptyPlant = getEmptyPlant();
       if (initialData) {
-        setPlant(prev => ({
-          ...emptyPlant,
-          ...prev,
-          name: initialData.name || '',
-          type: initialData.type || '',
-          image: initialData.image || '',
-        }));
+          setPlant({
+              ...emptyPlant,
+              name: initialData.name || '',
+              type: initialData.type || '',
+              image: initialData.image || '',
+          });
       } else {
-        setPlant(emptyPlant);
+          setPlant(emptyPlant);
       }
     }
   }, [isOpen, initialData]);
