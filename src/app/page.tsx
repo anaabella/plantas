@@ -52,6 +52,7 @@ import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
 import { cn } from '@/lib/utils';
 import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
+import Link from 'next/link';
 
 
 // Tipos
@@ -472,6 +473,7 @@ export default function GardenApp() {
     
     let allImages = [...(plant.gallery || [])];
 
+    // This logic seems redundant if gallery is being populated correctly. Keep for backwards compatibility.
     if (allImages.length === 0) {
         const eventPhotos = (plant.events || [])
             .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
@@ -479,17 +481,20 @@ export default function GardenApp() {
         allImages.push(...eventPhotos);
     }
 
+    // Also include the main plant image if it's not already in the gallery
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
     
+    // Create a unique set of images based on URL
     const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
+    // Sort images by date, newest first
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
   
@@ -709,10 +714,10 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center px-4 sm:px-6 lg:px-8">
-        <div className="mr-4 flex items-center">
+        <Link href="/" className="mr-4 flex items-center">
           <Sprout className="h-6 w-6 text-primary" />
           <h1 className="ml-2 hidden font-headline text-xl font-bold sm:block">PlantPal</h1>
-        </div>
+        </Link>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
           {user && <NavButton active={view === 'my-plants'} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
@@ -729,7 +734,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
           {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
-             <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={onOpenWishlist}>
+             <Button variant="ghost" size="icon" onClick={onOpenWishlist}>
                 <ListTodo className="h-5 w-5" />
              </Button>
           )}
@@ -875,12 +880,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                     unoptimized={true}
-                    onClick={(e) => {
-                      if(isCommunity) {
-                        e.stopPropagation();
-                        onPlantClick(plant)
-                      }
-                    }}
                 />
                 {plant.status !== 'viva' && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -893,16 +892,16 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                 )}
                 {isCommunity && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <div className='flex items-center gap-2 flex-grow min-w-0'>
+                     <Link href={`/users/${plant.ownerId}`} className='flex items-center gap-2 flex-grow min-w-0' onClick={(e) => e.stopPropagation()}>
                         <Avatar className="h-8 w-8 border-2 border-background">
                            <AvatarImage src={plant.ownerPhotoURL} />
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className='min-w-0'>
-                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
+                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate group-hover:underline">{plant.name}</h3>
                             <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
                         </div>
-                     </div>
+                     </Link>
                      {user && (
                          <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); onToggleWishlist(plant); }}>
                            <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
