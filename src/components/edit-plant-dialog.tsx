@@ -417,6 +417,22 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
   };
 
+  const handleUpdateImageDate = async (imageUrl: string, newDate: string) => {
+    if (!firestore || !user || !editedPlant) return;
+    
+    const updatedGallery = (editedPlant.gallery || []).map(img => 
+      img.imageUrl === imageUrl ? { ...img, date: newDate } : img
+    );
+
+    const updatePayload: Partial<Plant> = { gallery: updatedGallery };
+
+    const plantRef = doc(firestore, 'plants', editedPlant.id);
+    await updateDoc(plantRef, updatePayload);
+    
+    setEditedPlant(prev => ({...prev, ...updatePayload }));
+    toast({ title: 'Fecha de la foto actualizada' });
+  };
+
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
     
@@ -642,6 +658,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
           startIndex={imageDetailStartIndex}
           plant={plant}
           onDeleteImage={handleDeleteImage}
+          onUpdateImageDate={handleUpdateImageDate}
       />
        <NewAttemptDialog 
           isOpen={isNewAttemptOpen}

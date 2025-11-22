@@ -5,7 +5,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -19,15 +18,16 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Image from 'next/image';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type EmblaCarouselType } from '@/components/ui/carousel';
 import { useEffect, useState } from 'react';
-import type { EmblaCarouselType } from 'embla-carousel-react'
 import type { Plant } from '@/app/page';
-import { formatDistanceStrict, parseISO } from 'date-fns';
+import { format, formatDistanceStrict, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from './ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, CalendarIcon } from 'lucide-react';
 import { useUser } from '@/firebase';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
 
 interface ImageDetailDialogProps {
   images: { imageUrl: string; date: string, attempt?: number }[];
@@ -36,6 +36,7 @@ interface ImageDetailDialogProps {
   setIsOpen: (isOpen: boolean) => void;
   plant: Plant | null;
   onDeleteImage: (imageUrl: string) => void;
+  onUpdateImageDate: (imageUrl: string, newDate: string) => void;
 }
 
 export function ImageDetailDialog({
@@ -45,6 +46,7 @@ export function ImageDetailDialog({
   setIsOpen,
   plant,
   onDeleteImage,
+  onUpdateImageDate
 }: ImageDetailDialogProps) {
   const { user } = useUser();
   const [api, setApi] = useState<EmblaCarouselType>()
@@ -64,6 +66,12 @@ export function ImageDetailDialog({
   if (!isOpen || !images || images.length === 0) return null;
 
   const isOwner = plant && user && plant.ownerId === user.uid;
+
+  const handleDateSelect = (imageUrl: string, newDate: Date | undefined) => {
+    if (newDate && isOwner) {
+      onUpdateImageDate(imageUrl, newDate.toISOString());
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -93,14 +101,32 @@ export function ImageDetailDialog({
                         fill
                         className="object-contain"
                       />
-                      <div className="absolute bottom-4 bg-black/60 text-white text-center text-sm py-1 px-3 rounded-full">
-                          {timeSinceAcquisition}
+                      <div className="absolute bottom-4 flex items-center gap-2 bg-black/60 text-white text-sm py-1 px-3 rounded-full">
+                          <span>{timeSinceAcquisition} ({format(parseISO(image.date), 'dd/MM/yy')})</span>
+                          {isOwner && (
+                             <Popover>
+                              <PopoverTrigger asChild>
+                                <button className='bg-transparent border-none p-0 h-auto'>
+                                  <CalendarIcon className="h-4 w-4 text-white/80 hover:text-white transition-colors" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={parseISO(image.date)}
+                                  onSelect={(newDate) => handleDateSelect(image.imageUrl, newDate)}
+                                  initialFocus
+                                  locale={es}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          )}
                       </div>
 
                       {isOwner && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon" className="absolute top-4 right-4 z-10">
+                            <Button variant="destructive" size="icon" className="absolute top-4 left-4 z-10">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
