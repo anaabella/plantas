@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useUser, useAuth, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,10 +51,8 @@ export default function UserProfilePage() {
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
   
   // Fetch profile owner's data
-  const userQuery = useMemoFirebase(() => firestore && userId ? query(collection(firestore, 'users'), where('__name__', '==', userId)) : null, [firestore, userId]);
-  const {data: profileUsers, isLoading: isProfileUserLoading} = useCollection(userQuery);
-  
-  const profileUser = useMemo(() => (profileUsers && profileUsers.length > 0 ? profileUsers[0] : null), [profileUsers]);
+  const userDocRef = useMemoFirebase(() => firestore && userId ? doc(firestore, 'users', userId) : null, [firestore, userId]);
+  const { data: profileUser, isLoading: isProfileUserLoading } = useDoc(userDocRef);
   
   // Fetch profile owner's plants
   const userPlantsQuery = useMemoFirebase(() => {
