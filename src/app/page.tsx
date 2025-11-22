@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,8 @@ import { Badge } from '@/components/ui/badge';
 import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
 import { cn } from '@/lib/utils';
 import { ImageDetailDialog } from '@/components/image-detail-dialog';
+import { CalendarDialog } from '@/components/calendar-dialog';
+
 
 // Tipos
 export type Plant = {
@@ -131,6 +133,7 @@ export default function GardenApp() {
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
@@ -557,6 +560,7 @@ export default function GardenApp() {
         onLogout={handleLogout}
         onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
         onOpenStats={() => setIsStatsOpen(true)}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
         isUserLoading={isUserLoading}
         onOpenWishlist={() => setView('wishlist')}
       />
@@ -648,7 +652,7 @@ export default function GardenApp() {
         setIsOpen={setIsDetailOpen}
         onUpdatePlant={handleUpdatePlant}
         onClonePlant={handleClonePlant}
-        isCommunityView={view === 'community'}
+        isCommunityView={true}
       />
       <WishlistFormDialog
         isOpen={isWishlistFormOpen}
@@ -669,6 +673,11 @@ export default function GardenApp() {
       <StatsDialog
         isOpen={isStatsOpen}
         setIsOpen={setIsStatsOpen}
+        plants={plants}
+      />
+      <CalendarDialog
+        isOpen={isCalendarOpen}
+        setIsOpen={setIsCalendarOpen}
         plants={plants}
       />
       <ImageDetailDialog 
@@ -694,7 +703,7 @@ const NavButton = ({ active, icon: Icon, children, ...props }: any) => (
   </Button>
 );
 
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenWishlist, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   return (
@@ -717,6 +726,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
            )}
+          {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
              <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={onOpenWishlist}>
@@ -868,7 +878,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     onClick={(e) => {
                       if(isCommunity) {
                         e.stopPropagation();
-                        onOpenImageDetail(plant, 0);
+                        onPlantClick(plant)
                       }
                     }}
                 />
@@ -936,7 +946,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         );
         
         if (isCommunity) {
-          return <div key={plant.id} onClick={() => onPlantClick(plant)}>{cardContent}</div>;
+          return <div key={plant.id}>{cardContent}</div>;
         }
 
         return (
