@@ -201,8 +201,10 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Excluye las plantas del usuario actual de la vista de comunidad
-    return user ? query(collection(firestore, 'plants'), where('ownerId', '!=', user.uid)) : query(collection(firestore, 'plants'));
+    
+    const baseQuery = query(collection(firestore, 'plants'), where("name", ">", ""), where("status", "==", "viva"));
+
+    return user ? query(baseQuery, where('ownerId', '!=', user.uid)) : baseQuery;
   }, [firestore, user]);
 
   useEffect(() => {
@@ -704,7 +706,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
            )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
-             <NavButton activeView={view} targetView="wishlist" icon={ListTodo} onClick={onOpenWishlist} size="icon" />
+             <Button variant="ghost" size="icon" activeView={view} targetView="wishlist" onClick={onOpenWishlist}><ListTodo className="h-5 w-5" /></Button>
           )}
 
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
