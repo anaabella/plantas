@@ -64,9 +64,15 @@ SelectGroup.displayName = 'SelectGroup';
 export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
   const [plant, setPlant] = useState(emptyPlant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Detect mobile device on client-side
+    setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -161,13 +167,15 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className={`grid gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                 <Button variant="outline" onClick={() => uploadInputRef.current?.click()}>
                                     <Upload className="h-4 w-4 mr-2" /> Subir
                                 </Button>
-                                <Button variant="outline" onClick={() => captureInputRef.current?.click()}>
-                                    <Camera className="h-4 w-4 mr-2" /> Capturar
-                                </Button>
+                                {isMobile && (
+                                    <Button variant="outline" onClick={() => captureInputRef.current?.click()}>
+                                        <Camera className="h-4 w-4 mr-2" /> Capturar
+                                    </Button>
+                                )}
                           </div>
                           <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
                           <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />

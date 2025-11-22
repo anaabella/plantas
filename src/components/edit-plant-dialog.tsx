@@ -221,6 +221,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
@@ -233,6 +234,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   useEffect(() => {
     setEditedPlant(plant);
   }, [plant, isOpen]);
+
+  useEffect(() => {
+    // Detect mobile device on client-side
+    setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
+  }, []);
 
   const handleOpenImageDetail = (index: number) => {
     setImageDetailStartIndex(index);
@@ -529,13 +535,15 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       </div>
                   </TabsContent>
                   <TabsContent value="gallery" className='p-1'>
-                      <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className={`grid gap-2 mb-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1'}`}>
                           <Button variant="outline" size="sm" onClick={() => uploadInputRef.current?.click()}>
                               <Upload className="mr-2 h-4 w-4" /> Subir Foto
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => captureInputRef.current?.click()}>
-                              <Camera className="mr-2 h-4 w-4" /> Capturar Foto
-                          </Button>
+                          {isMobile && (
+                            <Button variant="outline" size="sm" onClick={() => captureInputRef.current?.click()}>
+                                <Camera className="mr-2 h-4 w-4" /> Capturar Foto
+                            </Button>
+                          )}
                           <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
                           <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
                       </div>
