@@ -347,7 +347,7 @@ export default function GardenApp() {
     }
   };
 
-  const handleDeletePlant = async (plantId: string) => {
+  const handleDeletePlant = useCallback(async (plantId: string) => {
     if (!firestore || !user) return;
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
@@ -359,7 +359,7 @@ export default function GardenApp() {
       console.error("Error deleting plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar la planta: ${error.message}` });
     }
-  };
+  }, [firestore, user, toast]);
   
   const handleClonePlant = useCallback((plant: Plant) => {
     if (!user) {
