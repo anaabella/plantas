@@ -201,16 +201,12 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    
-    let baseQuery = query(collection(firestore, 'plants'), where("status", "==", "viva"), where("name", ">", ""));
-
-    if (user) {
-        // Inequality filter must be last
-        return query(baseQuery, where('ownerId', '!=', user.uid));
-    }
-    
-    return baseQuery;
-  }, [firestore, user]);
+    return query(
+      collection(firestore, 'plants'),
+      where("status", "==", "viva"),
+      where("name", ">", "")
+    );
+  }, [firestore]);
 
   useEffect(() => {
     if (!communityPlantsQuery) {
@@ -220,7 +216,13 @@ export default function GardenApp() {
     }
     setIsCommunityLoading(true);
     const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
-      const allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      let allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      
+      // Client-side filtering to exclude user's own plants
+      if (user) {
+        allPlants = allPlants.filter(plant => plant.ownerId !== user.uid);
+      }
+
       allPlants.sort((a, b) => a.name.localeCompare(b.name));
       setCommunityPlants(allPlants);
       setIsCommunityLoading(false);
@@ -229,7 +231,7 @@ export default function GardenApp() {
       setIsCommunityLoading(false);
     });
     return () => unsubscribe();
-  }, [communityPlantsQuery]);
+  }, [communityPlantsQuery, user]); // Add user to dependency array for re-filtering on login/logout
 
   const wishlistQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -854,7 +856,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
               className="group animation-fade-in"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => isCommunity ? onPlantClick(plant) : onPlantClick(plant)}>
+              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
                 <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                     alt={plant.name}
@@ -1015,5 +1017,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-    
