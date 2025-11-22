@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
@@ -46,6 +46,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import * as LucideIcons from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+
 
 interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
@@ -53,6 +55,7 @@ interface QuickEventButtonProps extends ButtonProps {
   onAdd: (type: PlantEvent['type']) => void;
   onRemove: (eventId: string) => void;
   children: React.ReactNode;
+  tooltip?: string;
 }
 
 const QuickEventButton = ({
@@ -63,6 +66,7 @@ const QuickEventButton = ({
   children,
   variant = 'outline',
   size = 'sm',
+  tooltip,
   ...props
 }: QuickEventButtonProps) => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -90,35 +94,52 @@ const QuickEventButton = ({
     setIsAlertOpen(false);
   };
   
-  return (
-    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-      <ContextMenu>
-        <ContextMenuTrigger>
-          <Button variant={variant} size={size} onClick={() => onAdd(eventType)} {...props}>
-            {children}
-          </Button>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar último
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar último evento de "{eventType}"?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta acción no se puede deshacer. Se eliminará el evento más reciente de este tipo.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmRemove}>Confirmar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+  const button = (
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <Button variant={variant} size={size} onClick={() => onAdd(eventType)} {...props}>
+              {children}
+            </Button>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar último
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar último evento de "{eventType}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará el evento más reciente de este tipo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemove}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
   );
+
+  if (tooltip) {
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    {button}
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{tooltip}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    )
+  }
+
+  return button;
 };
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
@@ -474,7 +495,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
@@ -542,19 +563,21 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
               </TabsList>
               <ScrollArea className="h-[60vh] p-1 mt-4">
                   <TabsContent value="log" className='p-1'>
-                      <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold">Eventos Rápidos</h3>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                          <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Scissors className="mr-1 h-4 w-4"/>Podar</QuickEventButton>
-                          <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
-                          <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
-                          <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
-                          <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Sprout className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
-                          
-                          <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
+                      <div className="space-y-4 mb-6">
+                        <h3 className="font-semibold px-1">Eventos Rápidos</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                           <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Podar"><Scissors className="h-4 w-4"/></QuickEventButton>
+                           <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Transplantar"><Shovel className="h-4 w-4"/></QuickEventButton>
+                           <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Fertilizar"><Beaker className="h-4 w-4"/></QuickEventButton>
+                           <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Plaga"><Bug className="h-4 w-4"/></QuickEventButton>
+                           <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Hacer Esqueje"><Sprout className="h-4 w-4"/></QuickEventButton>
+                           <QuickEventButton eventType='nota' plantEvents={editedPlant.events} onAdd={() => handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note: prompt("Añade una nota:") || "" })} onRemove={handleRemoveEvent} size="icon" tooltip="Añadir Nota"><Info className="h-4 w-4"/></QuickEventButton>
+                        </div>
+                        <div className='flex flex-col space-y-2'>
+                           <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-2 h-4 w-4"/>Nueva Oportunidad</Button>
+                           <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-2 h-4 w-4"/>Falleció</Button>
+                           <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-2 h-4 w-4"/>Intercambié</Button>
+                        </div>
                       </div>
 
                       <div className="space-y-6">
