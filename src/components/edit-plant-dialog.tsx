@@ -34,7 +34,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,6 +42,9 @@ import { ImageDetailDialog } from './image-detail-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ImageCropDialog } from './image-crop-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Checkbox } from './ui/checkbox';
+import { Badge } from './ui/badge';
 
 interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
@@ -222,6 +225,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [customTags, setCustomTags] = useState<string[]>([]);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
@@ -236,9 +240,20 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   }, [plant, isOpen]);
 
   useEffect(() => {
-    // Detect mobile device on client-side
     setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
   }, []);
+  
+  useEffect(() => {
+      if (!user || !firestore) return;
+      const userRef = doc(firestore, 'users', user.uid);
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+          const userData = doc.data();
+          if (userData && userData.tags) {
+              setCustomTags(userData.tags);
+          }
+      });
+      return () => unsubscribe();
+  }, [user, firestore]);
 
   const handleOpenImageDetail = (index: number) => {
     setImageDetailStartIndex(index);
@@ -247,6 +262,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   
   const handleChange = (field: keyof Plant, value: any) => {
     setEditedPlant({ ...editedPlant, [field]: value });
+  };
+
+  const handleTagChange = (tag: string) => {
+      const currentTags = editedPlant.tags || [];
+      const newTags = currentTags.includes(tag)
+          ? currentTags.filter((t: string) => t !== tag)
+          : [...currentTags, tag];
+      handleChange('tags', newTags);
   };
   
   const handleSave = () => {
@@ -294,7 +317,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   };
 
   const handleStatusChangeEvent = (status: Plant['status'], note: string) => {
-      const eventType = status === 'fallecida' ? 'fallecida' : 'nota';
       handleAddEvent({ type: eventType, date: new Date().toISOString().split('T')[0], note }, status);
   }
 
@@ -400,7 +422,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     const updatedGallery = editedPlant.gallery?.filter(img => img.imageUrl !== imageUrlToDelete) || [];
     const updatePayload: Partial<Plant> = { gallery: updatedGallery };
     
-    // If the deleted image was the main image, set a new main image
     if (editedPlant.image === imageUrlToDelete) {
         updatePayload.image = updatedGallery.length > 0 ? updatedGallery[0].imageUrl : '';
     }
@@ -411,7 +432,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     setEditedPlant(prev => ({...prev, ...updatePayload }));
     toast({ title: 'Foto eliminada' });
 
-    // If the detail view is open, we might need to close it if no images are left
     if(updatedGallery.length === 0){
         setIsImageDetailOpen(false);
     }
@@ -622,6 +642,20 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                              <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
                           </div>
                            {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">Etiquetas</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {customTags.map(tag => (
+                                        <div key={tag} onClick={() => handleTagChange(tag)} className="cursor-pointer">
+                                            <Badge variant={(editedPlant.tags || []).includes(tag) ? 'default' : 'secondary'}>
+                                                {tag}
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                                {customTags.length === 0 && <p className="text-xs text-muted-foreground">Crea etiquetas en los Ajustes.</p>}
+                            </div>
 
                           <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                       </div>
