@@ -16,12 +16,14 @@ export const WishlistFormDialog = memo(function WishlistFormDialog({ isOpen, set
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    if (item) {
-      setName(item.name);
-      setNotes(item.notes || '');
-    } else {
-      setName('');
-      setNotes('');
+    if (isOpen) {
+      if (item) {
+        setName(item.name);
+        setNotes(item.notes || '');
+      } else {
+        setName('');
+        setNotes('');
+      }
     }
   }, [item, isOpen]);
 
@@ -51,5 +53,3 @@ export const WishlistFormDialog = memo(function WishlistFormDialog({ isOpen, set
     </Dialog>
   );
 });
-
-    

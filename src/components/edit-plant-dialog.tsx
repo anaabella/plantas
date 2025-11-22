@@ -81,14 +81,12 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
     reader.readAsDataURL(file);
 };
 
-interface QuickEventButtonProps {
+interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
   plantEvents: PlantEvent[];
   onAdd: (type: PlantEvent['type']) => void;
   onRemove: (eventId: string) => void;
   children: React.ReactNode;
-  variant?: ButtonProps['variant'];
-  size?: ButtonProps['size'];
 }
 
 // Componente para los botones de eventos rápidos con menú contextual
@@ -100,6 +98,7 @@ const QuickEventButton = ({
   children,
   variant = 'outline',
   size = 'sm',
+  ...props
 }: QuickEventButtonProps) => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   
@@ -130,7 +129,7 @@ const QuickEventButton = ({
     <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
       <ContextMenu>
         <ContextMenuTrigger>
-          <Button variant={variant} size={size} onClick={() => onAdd(eventType)}>
+          <Button variant={variant} size={size} onClick={() => onAdd(eventType)} {...props}>
             {children}
           </Button>
         </ContextMenuTrigger>
@@ -156,6 +155,36 @@ const QuickEventButton = ({
     </AlertDialog>
   );
 };
+
+const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
+    <div className="space-y-1">
+      <label className="text-sm font-medium text-muted-foreground">{label}</label>
+      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
+    </div>
+  );
+  
+const TextareaGroup = ({ label, value, onChange, placeholder }: any) => (
+<div className="space-y-1">
+    <label className="text-sm font-medium text-muted-foreground">{label}</label>
+    <Textarea value={value || ''} onChange={onChange} placeholder={placeholder} />
+</div>
+);
+
+const SelectGroup = ({ label, value, onValueChange, options }: any) => (
+    <div className="space-y-1">
+        <label className="text-sm font-medium text-muted-foreground">{label}</label>
+        <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger>{value ? value.charAt(0).toUpperCase() + value.slice(1) : `Select ${label}`}</SelectTrigger>
+        <SelectContent>
+            {options.map((option: string) => (
+            <SelectItem key={option} value={option}>
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+            </SelectItem>
+            ))}
+        </SelectContent>
+        </Select>
+    </div>
+);
 
 
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
@@ -451,33 +480,3 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     </>
   );
 });
-
-const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
-  </div>
-);
-
-const TextareaGroup = ({ label, value, onChange, placeholder }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Textarea value={value || ''} onChange={onChange} placeholder={placeholder} />
-  </div>
-);
-
-const SelectGroup = ({ label, value, onValueChange, options }: any) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger>{value ? value.charAt(0).toUpperCase() + value.slice(1) : `Select ${label}`}</SelectTrigger>
-      <SelectContent>
-        {options.map((option: string) => (
-          <SelectItem key={option} value={option}>
-            {option.charAt(0).toUpperCase() + option.slice(1)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);

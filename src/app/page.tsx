@@ -108,6 +108,9 @@ export default function GardenApp() {
   const [isCommunityLoading, setIsCommunityLoading] = useState(true);
   
   const [view, setView] = useState<View>('my-plants');
+  
+  // State for debouncing search
+  const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
@@ -125,6 +128,18 @@ export default function GardenApp() {
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+
+  // Debounce effect for search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(inputValue);
+    }, 300); // 300ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue]);
+
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -435,8 +450,8 @@ export default function GardenApp() {
             <Input
               placeholder={`Buscar en ${view === 'my-plants' ? 'mis plantas' : view === 'wishlist' ? 'mi lista de deseos' : 'la comunidad'}...`}
               className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
             />
           </div>
         </div>
@@ -577,8 +592,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
                 </div>
                 <Separator />
                 <div className="p-1">
-                    <Button variant="ghost" className="w-full justify-start" onClick={onOpenWishlist}><ListTodo className="mr-2 h-4 w-4" />Lista de Deseos</Button>
-                    <Separator className='my-1' />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="w-full justify-start">
@@ -611,7 +624,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
     </header>
   );
 }
-
 
 // Attention Section
 function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
