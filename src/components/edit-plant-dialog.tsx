@@ -194,7 +194,11 @@ const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
         date: new Date().toISOString().split('T')[0],
         startType: plant.startType,
         location: plant.location,
-        acquisitionType: 'regalo',
+        acquisitionType: 'regalo' as Plant['acquisitionType'],
+        price: '',
+        giftFrom: '',
+        exchangeSource: '',
+        rescuedFrom: '',
         notes: '',
     });
 
@@ -209,6 +213,8 @@ const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
     
     const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
     const locationOptions: Plant['location'][] = ['interior', 'exterior'];
+    const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
+
 
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -219,12 +225,25 @@ const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
                         Define los detalles para este nuevo comienzo. Los datos del intento anterior se guardarán como una nota.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className="py-4 space-y-4">
-                    <InputGroup label="Fecha del Nuevo Intento" type="date" value={newAttemptData.date} onChange={(e:any) => handleChange('date', e.target.value)} />
-                    <SelectGroup label="Nuevo Comienzo como" value={newAttemptData.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
-                    <SelectGroup label="Nueva Ubicación" value={newAttemptData.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
-                    <TextareaGroup label="Notas sobre el nuevo intento" value={newAttemptData.notes} onChange={(e:any) => handleChange('notes', e.target.value)} placeholder="Ej: Esqueje de la planta madre..." />
-                </div>
+                <ScrollArea className="max-h-[60vh] p-4">
+                    <div className="space-y-4">
+                        <InputGroup label="Fecha del Nuevo Intento" type="date" value={newAttemptData.date} onChange={(e:any) => handleChange('date', e.target.value)} />
+                        <SelectGroup label="Nuevo Comienzo como" value={newAttemptData.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                        <SelectGroup label="Nueva Ubicación" value={newAttemptData.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <SelectGroup label="Tipo de Adquisición" value={newAttemptData.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
+                            <div className='self-end'>
+                                {newAttemptData.acquisitionType === 'compra' && <InputGroup label="Precio" value={newAttemptData.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                                {newAttemptData.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={newAttemptData.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                                {newAttemptData.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={newAttemptData.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                                {newAttemptData.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={newAttemptData.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                            </div>
+                        </div>
+
+                        <TextareaGroup label="Notas sobre el nuevo intento" value={newAttemptData.notes} onChange={(e:any) => handleChange('notes', e.target.value)} placeholder="Ej: Esqueje de la planta madre..." />
+                    </div>
+                </ScrollArea>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm}>Confirmar y Guardar</AlertDialogAction>
@@ -291,7 +310,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
         updatePayload.image = event.imageData;
-        const newGalleryEntry = { imageUrl: event.imageData, date: event.date };
+        const newGalleryEntry = { imageUrl: event.imageData, date: event.date, attempt: currentAttempt };
         const currentGallery = editedPlant.gallery || [];
         if (!currentGallery.some(g => g.imageUrl === newGalleryEntry.imageUrl)) {
             updatePayload.gallery = [newGalleryEntry, ...currentGallery];
@@ -321,7 +340,12 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
       - Duró desde: ${format(parseISO(editedPlant.date), 'dd/MM/yyyy')} hasta ${format(new Date(), 'dd/MM/yyyy')}
       - Empezó como: ${editedPlant.startType}
       - Ubicación: ${editedPlant.location}
-      - Adquisición: ${editedPlant.acquisitionType}
+      - Adquisición: ${editedPlant.acquisitionType} (${
+          editedPlant.acquisitionType === 'compra' ? `$${editedPlant.price}`
+          : editedPlant.acquisitionType === 'regalo' ? `de ${editedPlant.giftFrom}`
+          : editedPlant.acquisitionType === 'intercambio' ? `por ${editedPlant.exchangeSource}`
+          : `de ${editedPlant.rescuedFrom}`
+      })
       - Notas: ${editedPlant.notes || 'Ninguna'}
     `;
 
@@ -350,6 +374,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         startType: newAttemptData.startType,
         location: newAttemptData.location,
         acquisitionType: newAttemptData.acquisitionType,
+        price: newAttemptData.price,
+        giftFrom: newAttemptData.giftFrom,
+        exchangeSource: newAttemptData.exchangeSource,
+        rescuedFrom: newAttemptData.rescuedFrom,
         notes: previousAttemptSummary, // Save old data here
         events: updatedEvents,
     };
