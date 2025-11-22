@@ -66,14 +66,14 @@ export function WishlistDetailDialog({
           <Button onClick={() => onGotIt(item)} className="w-full">
             <CheckSquare className="mr-2 h-4 w-4" /> La he conseguido
           </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => onEdit(item)}>
-              <Edit className="mr-2 h-4 w-4" /> Editar
+          <div className="flex justify-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => onEdit(item)}>
+              <Edit className="h-4 w-4" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                <Button variant="destructive" size="icon">
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>

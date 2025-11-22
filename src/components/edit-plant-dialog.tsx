@@ -29,58 +29,19 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { CameraCaptureDialog } from './camera-capture-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Label } from './ui/label';
 import { Separator } from './ui/separator';
-
-
-// Función para comprimir imágenes
-const compressImage = (file: File, callback: (dataUrl: string) => void) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new window.Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800;
-            const MAX_HEIGHT = 800;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-            } else {
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            callback(dataUrl);
-        };
-        img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-};
+import { ImageCropDialog } from './image-crop-dialog';
 
 interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
@@ -259,9 +220,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const { user } = useUser();
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
@@ -271,6 +234,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   useEffect(() => {
     setEditedPlant(plant);
   }, [plant, isOpen]);
+
+  useEffect(() => {
+    // Detect mobile device on client-side
+    setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
+  }, []);
 
   const handleOpenImageDetail = (index: number) => {
     setImageDetailStartIndex(index);
@@ -407,18 +375,23 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
   };
   
-  const handlePhotoCaptured = (photoDataUri: string) => {
-    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: photoDataUri});
-    setIsCameraOpen(false);
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-        compressImage(file, (compressedDataUrl) => {
-            handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: compressedDataUrl});
-        });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImageToCrop(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+    if (event.target) {
+        event.target.value = "";
+    }
+  };
+
+  const handleCroppedImage = (croppedImageDataUrl: string) => {
+    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: croppedImageDataUrl});
+    setImageToCrop(null);
   };
 
   const getGalleryImages = (plant: Plant | null) => {
@@ -436,7 +409,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
@@ -484,176 +457,182 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
-        <DialogHeader className="pr-10">
-          <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-          <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
-        </DialogHeader>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
+          <DialogHeader className="pr-10">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
+            <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+          </DialogHeader>
 
-         <Tabs defaultValue="log" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="log">Bitácora</TabsTrigger>
-                <TabsTrigger value="gallery">Galería</TabsTrigger>
-                <TabsTrigger value="edit">Editar</TabsTrigger>
-            </TabsList>
-            <ScrollArea className="h-[60vh] p-1 mt-4">
-                <TabsContent value="log" className='p-1'>
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">Eventos Rápidos</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Scissors className="mr-1 h-4 w-4"/>Podar</QuickEventButton>
-                        <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
-                        <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
-                        <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
-                        <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Sprout className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
-                        
-                        <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
-                    </div>
+           <Tabs defaultValue="log" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="log">Bitácora</TabsTrigger>
+                  <TabsTrigger value="gallery">Galería</TabsTrigger>
+                  <TabsTrigger value="edit">Editar</TabsTrigger>
+              </TabsList>
+              <ScrollArea className="h-[60vh] p-1 mt-4">
+                  <TabsContent value="log" className='p-1'>
+                      <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-semibold">Eventos Rápidos</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-6">
+                          <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Scissors className="mr-1 h-4 w-4"/>Podar</QuickEventButton>
+                          <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
+                          <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
+                          <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
+                          <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Sprout className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
+                          
+                          <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
+                      </div>
 
-                    <div className="space-y-6">
-                        {eventsByAttempt.length > 0 ? (
-                            eventsByAttempt.map(([attempt, events]) => (
-                                <div key={`attempt-${attempt}`}>
-                                    <div className="flex items-center mb-2">
-                                        <Separator className="flex-grow" />
-                                        <h4 className="px-4 text-sm font-semibold text-muted-foreground">{attempt}º Intento</h4>
-                                        <Separator className="flex-grow" />
-                                    </div>
-                                    <div className="space-y-3">
-                                        {events.map((event: PlantEvent) => (
-                                            <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
-                                                <div className="flex items-start gap-3">
-                                                    {eventIcons[event.type]}
-                                                    <div>
-                                                        <p className="font-semibold capitalize">{event.type}</p>
-                                                        <p className="text-sm text-muted-foreground">{event.note}</p>
-                                                        <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
-                                                    </div>
-                                                </div>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
-                                                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>
-                        )}
-                    </div>
-                </TabsContent>
-                <TabsContent value="gallery" className='p-1'>
-                    <div className="flex gap-2 mb-4">
-                        <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
-                        <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                            <Upload className="mr-2 h-4 w-4" /> Subir
-                        </Button>
-                        <Button variant="outline" size="sm" className="w-full" onClick={() => setIsCameraOpen(true)}>
-                            <Camera className="mr-2 h-4 w-4" /> Capturar
-                        </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        {galleryImages.map((image, index) => (
-                            <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
-                                <NextImage src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
-                                <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
-                                    {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    {galleryImages.length === 0 && <p className="text-sm text-center text-muted-foreground py-8">No hay fotos en la galería.</p>}
-                </TabsContent>
-                <TabsContent value="edit" className='p-1'>
-                    <div className="space-y-4 p-1">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
-                           <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
-                             <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                            <div className='self-end'>
-                                {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                                {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                                {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                                {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
-                            </div>
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
-                           <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
-                        </div>
-                         {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+                      <div className="space-y-6">
+                          {eventsByAttempt.length > 0 ? (
+                              eventsByAttempt.map(([attempt, events]) => (
+                                  <div key={`attempt-${attempt}`}>
+                                      <div className="flex items-center mb-2">
+                                          <Separator className="flex-grow" />
+                                          <h4 className="px-4 text-sm font-semibold text-muted-foreground">{attempt}º Intento</h4>
+                                          <Separator className="flex-grow" />
+                                      </div>
+                                      <div className="space-y-3">
+                                          {events.map((event: PlantEvent) => (
+                                              <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
+                                                  <div className="flex items-start gap-3">
+                                                      {eventIcons[event.type]}
+                                                      <div>
+                                                          <p className="font-semibold capitalize">{event.type}</p>
+                                                          <p className="text-sm text-muted-foreground">{event.note}</p>
+                                                          <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
+                                                      </div>
+                                                  </div>
+                                                  <AlertDialog>
+                                                      <AlertDialogTrigger asChild>
+                                                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                              <X className="h-4 w-4" />
+                                                          </Button>
+                                                      </AlertDialogTrigger>
+                                                      <AlertDialogContent>
+                                                          <AlertDialogHeader>
+                                                          <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
+                                                          <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                          </AlertDialogHeader>
+                                                          <AlertDialogFooter>
+                                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                          <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
+                                                          </AlertDialogFooter>
+                                                      </AlertDialogContent>
+                                                  </AlertDialog>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              ))
+                          ) : (
+                              <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>
+                          )}
+                      </div>
+                  </TabsContent>
+                  <TabsContent value="gallery" className='p-1'>
+                      <div className={`grid gap-2 mb-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          <Button variant="outline" size="sm" onClick={() => uploadInputRef.current?.click()}>
+                              <Upload className="mr-2 h-4 w-4" /> Subir Foto
+                          </Button>
+                          {isMobile && (
+                            <Button variant="outline" size="sm" onClick={() => captureInputRef.current?.click()}>
+                                <Camera className="mr-2 h-4 w-4" /> Capturar Foto
+                            </Button>
+                          )}
+                          <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
+                          <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                          {galleryImages.map((image, index) => (
+                              <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
+                                  <NextImage src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
+                                  <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
+                                      {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                      {galleryImages.length === 0 && <p className="text-sm text-center text-muted-foreground py-8">No hay fotos en la galería.</p>}
+                  </TabsContent>
+                  <TabsContent value="edit" className='p-1'>
+                      <div className="space-y-4 p-1">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                             <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
+                               <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                          </div>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
+                              <div className='self-end'>
+                                  {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                                  {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                                  {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                                  {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                              </div>
+                          </div>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                             <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
+                          </div>
+                           {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
 
-                        <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
-                    </div>
-                     <div className="mt-6 flex justify-between items-center">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                              <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                              </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
-                              </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
-                    </div>
-                </TabsContent>
-            </ScrollArea>
-        </Tabs>
-        
-      </DialogContent>
-    </Dialog>
-    <CameraCaptureDialog 
-        isOpen={isCameraOpen} 
-        setIsOpen={setIsCameraOpen}
-        onPhotoCaptured={handlePhotoCaptured}
-    />
-    <ImageDetailDialog 
-        isOpen={isImageDetailOpen} 
-        setIsOpen={setIsImageDetailOpen}
-        images={galleryImages}
-        startIndex={imageDetailStartIndex}
-        plant={plant}
-    />
-     <NewAttemptDialog 
-        isOpen={isNewAttemptOpen}
-        setIsOpen={setIsNewAttemptOpen}
-        plant={plant}
-        onSave={handleConfirmNewAttempt}
-     />
+                          <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+                      </div>
+                       <div className="mt-6 flex justify-between items-center">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => onDelete(plant.id)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                          <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+                      </div>
+                  </TabsContent>
+              </ScrollArea>
+          </Tabs>
+          
+        </DialogContent>
+      </Dialog>
+      <ImageDetailDialog 
+          isOpen={isImageDetailOpen} 
+          setIsOpen={setIsImageDetailOpen}
+          images={galleryImages}
+          startIndex={imageDetailStartIndex}
+          plant={plant}
+      />
+       <NewAttemptDialog 
+          isOpen={isNewAttemptOpen}
+          setIsOpen={setIsNewAttemptOpen}
+          plant={plant}
+          onSave={handleConfirmNewAttempt}
+       />
+       {imageToCrop && (
+        <ImageCropDialog 
+            isOpen={!!imageToCrop}
+            setIsOpen={() => setImageToCrop(null)}
+            imageSrc={imageToCrop}
+            onCropComplete={handleCroppedImage}
+        />
+      )}
     </>
   );
 });
