@@ -57,6 +57,15 @@ import { SettingsDialog } from '@/components/settings-dialog';
 
 
 // Tipos
+export type UserProfile = {
+  id: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  tags?: string[];
+  eventIconConfiguration?: Partial<Record<PlantEvent['type'], string>>;
+};
+
 export type Plant = {
   id: string;
   name: string;
@@ -81,6 +90,7 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
+  tags?: string[];
 };
 
 export type PlantEvent = {
@@ -142,6 +152,8 @@ export default function GardenApp() {
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
   // Debounce effect for search
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -152,6 +164,21 @@ export default function GardenApp() {
       clearTimeout(handler);
     };
   }, [inputValue]);
+
+  // Fetch user profile for custom settings
+    useEffect(() => {
+        if (!user || !firestore) {
+            setUserProfile(null);
+            return;
+        }
+        const userRef = doc(firestore, 'users', user.uid);
+        const unsubscribe = onSnapshot(userRef, (doc) => {
+            if (doc.exists()) {
+                setUserProfile({ id: doc.id, ...doc.data() } as UserProfile);
+            }
+        });
+        return () => unsubscribe();
+    }, [user, firestore]);
 
   // Request notification permission
   useEffect(() => {
@@ -644,6 +671,7 @@ export default function GardenApp() {
         setIsOpen={setIsAddDialogOpen}
         onSave={handleAddPlant}
         initialData={plantToAddFromWishlist}
+        userProfile={userProfile}
       />
       {editingPlant && (
         <EditPlantDialog
@@ -652,6 +680,7 @@ export default function GardenApp() {
           setIsOpen={setIsEditDialogOpen}
           onSave={handleUpdatePlant}
           onDelete={handleDeletePlant}
+          userProfile={userProfile}
         />
       )}
        <PlantDetailDialog
@@ -687,10 +716,12 @@ export default function GardenApp() {
         isOpen={isCalendarOpen}
         setIsOpen={setIsCalendarOpen}
         plants={plants}
+        userProfile={userProfile}
       />
        <SettingsDialog
         isOpen={isSettingsOpen}
         setIsOpen={setIsSettingsOpen}
+        userProfile={userProfile}
       />
       <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
@@ -943,6 +974,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
+                             {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
                             {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}

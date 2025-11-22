@@ -12,10 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useRef, memo, useEffect } from 'react';
-import type { Plant } from '@/app/page';
+import type { Plant, UserProfile } from '@/app/page';
 import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { ImageCropDialog } from './image-crop-dialog';
+import { Badge } from './ui/badge';
 
 const getEmptyPlant = () => ({
   name: '',
@@ -31,6 +32,7 @@ const getEmptyPlant = () => ({
   exchangeSource: '',
   rescuedFrom: '',
   notes: '',
+  tags: [],
 });
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
@@ -58,7 +60,7 @@ const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
 ));
 SelectGroup.displayName = 'SelectGroup';
 
-const AddPlantForm = memo(({ onSave, initialData, onCancel }: any) => {
+const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) => {
   const [plant, setPlant] = useState(() => initialData ? { ...getEmptyPlant(), ...initialData } : getEmptyPlant());
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -71,12 +73,22 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel }: any) => {
   }, []);
 
    useEffect(() => {
-      setPlant(initialData ? { ...getEmptyPlant(), ...initialData } : getEmptyPlant());
+    if (initialData) {
+      setPlant({ ...getEmptyPlant(), ...initialData });
+    }
   }, [initialData]);
 
   const handleChange = (field: keyof Plant, value: any) => {
     setPlant(prev => ({...prev, [field]: value}));
   }
+
+  const handleTagChange = (tag: string) => {
+      const currentTags = plant.tags || [];
+      const newTags = currentTags.includes(tag)
+          ? currentTags.filter((t: string) => t !== tag)
+          : [...currentTags, tag];
+      handleChange('tags', newTags);
+  };
 
   const handleSubmit = () => {
     if (!plant.name || !plant.date) {
@@ -111,6 +123,8 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel }: any) => {
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
+
+  const customTags = userProfile?.tags || [];
 
   return (
     <>
@@ -155,6 +169,19 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel }: any) => {
               </div>
           </div>
           <div className='p-4 pt-0 space-y-4'>
+            <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Etiquetas</label>
+                <div className="flex flex-wrap gap-2">
+                    {customTags.map((tag:string) => (
+                        <div key={tag} onClick={() => handleTagChange(tag)} className="cursor-pointer">
+                            <Badge variant={(plant.tags || []).includes(tag) ? 'default' : 'secondary'}>
+                                {tag}
+                            </Badge>
+                        </div>
+                    ))}
+                </div>
+                {customTags.length === 0 && <p className="text-xs text-muted-foreground">Crea etiquetas en los Ajustes para empezar a usarlas.</p>}
+            </div>
            <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
           </div>
       </ScrollArea>
@@ -175,13 +202,14 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel }: any) => {
   );
 });
 
-export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData }: any) => {
-  if (!isOpen) return null;
+export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userProfile }: any) => {
 
   const handleSave = (plantData: any) => {
     onSave(plantData);
     setIsOpen(false);
   };
+  
+  if (!isOpen) return null;
   
   return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -192,7 +220,7 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData }: any) 
               Rellena los detalles de tu nueva compañera verde.
             </DialogDescription>
           </DialogHeader>
-          <AddPlantForm onSave={handleSave} initialData={initialData} onCancel={() => setIsOpen(false)} />
+          <AddPlantForm onSave={handleSave} initialData={initialData} onCancel={() => setIsOpen(false)} userProfile={userProfile}/>
         </DialogContent>
       </Dialog>
   );

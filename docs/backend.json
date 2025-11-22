@@ -95,6 +95,22 @@
             "type": "array",
             "description": "A list of custom tags created by the user.",
             "items": { "type": "string" }
+        },
+        "eventIconConfiguration": {
+          "type": "object",
+          "description": "User's custom configuration for event icons.",
+          "properties": {
+            "riego": { "type": "string" },
+            "poda": { "type": "string" },
+            "transplante": { "type": "string" },
+            "foto": { "type": "string" },
+            "plaga": { "type": "string" },
+            "fertilizante": { "type": "string" },
+            "nota": { "type": "string" },
+            "revivida": { "type": "string" },
+            "fallecida": { "type": "string" },
+            "esqueje": { "type": "string" }
+          }
         }
       },
       "required": [

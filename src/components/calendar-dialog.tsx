@@ -13,10 +13,43 @@ import { useState, useMemo } from 'react';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Sprout, Plus, Skull } from 'lucide-react';
-import type { Plant, PlantEvent } from '@/app/page';
+import type { Plant, PlantEvent, UserProfile } from '@/app/page';
 import { ScrollArea } from './ui/scroll-area';
+import * as LucideIcons from 'lucide-react';
 
-export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
+const defaultEventIcons: Record<PlantEvent['type'], React.ReactElement> = {
+  riego: <Droplets className="h-5 w-5 text-blue-500" />,
+  poda: <Scissors className="h-5 w-5 text-gray-500" />,
+  transplante: <Shovel className="h-5 w-5 text-orange-500" />,
+  foto: <Camera className="h-5 w-5 text-purple-500" />,
+  plaga: <Bug className="h-5 w-5 text-red-500" />,
+  fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
+  nota: <History className="h-5 w-5 text-yellow-500" />,
+  revivida: <Plus className="h-5 w-5 text-green-500" />,
+  fallecida: <Skull className="h-5 w-5 text-red-500" />,
+  esqueje: <Sprout className="h-5 w-5 text-cyan-500" />,
+};
+
+const defaultStatIcons: Record<PlantEvent['type'], React.ReactElement> = {
+    riego: <Droplets className="h-4 w-4 text-blue-500" />,
+    poda: <Scissors className="h-4 w-4 text-gray-500" />,
+    transplante: <Shovel className="h-4 w-4 text-orange-500" />,
+    foto: <Camera className="h-4 w-4 text-purple-500" />,
+    plaga: <Bug className="h-4 w-4 text-red-500" />,
+    fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
+    nota: <History className="h-4 w-4 text-yellow-500" />,
+    revivida: <Plus className="h-4 w-4 text-green-500" />,
+    fallecida: <Skull className="h-4 w-4 text-red-500" />,
+    esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
+};
+
+const getIcon = (iconName: string, className: string): React.ReactElement => {
+    const IconComponent = (LucideIcons as any)[iconName];
+    return IconComponent ? <IconComponent className={className} /> : <Sprout className={className} />;
+};
+
+
+export function CalendarDialog({ isOpen, setIsOpen, plants, userProfile }: { isOpen: boolean, setIsOpen: (val: boolean) => void, plants: Plant[], userProfile: UserProfile | null }) {
     const [date, setDate] = useState<Date | undefined>(new Date());
 
     const allEvents = useMemo(() => {
@@ -53,31 +86,36 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         return stats;
     }, [allEvents, date]);
     
-    const eventIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
-      riego: <Droplets className="h-5 w-5 text-blue-500" />,
-      poda: <Scissors className="h-5 w-5 text-gray-500" />,
-      transplante: <Shovel className="h-5 w-5 text-orange-500" />,
-      foto: <Camera className="h-5 w-5 text-purple-500" />,
-      plaga: <Bug className="h-5 w-5 text-red-500" />,
-      fertilizante: <Beaker className="h-5 w-5 text-green-500" />,
-      nota: <History className="h-5 w-5 text-yellow-500" />,
-      revivida: <Plus className="h-5 w-5 text-green-500" />,
-      fallecida: <Skull className="h-5 w-5 text-red-500" />,
-      esqueje: <Sprout className="h-5 w-5 text-cyan-500" />,
-    };
+    const eventIcons = useMemo(() => {
+        const customIcons = userProfile?.eventIconConfiguration;
+        if (!customIcons) return defaultEventIcons;
 
-    const statIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
-        riego: <Droplets className="h-4 w-4 text-blue-500" />,
-        poda: <Scissors className="h-4 w-4 text-gray-500" />,
-        transplante: <Shovel className="h-4 w-4 text-orange-500" />,
-        foto: <Camera className="h-4 w-4 text-purple-500" />,
-        plaga: <Bug className="h-4 w-4 text-red-500" />,
-        fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
-        nota: <History className="h-4 w-4 text-yellow-500" />,
-        revivida: <Plus className="h-4 w-4 text-green-500" />,
-        fallecida: <Skull className="h-4 w-4 text-red-500" />,
-        esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
-    };
+        const mergedIcons: any = { ...defaultEventIcons };
+        for (const key in customIcons) {
+            const eventType = key as PlantEvent['type'];
+            const iconName = customIcons[eventType];
+            if (iconName) {
+                mergedIcons[eventType] = getIcon(iconName, "h-5 w-5");
+            }
+        }
+        return mergedIcons;
+    }, [userProfile]);
+
+    const statIcons = useMemo(() => {
+        const customIcons = userProfile?.eventIconConfiguration;
+        if (!customIcons) return defaultStatIcons;
+
+        const mergedIcons: any = { ...defaultStatIcons };
+        for (const key in customIcons) {
+            const eventType = key as PlantEvent['type'];
+            const iconName = customIcons[eventType];
+            if (iconName) {
+                mergedIcons[eventType] = getIcon(iconName, "h-4 w-4");
+            }
+        }
+        return mergedIcons;
+    }, [userProfile]);
+
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -103,15 +141,16 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
                            <div className="w-full max-w-[350px] p-4 border rounded-lg">
                                <h4 className="font-semibold mb-3 text-center">Resumen Mensual</h4>
                                <div className="grid grid-cols-3 gap-2 text-xs text-center">
-                                  {Object.entries(statIcons).map(([type, icon]) => (
-                                      monthlyStats[type] > 0 && (
+                                  {Object.keys(statIcons).map((type) => {
+                                      const eventType = type as PlantEvent['type'];
+                                      return monthlyStats[eventType] > 0 && (
                                           <div key={type} className="flex flex-col items-center justify-center p-1 bg-secondary/50 rounded-md">
-                                              {icon}
+                                              {statIcons[eventType]}
                                               <span className='font-bold text-lg'>{monthlyStats[type]}</span>
                                               <span className='capitalize text-muted-foreground'>{type}</span>
                                           </div>
                                       )
-                                  ))}
+                                  })}
                                </div>
                                {Object.keys(monthlyStats).length === 0 && <p className="text-sm text-muted-foreground text-center">Sin eventos este mes.</p>}
                            </div>

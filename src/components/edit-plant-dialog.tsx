@@ -29,10 +29,10 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Plant, PlantEvent } from '@/app/page';
+import type { Plant, PlantEvent, UserProfile } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { ScrollArea } from './ui/scroll-area';
@@ -45,6 +45,7 @@ import { ImageCropDialog } from './image-crop-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
+import * as LucideIcons from 'lucide-react';
 
 interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
@@ -217,15 +218,32 @@ const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
     )
 }
 
+const defaultEventIcons: Record<PlantEvent['type'], React.ReactElement> = {
+  riego: <Droplets className="h-4 w-4 text-blue-500" />,
+  poda: <Scissors className="h-4 w-4 text-gray-500" />,
+  transplante: <Shovel className="h-4 w-4 text-orange-500" />,
+  foto: <Camera className="h-4 w-4 text-purple-500" />,
+  plaga: <Bug className="h-4 w-4 text-red-500" />,
+  fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
+  nota: <History className="h-4 w-4 text-yellow-500" />,
+  revivida: <Plus className="h-4 w-4 text-green-500" />,
+  fallecida: <Skull className="h-4 w-4 text-red-500" />,
+  esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
+};
 
-export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
+const getIcon = (iconName: string, className: string): React.ReactElement => {
+    const IconComponent = (LucideIcons as any)[iconName];
+    return IconComponent ? <IconComponent className={className} /> : <Sprout className={className} />;
+};
+
+
+export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, userProfile }: { plant: Plant; isOpen: boolean; setIsOpen: (isOpen: boolean) => void; onSave: (id: string, data: Partial<Plant>) => void; onDelete: (id: string) => void; userProfile: UserProfile | null; }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [customTags, setCustomTags] = useState<string[]>([]);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
@@ -243,18 +261,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
   }, []);
   
-  useEffect(() => {
-      if (!user || !firestore) return;
-      const userRef = doc(firestore, 'users', user.uid);
-      const unsubscribe = onSnapshot(userRef, (doc) => {
-          const userData = doc.data();
-          if (userData && userData.tags) {
-              setCustomTags(userData.tags);
-          }
-      });
-      return () => unsubscribe();
-  }, [user, firestore]);
-
   const handleOpenImageDetail = (index: number) => {
     setImageDetailStartIndex(index);
     setIsImageDetailOpen(true);
@@ -317,7 +323,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   };
 
   const handleStatusChangeEvent = (status: Plant['status'], note: string) => {
-      handleAddEvent({ type: eventType, date: new Date().toISOString().split('T')[0], note }, status);
+      handleAddEvent({ type: status === 'fallecida' ? 'fallecida' : 'nota', date: new Date().toISOString().split('T')[0], note }, status);
   }
 
   const handleConfirmNewAttempt = async (newAttemptData: any) => {
@@ -499,20 +505,25 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
   const statusOptions: Plant['status'][] = ['viva', 'fallecida', 'intercambiada'];
 
-  const eventIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
-    riego: <Scissors className="h-4 w-4 text-blue-500" />,
-    poda: <Scissors className="h-4 w-4 text-gray-500" />,
-    transplante: <Shovel className="h-4 w-4 text-orange-500" />,
-    foto: <Camera className="h-4 w-4 text-purple-500" />,
-    plaga: <Bug className="h-4 w-4 text-red-500" />,
-    fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
-    nota: <History className="h-4 w-4 text-yellow-500" />,
-    revivida: <Plus className="h-4 w-4 text-green-500" />,
-    fallecida: <Skull className="h-4 w-4 text-red-500" />,
-    esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
-  };
+  const eventIcons = useMemo(() => {
+    const customIcons = userProfile?.eventIconConfiguration;
+    if (!customIcons) return defaultEventIcons;
+
+    const mergedIcons: any = { ...defaultEventIcons };
+    for (const key in customIcons) {
+        const eventType = key as PlantEvent['type'];
+        const iconName = customIcons[eventType];
+        if (iconName) {
+            mergedIcons[eventType] = getIcon(iconName, "h-4 w-4");
+        }
+    }
+    return mergedIcons;
+  }, [userProfile]);
+
   
   if (!editedPlant) return null;
+
+  const customTags = userProfile?.tags || [];
 
   return (
     <>
@@ -646,7 +657,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-muted-foreground">Etiquetas</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {customTags.map(tag => (
+                                    {customTags.map((tag:string) => (
                                         <div key={tag} onClick={() => handleTagChange(tag)} className="cursor-pointer">
                                             <Badge variant={(editedPlant.tags || []).includes(tag) ? 'default' : 'secondary'}>
                                                 {tag}

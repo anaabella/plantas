@@ -10,28 +10,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { X, Sprout, Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Plus, Skull } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import * as LucideIcons from 'lucide-react';
+import { PlantEvent, UserProfile } from '@/app/page';
 
-export function SettingsDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: boolean) => void }) {
+const eventTypes: PlantEvent['type'][] = ['riego', 'poda', 'transplante', 'foto', 'plaga', 'fertilizante', 'nota', 'revivida', 'fallecida', 'esqueje'];
+
+const iconList = Object.keys(LucideIcons).filter(key => /^[A-Z]/.test(key) && key !== 'createReactComponent' && key !== 'LucideProps' && key !== 'Icon' && key !== 'Loader');
+
+const getIcon = (iconName: string | undefined): React.ReactElement => {
+    if (!iconName) return <Sprout className="h-5 w-5" />;
+    const IconComponent = (LucideIcons as any)[iconName];
+    return IconComponent ? <IconComponent className="h-5 w-5" /> : <Sprout className="h-5 w-5" />;
+};
+
+
+export function SettingsDialog({ isOpen, setIsOpen, userProfile }: { isOpen: boolean, setIsOpen: (val: boolean) => void, userProfile: UserProfile | null }) {
     const { user } = useUser();
     const firestore = useFirestore();
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState('');
+    const [iconConfig, setIconConfig] = useState<Partial<Record<PlantEvent['type'], string>>>({});
+    const [iconSearch, setIconSearch] = useState('');
 
     useEffect(() => {
-        if (!user || !firestore) return;
-        const userRef = doc(firestore, 'users', user.uid);
-        const unsubscribe = onSnapshot(userRef, (doc) => {
-            const userData = doc.data();
-            if (userData && userData.tags) {
-                setTags(userData.tags);
-            }
-        });
-        return () => unsubscribe();
-    }, [user, firestore]);
+        if (userProfile) {
+            setTags(userProfile.tags || []);
+            setIconConfig(userProfile.eventIconConfiguration || {});
+        }
+    }, [userProfile]);
 
     const handleAddTag = async () => {
         if (!newTag.trim() || !user || !firestore) return;
@@ -48,6 +59,20 @@ export function SettingsDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOp
         await updateDoc(userRef, { tags: updatedTags });
     };
 
+    const handleIconChange = async (eventType: PlantEvent['type'], iconName: string) => {
+        if (!user || !firestore) return;
+        const userRef = doc(firestore, 'users', user.uid);
+        const newIconConfig = { ...iconConfig, [eventType]: iconName };
+        await updateDoc(userRef, { eventIconConfiguration: newIconConfig });
+        setIconConfig(newIconConfig);
+    }
+    
+    const filteredIcons = useMemo(() => {
+        if (!iconSearch) return iconList.slice(0, 100); // Limit initial list
+        return iconList.filter(icon => icon.toLowerCase().includes(iconSearch.toLowerCase())).slice(0, 100);
+    }, [iconSearch]);
+
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg">
@@ -60,7 +85,7 @@ export function SettingsDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOp
                 <Tabs defaultValue="tags" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="tags">Etiquetas</TabsTrigger>
-                        <TabsTrigger value="events">Eventos</TabsTrigger>
+                        <TabsTrigger value="events">Iconos de Eventos</TabsTrigger>
                     </TabsList>
                     <ScrollArea className="h-[400px] p-1 mt-4">
                         <TabsContent value="tags">
@@ -89,9 +114,47 @@ export function SettingsDialog({ isOpen, setIsOpen }: { isOpen: boolean, setIsOp
                            </div>
                         </TabsContent>
                         <TabsContent value="events">
-                             <div className='p-1'>
+                             <div className='p-1 space-y-4'>
                                <h4 className="font-semibold mb-2">Personalizar Iconos de Eventos</h4>
-                                <p className='text-sm text-muted-foreground text-center py-8'>Próximamente...</p>
+                               {eventTypes.map(type => (
+                                <div key={type} className="flex items-center justify-between">
+                                    <div className='flex items-center gap-2'>
+                                        {getIcon(iconConfig[type])}
+                                        <span className='capitalize'>{type}</span>
+                                    </div>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm">Cambiar</Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className='w-80'>
+                                            <div className='space-y-2'>
+                                                <Input 
+                                                    placeholder='Buscar icono...'
+                                                    value={iconSearch}
+                                                    onChange={(e) => setIconSearch(e.target.value)}
+                                                />
+                                                <ScrollArea className='h-64'>
+                                                    <div className='grid grid-cols-5 gap-2 p-2'>
+                                                        {filteredIcons.map(iconName => (
+                                                            <Button
+                                                                key={iconName}
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => {
+                                                                    handleIconChange(type, iconName);
+                                                                    setIconSearch('');
+                                                                }}
+                                                            >
+                                                                {getIcon(iconName)}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                </ScrollArea>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                               ))}
                             </div>
                         </TabsContent>
                     </ScrollArea>
