@@ -41,6 +41,8 @@ import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
 
 
 // Función para comprimir imágenes
@@ -156,21 +158,23 @@ const QuickEventButton = ({
   );
 };
 
-const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
+const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
     <div className="space-y-1">
       <label className="text-sm font-medium text-muted-foreground">{label}</label>
       <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
     </div>
-  );
+));
+InputGroup.displayName = 'InputGroup';
   
-const TextareaGroup = ({ label, value, onChange, placeholder }: any) => (
+const TextareaGroup = memo(({ label, value, onChange, placeholder }: any) => (
 <div className="space-y-1">
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Textarea value={value || ''} onChange={onChange} placeholder={placeholder} />
 </div>
-);
+));
+TextareaGroup.displayName = 'TextareaGroup';
 
-const SelectGroup = ({ label, value, onValueChange, options }: any) => (
+const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
     <div className="space-y-1">
         <label className="text-sm font-medium text-muted-foreground">{label}</label>
         <Select value={value} onValueChange={onValueChange}>
@@ -184,7 +188,8 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
         </SelectContent>
         </Select>
     </div>
-);
+));
+SelectGroup.displayName = 'SelectGroup';
 
 
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
@@ -433,7 +438,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                            <div>
+                            <div className='self-end'>
                                 {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
                                 {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
                                 {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
@@ -447,6 +452,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                          {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
 
                         <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+
+                        <div className="flex items-center space-x-2">
+                           <Checkbox id="isSecondChanceEdit" checked={editedPlant.isSecondChance} onCheckedChange={(checked) => handleChange('isSecondChance', checked)} />
+                           <Label htmlFor="isSecondChanceEdit" className="text-sm font-medium text-muted-foreground">Es un nuevo intento (2ª oportunidad)</Label>
+                        </div>
                     </div>
                      <div className="mt-6 flex justify-between items-center">
                         <AlertDialog>

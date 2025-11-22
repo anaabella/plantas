@@ -16,6 +16,8 @@ import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
 
 // Función para comprimir imágenes
 const compressImage = (file: File, callback: (dataUrl: string) => void) => {
@@ -69,16 +71,19 @@ const emptyPlant = {
   exchangeSource: '',
   rescuedFrom: '',
   notes: '',
+  isSecondChance: false,
 };
 
-const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
+const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
     <div className="space-y-1">
       <label className="text-sm font-medium text-muted-foreground">{label}</label>
       <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
     </div>
-);
+));
+InputGroup.displayName = 'InputGroup';
 
-const SelectGroup = ({ label, value, onValueChange, options }: any) => (
+
+const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
 <div className="space-y-1">
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Select value={value} onValueChange={onValueChange}>
@@ -92,7 +97,8 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
     </SelectContent>
     </Select>
 </div>
-);
+));
+SelectGroup.displayName = 'SelectGroup';
 
 
 export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
@@ -178,7 +184,7 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <SelectGroup label="Tipo de Adquisición" value={plant.acquisitionType} onValueChange={(v: any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                        <div>
+                        <div className='self-end'>
                             {plant.acquisitionType === 'compra' && <InputGroup label="Precio" value={plant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
                             {plant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={plant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
                             {plant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={plant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
@@ -205,8 +211,12 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                     <SelectGroup label="Ubicación" value={plant.location} onValueChange={(v: any) => handleChange('location', v)} options={locationOptions} />
                 </div>
             </div>
-            <div className='p-4 pt-0'>
+            <div className='p-4 pt-0 space-y-4'>
              <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+              <div className="flex items-center space-x-2">
+                <Checkbox id="isSecondChance" checked={plant.isSecondChance} onCheckedChange={(checked) => handleChange('isSecondChance', checked)} />
+                <Label htmlFor="isSecondChance" className="text-sm font-medium text-muted-foreground">Es un nuevo intento (2ª oportunidad)</Label>
+              </div>
             </div>
         </ScrollArea>
         <DialogFooter className='p-4 pt-0'>

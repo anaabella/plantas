@@ -76,6 +76,7 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
+  isSecondChance?: boolean;
 };
 
 export type PlantEvent = {
@@ -339,6 +340,7 @@ export default function GardenApp() {
     }
     setPlantToAddFromWishlist({
       name: plant.name,
+      type: plant.type,
       image: plant.image,
     });
     setIsDetailOpen(false); // Close detail view
@@ -442,7 +444,10 @@ export default function GardenApp() {
   const filteredPlants = useMemo(() => {
     const source = view === 'my-plants' ? plants : communityPlants;
     if (!searchTerm) return source;
-    return source.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return source.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.type?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [plants, communityPlants, view, searchTerm]);
   
   const filteredWishlist = useMemo(() => {
@@ -453,6 +458,31 @@ export default function GardenApp() {
   const wishlistPlantIds = useMemo(() => {
       return new Set(wishlist.map(item => item.plantId));
   }, [wishlist]);
+  
+  const plantTypeCounts = useMemo(() => {
+    const counts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+    plants.forEach(plant => {
+        if (plant.type) {
+            const typeKey = plant.type.toLowerCase();
+            if (!counts[typeKey]) {
+                counts[typeKey] = { total: 0, indices: {} };
+            }
+            counts[typeKey].total++;
+        }
+    });
+    
+    Object.keys(counts).forEach(typeKey => {
+        if (counts[typeKey].total > 1) {
+            let index = 1;
+            plants.filter(p => p.type?.toLowerCase() === typeKey).forEach(p => {
+                counts[typeKey].indices[p.id] = index++;
+            });
+        }
+    });
+
+    return counts;
+  }, [plants]);
+
 
   // -- Main Render --
   return (
@@ -482,7 +512,7 @@ export default function GardenApp() {
         </div>
         
         {view === 'my-plants' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} />
+          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} plantTypeCounts={plantTypeCounts} />
         )}
         {view === 'community' && (
           <PlantsGrid
@@ -573,21 +603,20 @@ export default function GardenApp() {
 }
 
 // Header Component
+const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
+  <Button
+    variant={activeView === targetView ? "secondary" : "ghost"}
+    className="flex items-center gap-2"
+    {...props}
+  >
+    <Icon className="h-5 w-5" />
+    <span className="hidden sm:inline">{children}</span>
+  </Button>
+);
+
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenWishlist, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
-  const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
-    <Button
-      variant={activeView === targetView ? "secondary" : "ghost"}
-      onClick={() => onViewChange(targetView)}
-      className="flex items-center gap-2"
-      {...props}
-    >
-      <Icon className="h-5 w-5" />
-      <span className="hidden sm:inline">{children}</span>
-    </Button>
-  );
-
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center px-4 sm:px-6 lg:px-8">
@@ -597,8 +626,8 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </div>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
-          <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
+          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf} onClick={() => onViewChange('my-plants')}>Mis Plantas</NavButton>}
+          <NavButton activeView={view} targetView="community" icon={Users} onClick={() => onViewChange('community')}>Comunidad</NavButton>
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
@@ -672,7 +701,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantTypeCounts }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -712,6 +741,11 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {plants.map((plant: Plant, index: number) => {
         const isInWishlist = wishlistPlantIds?.has(plant.id);
+        
+        const typeKey = plant.type?.toLowerCase();
+        const typeInfo = typeKey ? plantTypeCounts?.[typeKey] : undefined;
+        const duplicateIndex = typeInfo && typeInfo.total > 1 ? typeInfo.indices[plant.id] : 0;
+
         const cardContent = (
            <div
               className="group animation-fade-in"
@@ -779,7 +813,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
                             <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
-                            {plant.type && <Badge variant='outline' className='capitalize'>{plant.type}</Badge>}
+                            {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
+                            {plant.isSecondChance && <Badge variant='outline'>2ª Oportunidad</Badge>}
+                            {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
                         </div>
                     </>
                   ) : null }
