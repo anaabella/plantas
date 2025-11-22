@@ -76,14 +76,14 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
-  isSecondChance?: boolean;
 };
 
 export type PlantEvent = {
   id: string;
-  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota';
+  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida';
   date: string; // ISO date string
   note: string;
+  attempt: number;
 };
 
 export type WishlistItem = {
@@ -271,30 +271,36 @@ export default function GardenApp() {
   };
 
   // -- Plant Handlers --
-  const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'>) => {
+  const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'events'>) => {
     if (!user || !firestore) return;
     try {
-      const plantDataWithGallery = {
-        ...newPlantData,
-        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
+      const initialEvent: PlantEvent = {
+        id: new Date().getTime().toString(),
+        type: 'nota',
+        date: newPlantData.date,
+        note: `La planta fue adquirida.`,
+        attempt: 1,
       };
 
-      await addDoc(collection(firestore, 'plants'), {
-        ...plantDataWithGallery,
+      const plantDataWithMeta = {
+        ...newPlantData,
+        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
         createdAt: serverTimestamp(),
-      });
+        events: [initialEvent],
+      };
+
+      await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       toast({ title: "¡Planta añadida!", description: `${newPlantData.name} se ha unido a tu jardín.` });
       
-      // If added from wishlist, remove from wishlist
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
-      setPlantToAddFromWishlist(null); // Clear clone/wishlist state
+      setPlantToAddFromWishlist(null);
       setIsAddDialogOpen(false);
-      setIsDetailOpen(false); // Close detail dialog if cloning
+      setIsDetailOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo añadir la planta: ${error.message}` });
@@ -309,8 +315,7 @@ export default function GardenApp() {
       toast({ title: "Planta actualizada", description: "Los cambios se han guardado." });
       setIsEditDialogOpen(false);
       setEditingPlant(null);
-       // Also update the selected plant if it's the one being edited, to reflect changes in detail view
-      if (selectedPlant && selectedPlant.id === plantId) {
+       if (selectedPlant && selectedPlant.id === plantId) {
         setSelectedPlant(prev => prev ? { ...prev, ...updatedData } : null);
       }
     } catch (error: any) {
@@ -459,28 +464,35 @@ export default function GardenApp() {
       return new Set(wishlist.map(item => item.plantId));
   }, [wishlist]);
   
-  const plantTypeCounts = useMemo(() => {
-    const counts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+  const plantRenderData = useMemo(() => {
+    const typeCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+    const attemptCounts: { [plantId: string]: number } = {};
+
     plants.forEach(plant => {
+        // Count attempts
+        const maxAttempt = (plant.events || []).reduce((max, event) => Math.max(max, event.attempt || 1), 0);
+        attemptCounts[plant.id] = maxAttempt;
+
+        // Count type duplicates
         if (plant.type) {
             const typeKey = plant.type.toLowerCase();
-            if (!counts[typeKey]) {
-                counts[typeKey] = { total: 0, indices: {} };
+            if (!typeCounts[typeKey]) {
+                typeCounts[typeKey] = { total: 0, indices: {} };
             }
-            counts[typeKey].total++;
+            typeCounts[typeKey].total++;
         }
     });
     
-    Object.keys(counts).forEach(typeKey => {
-        if (counts[typeKey].total > 1) {
+    Object.keys(typeCounts).forEach(typeKey => {
+        if (typeCounts[typeKey].total > 1) {
             let index = 1;
             plants.filter(p => p.type?.toLowerCase() === typeKey).forEach(p => {
-                counts[typeKey].indices[p.id] = index++;
+                typeCounts[typeKey].indices[p.id] = index++;
             });
         }
     });
 
-    return counts;
+    return { typeCounts, attemptCounts };
   }, [plants]);
 
 
@@ -512,7 +524,13 @@ export default function GardenApp() {
         </div>
         
         {view === 'my-plants' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} plantTypeCounts={plantTypeCounts} />
+          <PlantsGrid 
+              plants={filteredPlants} 
+              onPlantClick={openPlantEditor} 
+              isLoading={isLoading} 
+              onDeletePlant={handleDeletePlant} 
+              plantRenderData={plantRenderData}
+          />
         )}
         {view === 'community' && (
           <PlantsGrid
@@ -644,9 +662,9 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
            )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
-             <Button variant="ghost" size="icon" onClick={onOpenWishlist}>
-                <ListTodo className="h-5 w-5" />
-             </Button>
+             <NavButton activeView={view} targetView="wishlist" icon={ListTodo} onClick={onOpenWishlist} className="px-2 sm:px-4" size="icon sm:size-auto">
+                <span className="hidden sm:inline">Deseos</span>
+            </NavButton>
           )}
 
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
@@ -701,7 +719,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantTypeCounts }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -742,9 +760,12 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
       {plants.map((plant: Plant, index: number) => {
         const isInWishlist = wishlistPlantIds?.has(plant.id);
         
-        const typeKey = plant.type?.toLowerCase();
-        const typeInfo = typeKey ? plantTypeCounts?.[typeKey] : undefined;
-        const duplicateIndex = typeInfo && typeInfo.total > 1 ? typeInfo.indices[plant.id] : 0;
+        let duplicateIndex = 0;
+        if (!isCommunity && plant.type && plantRenderData.typeCounts[plant.type.toLowerCase()]?.total > 1) {
+            duplicateIndex = plantRenderData.typeCounts[plant.type.toLowerCase()].indices[plant.id];
+        }
+
+        const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
 
         const cardContent = (
            <div
@@ -814,7 +835,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                         <div className='mt-2 flex flex-wrap gap-1'>
                             <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
                             {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
-                            {plant.isSecondChance && <Badge variant='outline'>2ª Oportunidad</Badge>}
+                            {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
                         </div>
                     </>
@@ -906,5 +927,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-    

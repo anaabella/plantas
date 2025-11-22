@@ -16,7 +16,6 @@ import type { Plant } from '@/app/page';
 import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
-import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 
 // Función para comprimir imágenes
@@ -71,7 +70,6 @@ const emptyPlant = {
   exchangeSource: '',
   rescuedFrom: '',
   notes: '',
-  isSecondChance: false,
 };
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
@@ -135,7 +133,6 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
 
     const newPlantData: Partial<Plant> = {
       ...plant,
-      events: [],
     };
     
     if (plant.acquisitionType !== 'compra') delete newPlantData.price;
@@ -213,10 +210,6 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
             </div>
             <div className='p-4 pt-0 space-y-4'>
              <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
-              <div className="flex items-center space-x-2">
-                <Checkbox id="isSecondChance" checked={plant.isSecondChance} onCheckedChange={(checked) => handleChange('isSecondChance', checked)} />
-                <Label htmlFor="isSecondChance" className="text-sm font-medium text-muted-foreground">Es un nuevo intento (2ª oportunidad)</Label>
-              </div>
             </div>
         </ScrollArea>
         <DialogFooter className='p-4 pt-0'>

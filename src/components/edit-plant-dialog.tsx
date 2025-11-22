@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -41,8 +41,8 @@ import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
+import { Separator } from './ui/separator';
 
 
 // Función para comprimir imágenes
@@ -65,7 +65,7 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
             } else {
                 if (height > MAX_HEIGHT) {
                     width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
+                    width = MAX_HEIGHT;
                 }
             }
 
@@ -74,7 +74,6 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
             
-            // Comprimir a JPEG con calidad 0.7
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             callback(dataUrl);
         };
@@ -91,7 +90,6 @@ interface QuickEventButtonProps extends ButtonProps {
   children: React.ReactNode;
 }
 
-// Componente para los botones de eventos rápidos con menú contextual
 const QuickEventButton = ({
   eventType,
   plantEvents,
@@ -197,15 +195,20 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const { user } = useUser();
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
+  const [originalStatus, setOriginalStatus] = useState(plant.status);
   
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
+
+  const [isReviveAlertOpen, setReviveAlertOpen] = useState(false);
+  const [newAttemptDate, setNewAttemptDate] = useState(new Date().toISOString().split('T')[0]);
   
   useEffect(() => {
     setEditedPlant(plant);
+    setOriginalStatus(plant.status);
   }, [plant, isOpen]);
 
   const handleOpenImageDetail = (index: number) => {
@@ -214,21 +217,31 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   };
   
   const handleChange = (field: keyof Plant, value: any) => {
+    if (field === 'status' && originalStatus === 'fallecida' && value === 'viva') {
+      setReviveAlertOpen(true);
+    }
     setEditedPlant({ ...editedPlant, [field]: value });
   };
   
   const handleSave = () => {
-    onSave(plant.id, editedPlant);
+    if (isReviveAlertOpen) {
+        handleConfirmRevive();
+    } else {
+        onSave(plant.id, editedPlant);
+    }
   };
+
+  const currentAttempt = useMemo(() => {
+    return (editedPlant.events || []).reduce((max: number, event: PlantEvent) => Math.max(max, event.attempt || 1), 0) || 1;
+  }, [editedPlant.events]);
   
-  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note' | 'attempt'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
     if (!firestore || !user || !editedPlant) return;
     
     const eventNote = event.type === 'foto' ? "Se añadió una nueva foto" : (event.note || '');
-    const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote };
+    const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote, attempt: currentAttempt };
     
     let updatedEvents = [...(editedPlant.events || []), newEvent];
-    // Sort events after adding to make sure they are in order
     updatedEvents = updatedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     const plantRef = doc(firestore, 'plants', editedPlant.id);
@@ -239,11 +252,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
     if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
-        updatePayload.image = event.imageData; // Update main image to the latest one
-        // Add image to gallery structure
+        updatePayload.image = event.imageData;
         const newGalleryEntry = { imageUrl: event.imageData, date: event.date };
         const currentGallery = editedPlant.gallery || [];
-        // Prevent duplicates
         if (!currentGallery.some(g => g.imageUrl === newGalleryEntry.imageUrl)) {
             updatePayload.gallery = [newGalleryEntry, ...currentGallery];
         }
@@ -255,6 +266,46 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 
     await updateDoc(plantRef, updatePayload);
     setEditedPlant({ ...editedPlant, ...updatePayload });
+  };
+
+  const handleStatusChangeEvent = (status: Plant['status'], note: string) => {
+      const eventType = status === 'fallecida' ? 'fallecida' : 'nota';
+      handleAddEvent({ type: eventType, date: new Date().toISOString().split('T')[0], note }, status);
+  }
+
+  const handleConfirmRevive = async () => {
+    if (!firestore || !user || !editedPlant) return;
+
+    const nextAttempt = currentAttempt + 1;
+
+    const deathEvent: PlantEvent = {
+        id: `${new Date().getTime()}-death`,
+        type: 'fallecida',
+        date: new Date().toISOString().split('T')[0],
+        note: `Fin del intento #${currentAttempt}.`,
+        attempt: currentAttempt
+    };
+    
+    const revivalEvent: PlantEvent = {
+        id: `${new Date().getTime()}-revive`,
+        type: 'revivida',
+        date: newAttemptDate,
+        note: `Inicio del intento #${nextAttempt}.`,
+        attempt: nextAttempt
+    };
+    
+    const updatedEvents = [...(editedPlant.events || []), deathEvent, revivalEvent]
+        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const updatePayload: Partial<Plant> = {
+        ...editedPlant,
+        status: 'viva',
+        date: newAttemptDate, // Update main date to new start date
+        events: updatedEvents,
+    };
+    
+    await onSave(plant.id, updatePayload);
+    setReviveAlertOpen(false);
   };
   
   const handleRemoveEvent = async (eventId: string) => {
@@ -277,10 +328,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
   };
-
-  const handleStatusChange = (status: Plant['status'], note: string) => {
-      handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note }, status);
-  }
   
   const handlePhotoCaptured = (photoDataUri: string) => {
     handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: photoDataUri});
@@ -321,6 +368,18 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [editedPlant]);
 
+  const eventsByAttempt = useMemo(() => {
+    const grouped: { [attempt: number]: PlantEvent[] } = {};
+    (editedPlant.events || []).forEach((event: PlantEvent) => {
+        const attempt = event.attempt || 1;
+        if (!grouped[attempt]) {
+            grouped[attempt] = [];
+        }
+        grouped[attempt].push(event);
+    });
+    return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a));
+  }, [editedPlant.events]);
+
 
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
@@ -335,6 +394,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     plaga: <Bug className="h-4 w-4 text-red-500" />,
     fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
     nota: <History className="h-4 w-4 text-yellow-500" />,
+    revivida: <Plus className="h-4 w-4 text-green-500" />,
+    fallecida: <Skull className="h-4 w-4 text-red-500" />,
   };
   
   if (!editedPlant) return null;
@@ -365,43 +426,55 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
                         <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
                         
-                        <Button variant="outline" size="sm" onClick={() => handleAddEvent({type: 'nota', date: new Date().toISOString().split('T')[0], note: 'Se intercambió un gajo'})}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié gajo</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChange('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChange('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
                     </div>
-                    <div className="space-y-3">
-                        {editedPlant.events?.map((event: PlantEvent) => (
-                            <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
-                                <div className="flex items-start gap-3">
-                                    {eventIcons[event.type]}
-                                    <div>
-                                        <p className="font-semibold capitalize">{event.type}</p>
-                                        <p className="text-sm text-muted-foreground">{event.note}</p>
-                                        <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
+
+                    <div className="space-y-6">
+                        {eventsByAttempt.length > 0 ? (
+                            eventsByAttempt.map(([attempt, events]) => (
+                                <div key={`attempt-${attempt}`}>
+                                    <div className="flex items-center mb-2">
+                                        <Separator className="flex-grow" />
+                                        <h4 className="px-4 text-sm font-semibold text-muted-foreground">{attempt}º Intento</h4>
+                                        <Separator className="flex-grow" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        {events.map((event: PlantEvent) => (
+                                            <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
+                                                <div className="flex items-start gap-3">
+                                                    {eventIcons[event.type]}
+                                                    <div>
+                                                        <p className="font-semibold capitalize">{event.type}</p>
+                                                        <p className="text-sm text-muted-foreground">{event.note}</p>
+                                                        <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
+                                                    </div>
+                                                </div>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
+                                                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Esta acción no se puede deshacer.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        ))}
-                        {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
+                            ))
+                        ) : (
+                            <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>
+                        )}
                     </div>
                 </TabsContent>
                 <TabsContent value="gallery" className='p-1'>
@@ -452,11 +525,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                          {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
 
                         <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
-
-                        <div className="flex items-center space-x-2">
-                           <Checkbox id="isSecondChanceEdit" checked={editedPlant.isSecondChance} onCheckedChange={(checked) => handleChange('isSecondChance', checked)} />
-                           <Label htmlFor="isSecondChanceEdit" className="text-sm font-medium text-muted-foreground">Es un nuevo intento (2ª oportunidad)</Label>
-                        </div>
                     </div>
                      <div className="mt-6 flex justify-between items-center">
                         <AlertDialog>
@@ -495,6 +563,30 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         images={galleryImages}
         startIndex={imageDetailStartIndex}
     />
+     <AlertDialog open={isReviveAlertOpen} onOpenChange={setReviveAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¡Una Segunda Oportunidad!</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Estás a punto de revivir esta planta. Por favor, introduce la fecha en la que comienza este nuevo intento.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+                <InputGroup
+                    label="Fecha del Nuevo Intento"
+                    type="date"
+                    value={newAttemptDate}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAttemptDate(e.target.value)}
+                />
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setEditedPlant(plant)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmRevive}>Confirmar y Guardar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 });
+
+    
