@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useRef, memo, useEffect } from 'react';
 import type { Plant } from '@/app/page';
-import { CameraCaptureDialog } from './camera-capture-dialog';
 import { Camera, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Label } from './ui/label';
@@ -102,7 +101,6 @@ SelectGroup.displayName = 'SelectGroup';
 export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
   const [plant, setPlant] = useState(emptyPlant);
 
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -142,11 +140,6 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
 
     onSave(newPlantData);
     setIsOpen(false);
-  };
-
-  const handlePhotoCaptured = (photoDataUri: string) => {
-    handleChange('image', photoDataUri);
-    setIsCameraOpen(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,15 +185,11 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
                 <div className="space-y-4">
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                        <div className="flex gap-2">
-                             <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
-                            <Button variant="outline" className='w-full' onClick={() => fileInputRef.current?.click()}>
-                                <Upload className="h-4 w-4 mr-2" /> Subir
-                            </Button>
-                            <Button variant="outline" className='w-full' onClick={() => setIsCameraOpen(true)}>
-                                <Camera className="h-4 w-4 mr-2" /> Capturar
-                            </Button>
-                        </div>
+                        <Button variant="outline" className='w-full' onClick={() => fileInputRef.current?.click()}>
+                            <Camera className="h-4 w-4 mr-2" /> Añadir Foto
+                        </Button>
+                        <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+
                     </div>
                     {plant.image && <img src={plant.image} alt="Previsualización" className="rounded-lg object-cover w-full h-28" />}
 
@@ -218,11 +207,6 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    <CameraCaptureDialog 
-        isOpen={isCameraOpen} 
-        setIsOpen={setIsCameraOpen}
-        onPhotoCaptured={handlePhotoCaptured}
-    />
     </>
   );
 });

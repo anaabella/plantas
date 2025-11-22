@@ -35,7 +35,6 @@ import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { CameraCaptureDialog } from './camera-capture-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -260,7 +259,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
   
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
@@ -407,9 +405,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
   };
   
-  const handlePhotoCaptured = (photoDataUri: string) => {
+  const handlePhotoAdd = (photoDataUri: string) => {
     handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: photoDataUri});
-    setIsCameraOpen(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -563,13 +560,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                 </TabsContent>
                 <TabsContent value="gallery" className='p-1'>
                     <div className="flex gap-2 mb-4">
-                        <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
                         <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                            <Upload className="mr-2 h-4 w-4" /> Subir
+                            <Camera className="mr-2 h-4 w-4" /> Añadir Foto
                         </Button>
-                        <Button variant="outline" size="sm" className="w-full" onClick={() => setIsCameraOpen(true)}>
-                            <Camera className="mr-2 h-4 w-4" /> Capturar
-                        </Button>
+                        <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         {galleryImages.map((image, index) => (
@@ -636,11 +630,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         
       </DialogContent>
     </Dialog>
-    <CameraCaptureDialog 
-        isOpen={isCameraOpen} 
-        setIsOpen={setIsCameraOpen}
-        onPhotoCaptured={handlePhotoCaptured}
-    />
     <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
