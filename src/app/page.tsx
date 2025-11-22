@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
-  Calendar as CalendarIcon, Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
+  Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2
 } from 'lucide-react';
 import NextImage from 'next/image';
@@ -41,7 +41,6 @@ import { AddPlantDialog } from '@/components/add-plant-dialog';
 import { EditPlantDialog } from '@/components/edit-plant-dialog';
 import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
-import { CalendarDialog } from '@/components/calendar-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
@@ -109,6 +108,9 @@ export default function GardenApp() {
   const [isCommunityLoading, setIsCommunityLoading] = useState(true);
   
   const [view, setView] = useState<View>('my-plants');
+  
+  // State for debouncing search
+  const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
@@ -125,8 +127,19 @@ export default function GardenApp() {
   const [selectedWishlistItem, setSelectedWishlistItem] = useState<WishlistItem | null>(null);
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+
+  // Debounce effect for search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(inputValue);
+    }, 300); // 300ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue]);
+
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -427,7 +440,6 @@ export default function GardenApp() {
         onLogout={handleLogout}
         onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
         onOpenWishlist={() => setView('wishlist')}
-        onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenStats={() => setIsStatsOpen(true)}
         isUserLoading={isUserLoading}
       />
@@ -438,8 +450,8 @@ export default function GardenApp() {
             <Input
               placeholder={`Buscar en ${view === 'my-plants' ? 'mis plantas' : view === 'wishlist' ? 'mi lista de deseos' : 'la comunidad'}...`}
               className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
             />
           </div>
         </div>
@@ -510,11 +522,6 @@ export default function GardenApp() {
           onDelete={handleDeleteWishlistItem}
         />
       )}
-      <CalendarDialog
-        isOpen={isCalendarOpen}
-        setIsOpen={setIsCalendarOpen}
-        plants={plants}
-      />
       <StatsDialog
         isOpen={isStatsOpen}
         setIsOpen={setIsStatsOpen}
@@ -525,7 +532,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenCalendar, onOpenStats, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenStats, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -566,7 +573,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarIcon className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
@@ -865,5 +871,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-    
