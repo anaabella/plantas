@@ -10,8 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import type { Plant } from '@/app/page';
-import { Leaf, Heart, HeartCrack, DollarSign, Gift, ArrowRightLeft, Sun, Home, Package, Sprout, Scissors, Circle, TrendingUp } from 'lucide-react';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import { Leaf, Heart, HeartCrack, DollarSign } from 'lucide-react';
+import { BarChart, ResponsiveContainer, XAxis, YAxis, Bar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { ScrollArea } from './ui/scroll-area';
@@ -79,7 +79,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
             <DialogDescription>Un resumen visual de tu colección de plantas.</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh] pr-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 py-4">
             <StatCard icon={Leaf} label="Plantas Totales" value={stats.total} color="bg-green-500" />
             <StatCard icon={Heart} label="Vivas" value={stats.alive} color="bg-blue-500" />
             <StatCard icon={HeartCrack} label="Fallecidas" value={stats.deceased} color="bg-red-500" />
@@ -91,7 +91,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
             />
           </div>
 
-          <div className='grid md:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <Card>
                   <CardHeader>
                       <CardTitle>Estado de las Plantas</CardTitle>
@@ -102,7 +102,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
                               <BarChart data={stats.statusData} layout="vertical" margin={{ left: 20 }}>
                                   <XAxis type="number" hide />
                                   <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                                  <Tooltip
+                                  <ChartTooltip
                                       cursor={{ fill: 'hsl(var(--muted))' }}
                                       content={<ChartTooltipContent hideLabel />}
                                   />
@@ -122,7 +122,7 @@ export function StatsDialog({ isOpen, setIsOpen, plants }: any) {
                               <BarChart data={stats.acquisitionData} layout="vertical" margin={{ left: 20 }}>
                                   <XAxis type="number" hide />
                                   <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                                  <Tooltip
+                                  <ChartTooltip
                                       cursor={{ fill: 'hsl(var(--muted))' }}
                                       content={<ChartTooltipContent hideLabel />}
                                   />
