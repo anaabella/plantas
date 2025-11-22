@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -41,6 +41,8 @@ import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from './ui/label';
+import { Separator } from './ui/separator';
 
 
 // Función para comprimir imágenes
@@ -72,7 +74,6 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
             
-            // Comprimir a JPEG con calidad 0.7
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             callback(dataUrl);
         };
@@ -89,7 +90,6 @@ interface QuickEventButtonProps extends ButtonProps {
   children: React.ReactNode;
 }
 
-// Componente para los botones de eventos rápidos con menú contextual
 const QuickEventButton = ({
   eventType,
   plantEvents,
@@ -156,21 +156,23 @@ const QuickEventButton = ({
   );
 };
 
-const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
+const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
     <div className="space-y-1">
       <label className="text-sm font-medium text-muted-foreground">{label}</label>
       <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
     </div>
-  );
+));
+InputGroup.displayName = 'InputGroup';
   
-const TextareaGroup = ({ label, value, onChange, placeholder }: any) => (
+const TextareaGroup = memo(({ label, value, onChange, placeholder }: any) => (
 <div className="space-y-1">
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Textarea value={value || ''} onChange={onChange} placeholder={placeholder} />
 </div>
-);
+));
+TextareaGroup.displayName = 'TextareaGroup';
 
-const SelectGroup = ({ label, value, onValueChange, options }: any) => (
+const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
     <div className="space-y-1">
         <label className="text-sm font-medium text-muted-foreground">{label}</label>
         <Select value={value} onValueChange={onValueChange}>
@@ -184,7 +186,72 @@ const SelectGroup = ({ label, value, onValueChange, options }: any) => (
         </SelectContent>
         </Select>
     </div>
-);
+));
+SelectGroup.displayName = 'SelectGroup';
+
+const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
+    const [newAttemptData, setNewAttemptData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        startType: plant.startType,
+        location: plant.location,
+        acquisitionType: 'regalo' as Plant['acquisitionType'],
+        price: '',
+        giftFrom: '',
+        exchangeSource: '',
+        rescuedFrom: '',
+        notes: '',
+    });
+
+    const handleChange = (field: string, value: any) => {
+        setNewAttemptData(prev => ({...prev, [field]: value}));
+    };
+
+    const handleConfirm = () => {
+        onSave(newAttemptData);
+        setIsOpen(false);
+    }
+    
+    const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
+    const locationOptions: Plant['location'][] = ['interior', 'exterior'];
+    const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
+
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¡Una Nueva Oportunidad!</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Define los detalles para este nuevo comienzo. Los datos del intento anterior se guardarán como una nota.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <ScrollArea className="max-h-[60vh] p-4">
+                    <div className="space-y-4">
+                        <InputGroup label="Fecha del Nuevo Intento" type="date" value={newAttemptData.date} onChange={(e:any) => handleChange('date', e.target.value)} />
+                        <SelectGroup label="Nuevo Comienzo como" value={newAttemptData.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                        <SelectGroup label="Nueva Ubicación" value={newAttemptData.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <SelectGroup label="Tipo de Adquisición" value={newAttemptData.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
+                            <div className='self-end'>
+                                {newAttemptData.acquisitionType === 'compra' && <InputGroup label="Precio" value={newAttemptData.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                                {newAttemptData.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={newAttemptData.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                                {newAttemptData.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={newAttemptData.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                                {newAttemptData.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={newAttemptData.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                            </div>
+                        </div>
+
+                        <TextareaGroup label="Notas sobre el nuevo intento" value={newAttemptData.notes} onChange={(e:any) => handleChange('notes', e.target.value)} placeholder="Ej: Esqueje de la planta madre..." />
+                    </div>
+                </ScrollArea>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm}>Confirmar y Guardar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
 
 
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
@@ -198,6 +265,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
+
+  const [isNewAttemptOpen, setIsNewAttemptOpen] = useState(false);
   
   useEffect(() => {
     setEditedPlant(plant);
@@ -215,15 +284,18 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleSave = () => {
     onSave(plant.id, editedPlant);
   };
+
+  const currentAttempt = useMemo(() => {
+    return (editedPlant.events || []).reduce((max: number, event: PlantEvent) => Math.max(max, event.attempt || 1), 0) || 1;
+  }, [editedPlant.events]);
   
-  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
+  const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note' | 'attempt'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
     if (!firestore || !user || !editedPlant) return;
     
     const eventNote = event.type === 'foto' ? "Se añadió una nueva foto" : (event.note || '');
-    const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote };
+    const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote, attempt: currentAttempt };
     
     let updatedEvents = [...(editedPlant.events || []), newEvent];
-    // Sort events after adding to make sure they are in order
     updatedEvents = updatedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     const plantRef = doc(firestore, 'plants', editedPlant.id);
@@ -232,13 +304,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (event.type === 'riego') {
         updatePayload.lastWatered = event.date;
     }
+    if (event.type === 'esqueje') {
+        toast({ title: '¡Nuevo esqueje registrado!' });
+    }
     if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
-        updatePayload.image = event.imageData; // Update main image to the latest one
-        // Add image to gallery structure
-        const newGalleryEntry = { imageUrl: event.imageData, date: event.date };
+        updatePayload.image = event.imageData;
+        const newGalleryEntry = { imageUrl: event.imageData, date: event.date, attempt: currentAttempt };
         const currentGallery = editedPlant.gallery || [];
-        // Prevent duplicates
         if (!currentGallery.some(g => g.imageUrl === newGalleryEntry.imageUrl)) {
             updatePayload.gallery = [newGalleryEntry, ...currentGallery];
         }
@@ -250,6 +323,66 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 
     await updateDoc(plantRef, updatePayload);
     setEditedPlant({ ...editedPlant, ...updatePayload });
+  };
+
+  const handleStatusChangeEvent = (status: Plant['status'], note: string) => {
+      const eventType = status === 'fallecida' ? 'fallecida' : 'nota';
+      handleAddEvent({ type: eventType, date: new Date().toISOString().split('T')[0], note }, status);
+  }
+
+  const handleConfirmNewAttempt = async (newAttemptData: any) => {
+    if (!firestore || !user || !editedPlant) return;
+
+    const nextAttempt = currentAttempt + 1;
+    
+    const previousAttemptSummary = `
+      Intento anterior (#${currentAttempt}):
+      - Duró desde: ${format(parseISO(editedPlant.date), 'dd/MM/yyyy')} hasta ${format(new Date(), 'dd/MM/yyyy')}
+      - Empezó como: ${editedPlant.startType}
+      - Ubicación: ${editedPlant.location}
+      - Adquisición: ${editedPlant.acquisitionType} (${
+          editedPlant.acquisitionType === 'compra' ? `$${editedPlant.price}`
+          : editedPlant.acquisitionType === 'regalo' ? `de ${editedPlant.giftFrom}`
+          : editedPlant.acquisitionType === 'intercambio' ? `por ${editedPlant.exchangeSource}`
+          : `de ${editedPlant.rescuedFrom}`
+      })
+      - Notas: ${editedPlant.notes || 'Ninguna'}
+    `;
+
+    const deathEvent: PlantEvent = {
+        id: `${new Date().getTime()}-death`,
+        type: 'fallecida',
+        date: new Date().toISOString().split('T')[0],
+        note: `Fin del intento #${currentAttempt}. ${newAttemptData.notes || ''}`,
+        attempt: currentAttempt
+    };
+    
+    const revivalEvent: PlantEvent = {
+        id: `${new Date().getTime()}-revive`,
+        type: 'revivida',
+        date: newAttemptData.date,
+        note: `Inicio del intento #${nextAttempt}. ${newAttemptData.notes || ''}`,
+        attempt: nextAttempt
+    };
+    
+    const updatedEvents = [...(editedPlant.events || []), deathEvent, revivalEvent]
+        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const updatePayload: Partial<Plant> = {
+        status: 'viva',
+        date: newAttemptData.date,
+        startType: newAttemptData.startType,
+        location: newAttemptData.location,
+        acquisitionType: newAttemptData.acquisitionType,
+        price: newAttemptData.price,
+        giftFrom: newAttemptData.giftFrom,
+        exchangeSource: newAttemptData.exchangeSource,
+        rescuedFrom: newAttemptData.rescuedFrom,
+        notes: previousAttemptSummary, // Save old data here
+        events: updatedEvents,
+    };
+    
+    await onSave(plant.id, updatePayload);
   };
   
   const handleRemoveEvent = async (eventId: string) => {
@@ -268,14 +401,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         case 'transplante': note = "Movida a una maceta más grande."; break;
         case 'fertilizante': note = "Nutrientes añadidos."; break;
         case 'plaga': note = "Se detectó y trató una plaga."; break;
+        case 'esqueje': note = "Se ha tomado un esqueje de la planta."; break;
         default: note = "Evento registrado."; break;
     }
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
   };
-
-  const handleStatusChange = (status: Plant['status'], note: string) => {
-      handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note }, status);
-  }
   
   const handlePhotoCaptured = (photoDataUri: string) => {
     handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: photoDataUri});
@@ -291,22 +421,23 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
   };
 
-  const galleryImages = useMemo(() => {
-    if (!editedPlant) return [];
+  const getGalleryImages = (plant: Plant | null) => {
+    if (!plant) return [];
     
-    let allImages = [...(editedPlant.gallery || [])];
+    let allImages = [...(plant.gallery || [])];
 
     if (allImages.length === 0) {
-        const eventPhotos = (editedPlant.events || [])
+        const eventPhotos = (plant.events || [])
             .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date }));
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
         allImages.push(...eventPhotos);
     }
 
-    if (editedPlant.image && !allImages.some(img => img.imageUrl === editedPlant.image)) {
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
-            imageUrl: editedPlant.image, 
-            date: editedPlant.lastPhotoUpdate || editedPlant.createdAt?.toDate()?.toISOString() || editedPlant.date 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
     
@@ -314,7 +445,21 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [editedPlant]);
+  };
+
+  const galleryImages = useMemo(() => getGalleryImages(editedPlant), [editedPlant]);
+
+  const eventsByAttempt = useMemo(() => {
+    const grouped: { [attempt: number]: PlantEvent[] } = {};
+    (editedPlant.events || []).forEach((event: PlantEvent) => {
+        const attempt = event.attempt || 1;
+        if (!grouped[attempt]) {
+            grouped[attempt] = [];
+        }
+        grouped[attempt].push(event);
+    });
+    return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a));
+  }, [editedPlant.events]);
 
 
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
@@ -330,6 +475,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     plaga: <Bug className="h-4 w-4 text-red-500" />,
     fertilizante: <Beaker className="h-4 w-4 text-green-500" />,
     nota: <History className="h-4 w-4 text-yellow-500" />,
+    revivida: <Plus className="h-4 w-4 text-green-500" />,
+    fallecida: <Skull className="h-4 w-4 text-red-500" />,
+    esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
   };
   
   if (!editedPlant) return null;
@@ -359,44 +507,58 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
                         <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
                         <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
+                        <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Sprout className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
                         
-                        <Button variant="outline" size="sm" onClick={() => handleAddEvent({type: 'nota', date: new Date().toISOString().split('T')[0], note: 'Se intercambió un gajo'})}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié gajo</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChange('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleStatusChange('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
+                        <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
                     </div>
-                    <div className="space-y-3">
-                        {editedPlant.events?.map((event: PlantEvent) => (
-                            <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
-                                <div className="flex items-start gap-3">
-                                    {eventIcons[event.type]}
-                                    <div>
-                                        <p className="font-semibold capitalize">{event.type}</p>
-                                        <p className="text-sm text-muted-foreground">{event.note}</p>
-                                        <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
+
+                    <div className="space-y-6">
+                        {eventsByAttempt.length > 0 ? (
+                            eventsByAttempt.map(([attempt, events]) => (
+                                <div key={`attempt-${attempt}`}>
+                                    <div className="flex items-center mb-2">
+                                        <Separator className="flex-grow" />
+                                        <h4 className="px-4 text-sm font-semibold text-muted-foreground">{attempt}º Intento</h4>
+                                        <Separator className="flex-grow" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        {events.map((event: PlantEvent) => (
+                                            <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
+                                                <div className="flex items-start gap-3">
+                                                    {eventIcons[event.type]}
+                                                    <div>
+                                                        <p className="font-semibold capitalize">{event.type}</p>
+                                                        <p className="text-sm text-muted-foreground">{event.note}</p>
+                                                        <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
+                                                    </div>
+                                                </div>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
+                                                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Esta acción no se puede deshacer.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        ))}
-                        {(!editedPlant.events || editedPlant.events?.length === 0) && <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>}
+                            ))
+                        ) : (
+                            <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>
+                        )}
                     </div>
                 </TabsContent>
                 <TabsContent value="gallery" className='p-1'>
@@ -422,23 +584,31 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                     {galleryImages.length === 0 && <p className="text-sm text-center text-muted-foreground py-8">No hay fotos en la galería.</p>}
                 </TabsContent>
                 <TabsContent value="edit" className='p-1'>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
-                        <div className="space-y-4">
-                            <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                    <div className="space-y-4 p-1">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                           <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
+                             <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
-                            {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                            {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                            {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                            {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
-                            <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+                            <div className='self-end'>
+                                {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
+                                {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
+                                {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
+                                {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                            </div>
                         </div>
-                        <div className="space-y-4">
-                            <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
-                            <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
-                            <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
-                            {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                           <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
                         </div>
+                         {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+
+                        <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                     </div>
                      <div className="mt-6 flex justify-between items-center">
                         <AlertDialog>
@@ -476,7 +646,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         setIsOpen={setIsImageDetailOpen}
         images={galleryImages}
         startIndex={imageDetailStartIndex}
+        plant={plant}
     />
+     <NewAttemptDialog 
+        isOpen={isNewAttemptOpen}
+        setIsOpen={setIsNewAttemptOpen}
+        plant={plant}
+        onSave={handleConfirmNewAttempt}
+     />
     </>
   );
 });

@@ -12,8 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout } from 'lucide-react';
+import { format, parseISO, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -26,6 +26,7 @@ interface PlantDetailDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onUpdatePlant: (id: string, updatedData: Partial<Plant>) => void;
+  onClonePlant: (plant: Plant) => void;
   isCommunityView?: boolean;
 }
 
@@ -37,7 +38,7 @@ const acquisitionIcons:any = {
 };
 
 const startIcons: { [key in Plant['startType']]: React.ReactElement } = {
-    planta: <Sun className="h-5 w-5" />,
+    planta: <Sprout className="h-5 w-5" />,
     gajo: <Scissors className="h-5 w-5" />,
     raiz: <Package className="h-5 w-5" />,
     semilla: <Home className="h-5 w-5" />,
@@ -57,7 +58,7 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
   );
 }
 
-export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView }: PlantDetailDialogProps) {
+export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView, onClonePlant }: PlantDetailDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
@@ -68,35 +69,33 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
     setIsImageDetailOpen(true);
   };
 
-  const galleryImages = useMemo(() => {
+  const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
     
-    // Use the dedicated gallery field first
     let allImages = [...(plant.gallery || [])];
 
-    // Fallback to old event-based photos if gallery is empty
     if (allImages.length === 0) {
         const eventPhotos = (plant.events || [])
             .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date }));
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
         allImages.push(...eventPhotos);
     }
 
-    // Include the main image if it's not already in the gallery
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
     
-    // Create a Set to remove duplicates by imageUrl, then convert back to array
     const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
-    // Sort by date, most recent first
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [plant]);
+  };
+
+  const galleryImages = useMemo(() => getGalleryImages(plant) , [plant]);
 
   if (!plant) return null;
 
@@ -107,15 +106,17 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
       const reader = new FileReader();
       reader.onloadend = async () => {
         const imageUrl = reader.result as string;
+        const currentAttempt = (plant.events || []).reduce((max, event) => Math.max(max, event.attempt || 1), 1);
         const newEvent = {
           id: new Date().getTime().toString(),
           type: 'foto' as const,
           date: new Date().toISOString(),
           note: "Se añadió una nueva foto",
+          attempt: currentAttempt,
         };
         const updatedEvents = [...(plant.events || []), newEvent];
         
-        const newGalleryEntry = { imageUrl: imageUrl, date: newEvent.date };
+        const newGalleryEntry = { imageUrl: imageUrl, date: newEvent.date, attempt: newEvent.attempt };
         const currentGallery = plant.gallery || [];
         const updatedGallery = [newGalleryEntry, ...currentGallery];
 
@@ -202,7 +203,13 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                 </div>
             )}
              
-             {!isCommunityView && (
+             {isCommunityView ? (
+                <div className="pt-4">
+                    <Button className="w-full" onClick={() => onClonePlant(plant)}>
+                        <Copy className="mr-2 h-4 w-4" /> Yo la tengo
+                    </Button>
+                </div>
+             ) : (
                 <>
                     <Separator className="my-4" />
                     <div className="space-y-4">
@@ -236,7 +243,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           </div>
         </div>
 
-        <DialogFooter className="col-span-1 md:col-span-2">
+        <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
@@ -246,6 +253,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         setIsOpen={setIsImageDetailOpen}
         images={galleryImages}
         startIndex={imageDetailStartIndex}
+        plant={plant}
     />
     </>
   );

@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
-  Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2
+  HeartCrack, Leaf, Moon, Sun,
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch, orderBy } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
@@ -43,18 +43,23 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
+import { cn } from '@/lib/utils';
+import { ImageDetailDialog } from '@/components/image-detail-dialog';
+import { CalendarDialog } from '@/components/calendar-dialog';
+import Link from 'next/link';
+
 
 // Tipos
 export type Plant = {
   id: string;
   name: string;
+  type?: string;
   date: string; // ISO date string
   status: 'viva' | 'fallecida' | 'intercambiada';
   lastWatered?: string;
@@ -79,9 +84,10 @@ export type Plant = {
 
 export type PlantEvent = {
   id: string;
-  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota';
+  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida' | 'esqueje';
   date: string; // ISO date string
   note: string;
+  attempt: number;
 };
 
 export type WishlistItem = {
@@ -128,6 +134,11 @@ export default function GardenApp() {
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
+  
+  const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
+  const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
   // Debounce effect for search
   useEffect(() => {
@@ -140,6 +151,27 @@ export default function GardenApp() {
     };
   }, [inputValue]);
 
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Small delay to not overwhelm the user on first load
+      const timer = setTimeout(() => {
+        setNotificationPromptOpen(true);
+      }, 5000); 
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleRequestNotificationPermission = () => {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        toast({ title: "¡Gracias!", description: "Recibirás recordatorios útiles." });
+      } else {
+        toast({ variant: 'destructive', title: "Lástima", description: "Te pierdes de los recordatorios automáticos." });
+      }
+      setNotificationPromptOpen(false);
+    });
+  };
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -156,7 +188,12 @@ export default function GardenApp() {
     setIsLoading(true);
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-      userPlants.sort((a, b) => a.name.localeCompare(b.name));
+      // Sort plants: alive first, then by name
+      userPlants.sort((a, b) => {
+          if (a.status === 'viva' && b.status !== 'viva') return -1;
+          if (a.status !== 'viva' && b.status === 'viva') return 1;
+          return a.name.localeCompare(b.name);
+      });
       setPlants(userPlants);
       setIsLoading(false);
     }, error => {
@@ -168,9 +205,11 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Excluye las plantas del usuario actual de la vista de comunidad
-    return user ? query(collection(firestore, 'plants'), where('ownerId', '!=', user.uid)) : query(collection(firestore, 'plants'));
-  }, [firestore, user]);
+    return query(
+      collection(firestore, 'plants'),
+      orderBy("createdAt", "desc")
+    );
+  }, [firestore]);
 
   useEffect(() => {
     if (!communityPlantsQuery) {
@@ -180,8 +219,16 @@ export default function GardenApp() {
     }
     setIsCommunityLoading(true);
     const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
-      const allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-      allPlants.sort((a, b) => a.name.localeCompare(b.name));
+      let allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
+      
+      // Client-side filtering for status, name, and owner
+      allPlants = allPlants.filter(plant => {
+        const isAlive = plant.status === 'viva';
+        const hasName = !!plant.name && plant.name.trim() !== '';
+        const isNotOwnPlant = user ? plant.ownerId !== user.uid : true;
+        return isAlive && hasName && isNotOwnPlant;
+      });
+
       setCommunityPlants(allPlants);
       setIsCommunityLoading(false);
     }, error => {
@@ -189,7 +236,7 @@ export default function GardenApp() {
       setIsCommunityLoading(false);
     });
     return () => unsubscribe();
-  }, [communityPlantsQuery]);
+  }, [communityPlantsQuery, user]); // Add user to dependency array for re-filtering on login/logout
 
   const wishlistQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -247,29 +294,36 @@ export default function GardenApp() {
   };
 
   // -- Plant Handlers --
-  const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId'>) => {
+  const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'events'>) => {
     if (!user || !firestore) return;
     try {
-      const plantDataWithGallery = {
-        ...newPlantData,
-        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
+      const initialEvent: PlantEvent = {
+        id: new Date().getTime().toString(),
+        type: 'nota',
+        date: newPlantData.date,
+        note: `La planta fue adquirida.`,
+        attempt: 1,
       };
 
-      await addDoc(collection(firestore, 'plants'), {
-        ...plantDataWithGallery,
+      const plantDataWithMeta = {
+        ...newPlantData,
+        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
         createdAt: serverTimestamp(),
-      });
+        events: [initialEvent],
+      };
+
+      await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       toast({ title: "¡Planta añadida!", description: `${newPlantData.name} se ha unido a tu jardín.` });
       
-      // If added from wishlist, remove from wishlist
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
-        setPlantToAddFromWishlist(null);
       }
+      setPlantToAddFromWishlist(null);
       setIsAddDialogOpen(false);
+      setIsDetailOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo añadir la planta: ${error.message}` });
@@ -284,8 +338,7 @@ export default function GardenApp() {
       toast({ title: "Planta actualizada", description: "Los cambios se han guardado." });
       setIsEditDialogOpen(false);
       setEditingPlant(null);
-       // Also update the selected plant if it's the one being edited, to reflect changes in detail view
-      if (selectedPlant && selectedPlant.id === plantId) {
+       if (selectedPlant && selectedPlant.id === plantId) {
         setSelectedPlant(prev => prev ? { ...prev, ...updatedData } : null);
       }
     } catch (error: any) {
@@ -307,6 +360,20 @@ export default function GardenApp() {
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar la planta: ${error.message}` });
     }
   };
+  
+  const handleClonePlant = useCallback((plant: Plant) => {
+    if (!user) {
+        toast({ variant: "destructive", title: "Necesitas iniciar sesión", description: "Inicia sesión para añadir plantas a tu colección." });
+        return;
+    }
+    setPlantToAddFromWishlist({
+      name: plant.name,
+      type: plant.type,
+      image: plant.image,
+    });
+    setIsDetailOpen(false); // Close detail view
+    setTimeout(() => setIsAddDialogOpen(true), 150); // Short delay to allow dialog transition
+  }, [user, toast]);
 
   // -- Wishlist Handlers --
   const handleSaveWishlistItem = async (itemData: Omit<WishlistItem, 'id'>, id?: string) => {
@@ -401,11 +468,44 @@ export default function GardenApp() {
     setIsWishlistDetailOpen(true);
   };
   
+  const getGalleryImages = (plant: Plant | null) => {
+    if (!plant) return [];
+    
+    let allImages = [...(plant.gallery || [])];
+
+    // This logic seems redundant if gallery is being populated correctly. Keep for backwards compatibility.
+    if (allImages.length === 0) {
+        const eventPhotos = (plant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+        allImages.push(...eventPhotos);
+    }
+
+    // Also include the main plant image if it's not already in the gallery
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
+        allImages.push({ 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
+        });
+    }
+    
+    // Create a unique set of images based on URL
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    // Sort images by date, newest first
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+  
   // -- Computed Data --
   const filteredPlants = useMemo(() => {
     const source = view === 'my-plants' ? plants : communityPlants;
     if (!searchTerm) return source;
-    return source.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return source.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.type?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [plants, communityPlants, view, searchTerm]);
   
   const filteredWishlist = useMemo(() => {
@@ -413,21 +513,46 @@ export default function GardenApp() {
     return wishlist.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [wishlist, searchTerm]);
 
-  const plantsNeedingAttention = useMemo(() => {
-    const today = new Date();
-    return plants
-        .filter(plant => plant.status === 'viva')
-        .map(plant => {
-            const needsWatering = !plant.lastWatered || differenceInDays(today, new Date(plant.lastWatered)) > 7;
-            const needsPhoto = !plant.lastPhotoUpdate || differenceInDays(today, new Date(plant.lastPhotoUpdate)) > 30;
-            return { plant, needsWatering, needsPhoto };
-        })
-        .filter(item => item.needsWatering || item.needsPhoto);
-  }, [plants]);
-
   const wishlistPlantIds = useMemo(() => {
       return new Set(wishlist.map(item => item.plantId));
   }, [wishlist]);
+  
+  const plantRenderData = useMemo(() => {
+    const typeCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+    const attemptCounts: { [plantId: string]: number } = {};
+    const offspringCounts: { [plantId: string]: number } = {};
+
+    plants.forEach(plant => {
+        const events = plant.events || [];
+        // Count attempts
+        const maxAttempt = events.reduce((max, event) => Math.max(max, event.attempt || 1), 0);
+        attemptCounts[plant.id] = maxAttempt;
+
+        // Count offspring
+        offspringCounts[plant.id] = events.filter(e => e.type === 'esqueje').length;
+
+        // Count type duplicates
+        if (plant.type) {
+            const typeKey = plant.type.toLowerCase();
+            if (!typeCounts[typeKey]) {
+                typeCounts[typeKey] = { total: 0, indices: {} };
+            }
+            typeCounts[typeKey].total++;
+        }
+    });
+    
+    Object.keys(typeCounts).forEach(typeKey => {
+        if (typeCounts[typeKey].total > 1) {
+            let index = 1;
+            plants.filter(p => p.type?.toLowerCase() === typeKey).forEach(p => {
+                typeCounts[typeKey].indices[p.id] = index++;
+            });
+        }
+    });
+
+    return { typeCounts, attemptCounts, offspringCounts };
+  }, [plants]);
+
 
   // -- Main Render --
   return (
@@ -441,7 +566,9 @@ export default function GardenApp() {
         onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
         onOpenWishlist={() => setView('wishlist')}
         onOpenStats={() => setIsStatsOpen(true)}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
         isUserLoading={isUserLoading}
+        onOpenWishlist={() => setView('wishlist')}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -456,12 +583,14 @@ export default function GardenApp() {
           </div>
         </div>
         
-        {view === 'my-plants' && plantsNeedingAttention.length > 0 && (
-            <AttentionSection plantsNeedingAttention={plantsNeedingAttention} onPlantClick={openPlantEditor} />
-        )}
-
         {view === 'my-plants' && (
-          <PlantsGrid plants={filteredPlants} onPlantClick={openPlantEditor} isLoading={isLoading} onDeletePlant={handleDeletePlant} />
+          <PlantsGrid 
+              plants={filteredPlants} 
+              onPlantClick={openPlantEditor} 
+              isLoading={isLoading} 
+              onDeletePlant={handleDeletePlant} 
+              plantRenderData={plantRenderData}
+          />
         )}
         {view === 'community' && (
           <PlantsGrid
@@ -472,6 +601,11 @@ export default function GardenApp() {
             onToggleWishlist={handleToggleWishlist}
             wishlistPlantIds={wishlistPlantIds}
             user={user}
+            onOpenImageDetail={(plant, index) => {
+              setSelectedPlant(plant);
+              setImageDetailStartIndex(index);
+              setIsImageDetailOpen(true);
+            }}
           />
         )}
         {view === 'wishlist' && (
@@ -482,6 +616,25 @@ export default function GardenApp() {
           />
         )}
       </main>
+      
+       {isNotificationPromptOpen && (
+        <div className="fixed bottom-4 right-4 z-50">
+           <AlertDialog open={isNotificationPromptOpen} onOpenChange={setNotificationPromptOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Activar notificaciones?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Nos gustaría enviarte recordatorios para el cuidado de tus plantas. ¡No te preocupes, no te enviaremos spam!
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Ahora no</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRequestNotificationPermission}>Activar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
       
       {/* Dialogs */}
       <AddPlantDialog
@@ -503,8 +656,9 @@ export default function GardenApp() {
         plant={selectedPlant}
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
-        onUpdatePlant={(id:string, data:any) => handleUpdatePlant(id, data)}
-        isCommunityView={view === 'community'}
+        onUpdatePlant={handleUpdatePlant}
+        onClonePlant={handleClonePlant}
+        isCommunityView={true}
       />
       <WishlistFormDialog
         isOpen={isWishlistFormOpen}
@@ -527,6 +681,18 @@ export default function GardenApp() {
         setIsOpen={setIsStatsOpen}
         plants={plants}
       />
+      <CalendarDialog
+        isOpen={isCalendarOpen}
+        setIsOpen={setIsCalendarOpen}
+        plants={plants}
+      />
+      <ImageDetailDialog 
+        isOpen={isImageDetailOpen} 
+        setIsOpen={setIsImageDetailOpen}
+        images={getGalleryImages(selectedPlant)}
+        startIndex={imageDetailStartIndex}
+        plant={selectedPlant}
+    />
     </div>
   );
 }
@@ -537,40 +703,46 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
     <Button
-      variant={activeView === targetView ? "secondary" : "ghost"}
-      onClick={() => onViewChange(targetView)}
       className="flex items-center gap-2"
       {...props}
     >
       <Icon className="h-5 w-5" />
-      <span className="hidden sm:inline">{children}</span>
+      {children}
     </Button>
   );
+}
 
+
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
+  const { setTheme } = useTheme();
+  
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center px-4 sm:px-6 lg:px-8">
-        <div className="mr-4 flex items-center">
+        <Link href="/" className="mr-4 flex items-center">
           <Sprout className="h-6 w-6 text-primary" />
           <h1 className="ml-2 hidden font-headline text-xl font-bold sm:block">PlantPal</h1>
-        </div>
+        </Link>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
-          <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
-          {user && (
-            <Button variant="ghost" size="icon" onClick={onAddPlant} className="sm:hidden">
-              <Plus className="h-5 w-5" />
-            </Button>
-          )}
-           {user && (
-            <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
-              <Plus className="h-5 w-5 mr-2" />
-              <span className="hidden lg:inline">Añadir Planta</span>
-              <span className="sm:hidden lg:hidden">Añadir</span>
-            </Button>
-          )}
+           {user && <NavButton variant={view === 'my-plants' ? "secondary" : "ghost"} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
+          <NavButton variant={view === 'community' ? "secondary" : "ghost"} icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
         </nav>
+
+        <div className="flex items-center justify-end gap-1 sm:gap-2">
+           {user && (
+             <Button variant="outline" size="sm" onClick={onAddPlant}>
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Añadir Planta</span>
+            </Button>
+           )}
+          {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
+          {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
+          {user && (
+             <Button variant="ghost" size="icon" onClick={onOpenWishlist}>
+                <ListTodo className="h-5 w-5" />
+             </Button>
+          )}
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
@@ -625,58 +797,8 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
   );
 }
 
-// Attention Section
-function AttentionSection({ plantsNeedingAttention, onPlantClick }: any) {
-    return (
-        <div className="mb-8">
-            <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
-                <AlertCircle className="mr-2 h-6 w-6 text-yellow-500" />
-                Necesitan Atención
-            </h2>
-            <Carousel opts={{ align: "start", loop: false }} className="w-full">
-                <CarouselContent className="-ml-4">
-                    {plantsNeedingAttention.map(({ plant, needsWatering, needsPhoto }: any) => (
-                        <CarouselItem key={plant.id} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
-                            <div className="p-1">
-                                <div onClick={() => onPlantClick(plant)} className="cursor-pointer group">
-                                    <div className="relative overflow-hidden rounded-lg border">
-                                        <NextImage
-                                            src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                                            alt={plant.name}
-                                            width={400}
-                                            height={500}
-                                            className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                                            unoptimized={!plant.image}
-                                        />
-                                        <div className="absolute top-0 right-0 m-2 flex flex-col gap-2">
-                                            {needsWatering && (
-                                                <div className="p-2 rounded-full bg-blue-500/80 text-white" title="Necesita Riego">
-                                                    <Droplets className="h-5 w-5" />
-                                                </div>
-                                            )}
-                                            {needsPhoto && (
-                                                <div className="p-2 rounded-full bg-purple-500/80 text-white" title="Necesita Foto">
-                                                    <Camera className="h-5 w-5" />
-                                                </div>
-                                            )}
-                                        </div>
-                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
-                                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-            </Carousel>
-            <Separator className="mt-8"/>
-        </div>
-    );
-}
-
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -712,12 +834,51 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     );
   }
 
+  const getGalleryImages = (plant: Plant) => {
+    if (!plant) return [];
+    
+    let allImages = [...(plant.gallery || [])];
+
+    if (allImages.length === 0) {
+        const eventPhotos = (plant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+        allImages.push(...eventPhotos);
+    }
+
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
+        allImages.push({ 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
+        });
+    }
+    
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-      {plants.map((plant: Plant) => {
+      {plants.map((plant: Plant, index: number) => {
         const isInWishlist = wishlistPlantIds?.has(plant.id);
+        
+        let duplicateIndex = 0;
+        if (!isCommunity && plant.type && plantRenderData.typeCounts[plant.type.toLowerCase()]?.total > 1) {
+            duplicateIndex = plantRenderData.typeCounts[plant.type.toLowerCase()].indices[plant.id];
+        }
+
+        const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
+        const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
+        const galleryImages = getGalleryImages(plant);
+
         const cardContent = (
-          <div className="group">
+           <div
+              className="group animation-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
                 <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
@@ -738,13 +899,13 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                 )}
                 {isCommunity && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <div className='flex items-center gap-2 flex-grow min-w-0'>
+                     <div className='flex items-center gap-2 flex-grow min-w-0' onClick={(e) => e.stopPropagation()}>
                         <Avatar className="h-8 w-8 border-2 border-background">
                            <AvatarImage src={plant.ownerPhotoURL} />
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className='min-w-0'>
-                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate">{plant.name}</h3>
+                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate group-hover:underline">{plant.name}</h3>
                             <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
                         </div>
                      </div>
@@ -768,7 +929,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             <div className="flex items-center gap-2 capitalize">
                                 {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
                                 <span>
-                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
+                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : 
+                                     plant.acquisitionType === 'regalo' && plant.giftFrom ? `Regalo de ${plant.giftFrom}` :
+                                     plant.acquisitionType}
                                 </span>
                             </div>
                              <div className="flex items-center gap-2 capitalize">
@@ -776,8 +939,11 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                                 <span>{plant.startType}</span>
                             </div>
                         </div>
-                        <div className='mt-2'>
-                            <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
+                        <div className='mt-2 flex flex-wrap gap-1'>
+                            {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
+                            {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
+                            {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
+                            {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
                     </>
                   ) : null }
