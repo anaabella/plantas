@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   Droplets, Camera, HeartCrack, Leaf, AlertCircle, Moon, Sun, Monitor,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
+import { cn } from '@/lib/utils';
 
 // Tipos
 export type Plant = {
@@ -128,6 +129,7 @@ export default function GardenApp() {
   const [isWishlistDetailOpen, setIsWishlistDetailOpen] = useState(false);
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
 
   // Debounce effect for search
   useEffect(() => {
@@ -140,6 +142,27 @@ export default function GardenApp() {
     };
   }, [inputValue]);
 
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Small delay to not overwhelm the user on first load
+      const timer = setTimeout(() => {
+        setNotificationPromptOpen(true);
+      }, 5000); 
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleRequestNotificationPermission = () => {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        toast({ title: "¡Gracias!", description: "Recibirás recordatorios útiles." });
+      } else {
+        toast({ variant: 'destructive', title: "Lástima", description: "Te pierdes de los recordatorios automáticos." });
+      }
+      setNotificationPromptOpen(false);
+    });
+  };
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -267,9 +290,10 @@ export default function GardenApp() {
       // If added from wishlist, remove from wishlist
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
-        setPlantToAddFromWishlist(null);
       }
+      setPlantToAddFromWishlist(null); // Clear clone/wishlist state
       setIsAddDialogOpen(false);
+      setIsDetailOpen(false); // Close detail dialog if cloning
     } catch (error: any) {
       console.error("Error adding plant:", error);
       toast({ variant: "destructive", title: "Error", description: `No se pudo añadir la planta: ${error.message}` });
@@ -307,6 +331,19 @@ export default function GardenApp() {
       toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar la planta: ${error.message}` });
     }
   };
+  
+  const handleClonePlant = useCallback((plant: Plant) => {
+    if (!user) {
+        toast({ variant: "destructive", title: "Necesitas iniciar sesión", description: "Inicia sesión para añadir plantas a tu colección." });
+        return;
+    }
+    setPlantToAddFromWishlist({
+      name: plant.name,
+      image: plant.image,
+    });
+    setIsDetailOpen(false); // Close detail view
+    setTimeout(() => setIsAddDialogOpen(true), 150); // Short delay to allow dialog transition
+  }, [user, toast]);
 
   // -- Wishlist Handlers --
   const handleSaveWishlistItem = async (itemData: Omit<WishlistItem, 'id'>, id?: string) => {
@@ -482,6 +519,25 @@ export default function GardenApp() {
         )}
       </main>
       
+       {isNotificationPromptOpen && (
+        <div className="fixed bottom-4 right-4 z-50">
+           <AlertDialog open={isNotificationPromptOpen} onOpenChange={setNotificationPromptOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Activar notificaciones?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Nos gustaría enviarte recordatorios para el cuidado de tus plantas. ¡No te preocupes, no te enviaremos spam!
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Ahora no</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRequestNotificationPermission}>Activar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+      
       {/* Dialogs */}
       <AddPlantDialog
         isOpen={isAddDialogOpen}
@@ -502,7 +558,8 @@ export default function GardenApp() {
         plant={selectedPlant}
         isOpen={isDetailOpen}
         setIsOpen={setIsDetailOpen}
-        onUpdatePlant={(id:string, data:any) => handleUpdatePlant(id, data)}
+        onUpdatePlant={handleUpdatePlant}
+        onClonePlant={handleClonePlant}
         isCommunityView={view === 'community'}
       />
       <WishlistFormDialog
@@ -557,22 +614,16 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
           {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
           <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
-          {user && (
-            <Button variant="ghost" size="icon" onClick={onAddPlant} className="sm:hidden">
-              <Plus className="h-5 w-5" />
-            </Button>
-          )}
-           {user && (
-            <Button variant="outline" onClick={onAddPlant} className="hidden sm:flex">
-              <Plus className="h-5 w-5 mr-2" />
-              <span className="hidden lg:inline">Añadir Planta</span>
-              <span className="sm:hidden lg:hidden">Añadir</span>
-            </Button>
-          )}
+          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo}>Deseos</NavButton>}
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo}>Deseos</NavButton>}
+           {user && (
+            <Button variant="outline" size="sm" onClick={onAddPlant}>
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Añadir Planta</span>
+            </Button>
+          )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
@@ -714,10 +765,13 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-      {plants.map((plant: Plant) => {
+      {plants.map((plant: Plant, index: number) => {
         const isInWishlist = wishlistPlantIds?.has(plant.id);
         const cardContent = (
-          <div className="group">
+           <div
+              className="group animation-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
                 <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}

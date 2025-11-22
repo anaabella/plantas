@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
@@ -26,6 +26,7 @@ interface PlantDetailDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onUpdatePlant: (id: string, updatedData: Partial<Plant>) => void;
+  onClonePlant: (plant: Plant) => void;
   isCommunityView?: boolean;
 }
 
@@ -57,7 +58,7 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
   );
 }
 
-export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView }: PlantDetailDialogProps) {
+export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView, onClonePlant }: PlantDetailDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
@@ -202,7 +203,13 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                 </div>
             )}
              
-             {!isCommunityView && (
+             {isCommunityView ? (
+                <div className="pt-4">
+                    <Button className="w-full" onClick={() => onClonePlant(plant)}>
+                        <Copy className="mr-2 h-4 w-4" /> Yo la tengo
+                    </Button>
+                </div>
+             ) : (
                 <>
                     <Separator className="my-4" />
                     <div className="space-y-4">
