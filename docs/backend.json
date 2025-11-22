@@ -1,0 +1,131 @@
+
+{
+  "entities": {
+    "Plant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plant",
+      "type": "object",
+      "description": "Represents a plant owned by a user.",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the plant." },
+        "image": { "type": "string", "description": "URL of the image of the plant.", "format": "uri" },
+        "acquisitionType": { "type": "string", "enum": ["compra", "regalo", "intercambio", "rescatada"] },
+        "exchangeSource": { "type": "string", "description": "Reason for exchange if applicable." },
+        "price": { "type": "string", "description": "Price of the plant if purchased." },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["viva", "fallecida", "intercambiada"] },
+        "exchangeDest": { "type": "string", "description": "Destination of exchange if applicable." },
+        "startType": { "type": "string", "enum": ["planta", "gajo", "raiz", "semilla"] },
+        "location": { "type": "string", "enum": ["interior", "exterior"] },
+        "lastWatered": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "giftFrom": { "type": "string" },
+        "rescuedFrom": { "type": "string" },
+        "lastPhotoUpdate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["riego", "poda", "transplante", "foto", "plaga", "fertilizante", "nota"] },
+              "date": { "type": "string", "format": "date" },
+              "note": { "type": "string" }
+            },
+            "required": ["id", "type", "date"]
+          }
+        },
+        "gallery": {
+          "type": "array",
+          "description": "A gallery of photos of the plant over time.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "imageUrl": { "type": "string", "format": "uri" },
+              "date": { "type": "string", "format": "date-time" }
+            },
+            "required": ["imageUrl", "date"]
+          }
+        },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns the plant." },
+        "ownerName": { "type": "string", "description": "The name of the user who owns the plant." },
+        "ownerPhotoURL": { "type": "string", "description": "The photo URL of the user who owns the plant." }
+      },
+      "required": ["name", "date", "status", "createdAt", "ownerId"]
+    },
+    "WishlistItem": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "WishlistItem",
+        "type": "object",
+        "description": "Represents an item in the user's wishlist.",
+        "properties": {
+            "name": { "type": "string" },
+            "notes": { "type": "string" },
+            "image": { "type": "string", "format": "uri" }
+        },
+        "required": ["name"]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Accessible only by the authenticated user."
+        }
+      },
+      {
+        "path": "/plants/{plantId}",
+        "definition": {
+          "entityName": "Plant",
+          "schema": {
+            "$ref": "#/backend/entities/Plant"
+          },
+          "description": "Stores all plants from all users."
+        }
+      },
+      {
+        "path": "/users/{userId}/wishlist/{wishlistItemId}",
+        "definition": {
+          "entityName": "WishlistItem",
+          "schema": {
+            "$ref": "#/backend/entities/WishlistItem"
+          },
+          "description": "Stores wishlist items for a specific user."
+        }
+      }
+    ]
+  }
+}
