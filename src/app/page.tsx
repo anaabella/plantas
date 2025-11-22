@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -43,13 +43,14 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { WishlistDetailDialog } from '@/components/wishlist-detail-dialog';
 import { cn } from '@/lib/utils';
+import { ImageDetailDialog } from '@/components/image-detail-dialog';
 
 // Tipos
 export type Plant = {
@@ -80,7 +81,7 @@ export type Plant = {
 
 export type PlantEvent = {
   id: string;
-  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida';
+  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida' | 'esqueje';
   date: string; // ISO date string
   note: string;
   attempt: number;
@@ -131,6 +132,9 @@ export default function GardenApp() {
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isNotificationPromptOpen, setNotificationPromptOpen] = useState(false);
+  
+  const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
+  const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
   // Debounce effect for search
   useEffect(() => {
@@ -180,7 +184,12 @@ export default function GardenApp() {
     setIsLoading(true);
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-      userPlants.sort((a, b) => a.name.localeCompare(b.name));
+      // Sort plants: alive first, then by name
+      userPlants.sort((a, b) => {
+          if (a.status === 'viva' && b.status !== 'viva') return -1;
+          if (a.status !== 'viva' && b.status === 'viva') return 1;
+          return a.name.localeCompare(b.name);
+      });
       setPlants(userPlants);
       setIsLoading(false);
     }, error => {
@@ -444,6 +453,42 @@ export default function GardenApp() {
     setSelectedWishlistItem(item);
     setIsWishlistDetailOpen(true);
   };
+
+  const openCommunityImage = (plant: Plant) => {
+      setSelectedPlant(plant);
+      // We are only interested in the images, we can derive the rest
+      const galleryImages = getGalleryImages(plant);
+      if (galleryImages.length > 0) {
+        setImageDetailStartIndex(0);
+        setIsImageDetailOpen(true);
+      }
+  }
+  
+  const getGalleryImages = (plant: Plant | null) => {
+    if (!plant) return [];
+    
+    let allImages = [...(plant.gallery || [])];
+
+    if (allImages.length === 0) {
+        const eventPhotos = (plant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+        allImages.push(...eventPhotos);
+    }
+
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
+        allImages.push({ 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
+        });
+    }
+    
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
   
   // -- Computed Data --
   const filteredPlants = useMemo(() => {
@@ -467,11 +512,16 @@ export default function GardenApp() {
   const plantRenderData = useMemo(() => {
     const typeCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
     const attemptCounts: { [plantId: string]: number } = {};
+    const offspringCounts: { [plantId: string]: number } = {};
 
     plants.forEach(plant => {
+        const events = plant.events || [];
         // Count attempts
-        const maxAttempt = (plant.events || []).reduce((max, event) => Math.max(max, event.attempt || 1), 0);
+        const maxAttempt = events.reduce((max, event) => Math.max(max, event.attempt || 1), 0);
         attemptCounts[plant.id] = maxAttempt;
+
+        // Count offspring
+        offspringCounts[plant.id] = events.filter(e => e.type === 'esqueje').length;
 
         // Count type duplicates
         if (plant.type) {
@@ -492,7 +542,7 @@ export default function GardenApp() {
         }
     });
 
-    return { typeCounts, attemptCounts };
+    return { typeCounts, attemptCounts, offspringCounts };
   }, [plants]);
 
 
@@ -535,7 +585,7 @@ export default function GardenApp() {
         {view === 'community' && (
           <PlantsGrid
             plants={filteredPlants}
-            onPlantClick={openPlantDetails}
+            onPlantClick={openCommunityImage}
             isLoading={isCommunityLoading}
             isCommunity={true}
             onToggleWishlist={handleToggleWishlist}
@@ -616,6 +666,13 @@ export default function GardenApp() {
         setIsOpen={setIsStatsOpen}
         plants={plants}
       />
+      <ImageDetailDialog 
+        isOpen={isImageDetailOpen} 
+        setIsOpen={setIsImageDetailOpen}
+        images={getGalleryImages(selectedPlant)}
+        startIndex={imageDetailStartIndex}
+        plant={selectedPlant}
+    />
     </div>
   );
 }
@@ -628,7 +685,7 @@ const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: a
     {...props}
   >
     <Icon className="h-5 w-5" />
-    <span className="hidden sm:inline">{children}</span>
+    {children}
   </Button>
 );
 
@@ -644,18 +701,13 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </div>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf} onClick={() => onViewChange('my-plants')}>Mis Plantas</NavButton>}
-          <NavButton activeView={view} targetView="community" icon={Users} onClick={() => onViewChange('community')}>Comunidad</NavButton>
+          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
+          <NavButton activeView={view} targetView="community" icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
            {user && (
-            <Button variant="outline" size="sm" onClick={onAddPlant} className="flex sm:hidden">
-              <Plus className="h-4 w-4" />
-            </Button>
-           )}
-           {user && (
-             <Button variant="outline" size="sm" onClick={onAddPlant} className="hidden sm:flex">
+             <Button variant="outline" size="sm" onClick={onAddPlant}>
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
@@ -766,6 +818,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         }
 
         const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
+        const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
 
         const cardContent = (
            <div
@@ -833,10 +886,10 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
-                            <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
                             {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
+                            {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Baby className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
                     </>
                   ) : null }

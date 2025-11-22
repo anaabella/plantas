@@ -30,7 +30,7 @@
             "type": "object",
             "properties": {
               "id": { "type": "string" },
-              "type": { "type": "string", "enum": ["riego", "poda", "transplante", "foto", "plaga", "fertilizante", "nota", "revivida", "fallecida"] },
+              "type": { "type": "string", "enum": ["riego", "poda", "transplante", "foto", "plaga", "fertilizante", "nota", "revivida", "fallecida", "esqueje"] },
               "date": { "type": "string", "format": "date" },
               "note": { "type": "string" },
               "attempt": { "type": "number", "description": "The attempt number this event belongs to." }
@@ -45,7 +45,8 @@
             "type": "object",
             "properties": {
               "imageUrl": { "type": "string", "format": "uri" },
-              "date": { "type": "string", "format": "date-time" }
+              "date": { "type": "string", "format": "date-time" },
+              "attempt": { "type": "number" }
             },
             "required": ["imageUrl", "date"]
           }

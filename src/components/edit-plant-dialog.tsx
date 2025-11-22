@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus, RefreshCw, Baby } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -65,7 +65,7 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
             } else {
                 if (height > MAX_HEIGHT) {
                     width *= MAX_HEIGHT / height;
-                    width = MAX_HEIGHT;
+                    height = MAX_HEIGHT;
                 }
             }
 
@@ -189,13 +189,57 @@ const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
 ));
 SelectGroup.displayName = 'SelectGroup';
 
+const NewAttemptDialog = ({ isOpen, setIsOpen, plant, onSave }: any) => {
+    const [newAttemptData, setNewAttemptData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        startType: plant.startType,
+        location: plant.location,
+        acquisitionType: 'regalo',
+        notes: '',
+    });
+
+    const handleChange = (field: string, value: any) => {
+        setNewAttemptData(prev => ({...prev, [field]: value}));
+    };
+
+    const handleConfirm = () => {
+        onSave(newAttemptData);
+        setIsOpen(false);
+    }
+    
+    const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
+    const locationOptions: Plant['location'][] = ['interior', 'exterior'];
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¡Una Nueva Oportunidad!</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Define los detalles para este nuevo comienzo. Los datos del intento anterior se guardarán como una nota.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="py-4 space-y-4">
+                    <InputGroup label="Fecha del Nuevo Intento" type="date" value={newAttemptData.date} onChange={(e:any) => handleChange('date', e.target.value)} />
+                    <SelectGroup label="Nuevo Comienzo como" value={newAttemptData.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                    <SelectGroup label="Nueva Ubicación" value={newAttemptData.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                    <TextareaGroup label="Notas sobre el nuevo intento" value={newAttemptData.notes} onChange={(e:any) => handleChange('notes', e.target.value)} placeholder="Ej: Esqueje de la planta madre..." />
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm}>Confirmar y Guardar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
+
 
 export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete }: any) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
-  const [originalStatus, setOriginalStatus] = useState(plant.status);
   
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,12 +247,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
-  const [isReviveAlertOpen, setReviveAlertOpen] = useState(false);
-  const [newAttemptDate, setNewAttemptDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isNewAttemptOpen, setIsNewAttemptOpen] = useState(false);
   
   useEffect(() => {
     setEditedPlant(plant);
-    setOriginalStatus(plant.status);
   }, [plant, isOpen]);
 
   const handleOpenImageDetail = (index: number) => {
@@ -217,18 +259,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   };
   
   const handleChange = (field: keyof Plant, value: any) => {
-    if (field === 'status' && originalStatus === 'fallecida' && value === 'viva') {
-      setReviveAlertOpen(true);
-    }
     setEditedPlant({ ...editedPlant, [field]: value });
   };
   
   const handleSave = () => {
-    if (isReviveAlertOpen) {
-        handleConfirmRevive();
-    } else {
-        onSave(plant.id, editedPlant);
-    }
+    onSave(plant.id, editedPlant);
   };
 
   const currentAttempt = useMemo(() => {
@@ -249,6 +284,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
 
     if (event.type === 'riego') {
         updatePayload.lastWatered = event.date;
+    }
+    if (event.type === 'esqueje') {
+        toast({ title: '¡Nuevo esqueje registrado!' });
     }
     if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
@@ -273,24 +311,33 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
       handleAddEvent({ type: eventType, date: new Date().toISOString().split('T')[0], note }, status);
   }
 
-  const handleConfirmRevive = async () => {
+  const handleConfirmNewAttempt = async (newAttemptData: any) => {
     if (!firestore || !user || !editedPlant) return;
 
     const nextAttempt = currentAttempt + 1;
+    
+    const previousAttemptSummary = `
+      Intento anterior (#${currentAttempt}):
+      - Duró desde: ${format(parseISO(editedPlant.date), 'dd/MM/yyyy')} hasta ${format(new Date(), 'dd/MM/yyyy')}
+      - Empezó como: ${editedPlant.startType}
+      - Ubicación: ${editedPlant.location}
+      - Adquisición: ${editedPlant.acquisitionType}
+      - Notas: ${editedPlant.notes || 'Ninguna'}
+    `;
 
     const deathEvent: PlantEvent = {
         id: `${new Date().getTime()}-death`,
         type: 'fallecida',
         date: new Date().toISOString().split('T')[0],
-        note: `Fin del intento #${currentAttempt}.`,
+        note: `Fin del intento #${currentAttempt}. ${newAttemptData.notes || ''}`,
         attempt: currentAttempt
     };
     
     const revivalEvent: PlantEvent = {
         id: `${new Date().getTime()}-revive`,
         type: 'revivida',
-        date: newAttemptDate,
-        note: `Inicio del intento #${nextAttempt}.`,
+        date: newAttemptData.date,
+        note: `Inicio del intento #${nextAttempt}. ${newAttemptData.notes || ''}`,
         attempt: nextAttempt
     };
     
@@ -298,14 +345,16 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const updatePayload: Partial<Plant> = {
-        ...editedPlant,
         status: 'viva',
-        date: newAttemptDate, // Update main date to new start date
+        date: newAttemptData.date,
+        startType: newAttemptData.startType,
+        location: newAttemptData.location,
+        acquisitionType: newAttemptData.acquisitionType,
+        notes: previousAttemptSummary, // Save old data here
         events: updatedEvents,
     };
     
     await onSave(plant.id, updatePayload);
-    setReviveAlertOpen(false);
   };
   
   const handleRemoveEvent = async (eventId: string) => {
@@ -324,6 +373,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         case 'transplante': note = "Movida a una maceta más grande."; break;
         case 'fertilizante': note = "Nutrientes añadidos."; break;
         case 'plaga': note = "Se detectó y trató una plaga."; break;
+        case 'esqueje': note = "Se ha tomado un esqueje de la planta."; break;
         default: note = "Evento registrado."; break;
     }
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
@@ -343,22 +393,23 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
   };
 
-  const galleryImages = useMemo(() => {
-    if (!editedPlant) return [];
+  const getGalleryImages = (plant: Plant | null) => {
+    if (!plant) return [];
     
-    let allImages = [...(editedPlant.gallery || [])];
+    let allImages = [...(plant.gallery || [])];
 
     if (allImages.length === 0) {
-        const eventPhotos = (editedPlant.events || [])
+        const eventPhotos = (plant.events || [])
             .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date }));
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
         allImages.push(...eventPhotos);
     }
 
-    if (editedPlant.image && !allImages.some(img => img.imageUrl === editedPlant.image)) {
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
-            imageUrl: editedPlant.image, 
-            date: editedPlant.lastPhotoUpdate || editedPlant.createdAt?.toDate()?.toISOString() || editedPlant.date 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
     
@@ -366,7 +417,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         .map(url => allImages.find(img => img.imageUrl === url)!);
 
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [editedPlant]);
+  };
+
+  const galleryImages = useMemo(() => getGalleryImages(editedPlant), [editedPlant]);
 
   const eventsByAttempt = useMemo(() => {
     const grouped: { [attempt: number]: PlantEvent[] } = {};
@@ -396,6 +449,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     nota: <History className="h-4 w-4 text-yellow-500" />,
     revivida: <Plus className="h-4 w-4 text-green-500" />,
     fallecida: <Skull className="h-4 w-4 text-red-500" />,
+    esqueje: <Baby className="h-4 w-4 text-cyan-500" />,
   };
   
   if (!editedPlant) return null;
@@ -425,7 +479,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
                         <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
                         <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
+                        <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Baby className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
                         
+                        <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-1 h-4 w-4"/>Intercambié</Button>
                     </div>
@@ -562,31 +618,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         setIsOpen={setIsImageDetailOpen}
         images={galleryImages}
         startIndex={imageDetailStartIndex}
+        plant={plant}
     />
-     <AlertDialog open={isReviveAlertOpen} onOpenChange={setReviveAlertOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¡Una Segunda Oportunidad!</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Estás a punto de revivir esta planta. Por favor, introduce la fecha en la que comienza este nuevo intento.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="py-4">
-                <InputGroup
-                    label="Fecha del Nuevo Intento"
-                    type="date"
-                    value={newAttemptDate}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAttemptDate(e.target.value)}
-                />
-            </div>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setEditedPlant(plant)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmRevive}>Confirmar y Guardar</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+     <NewAttemptDialog 
+        isOpen={isNewAttemptOpen}
+        setIsOpen={setIsNewAttemptOpen}
+        plant={plant}
+        onSave={handleConfirmNewAttempt}
+     />
     </>
   );
 });
-
-    
