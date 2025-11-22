@@ -8,6 +8,7 @@
       "description": "Represents a plant owned by a user.",
       "properties": {
         "name": { "type": "string", "description": "The name of the plant." },
+        "type": { "type": "string", "description": "The species or type of the plant (e.g., Monstera, Hoya)." },
         "image": { "type": "string", "description": "URL of the image of the plant.", "format": "uri" },
         "acquisitionType": { "type": "string", "enum": ["compra", "regalo", "intercambio", "rescatada"] },
         "exchangeSource": { "type": "string", "description": "Reason for exchange if applicable." },

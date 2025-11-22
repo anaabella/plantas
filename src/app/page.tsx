@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils';
 export type Plant = {
   id: string;
   name: string;
+  type?: string;
   date: string; // ISO date string
   status: 'viva' | 'fallecida' | 'intercambiada';
   lastWatered?: string;
@@ -478,6 +479,7 @@ export default function GardenApp() {
         onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
         onOpenStats={() => setIsStatsOpen(true)}
         isUserLoading={isUserLoading}
+        onOpenWishlist={() => setView('wishlist')}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -588,7 +590,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenWishlist, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -614,17 +616,23 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
           {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf}>Mis Plantas</NavButton>}
           <NavButton activeView={view} targetView="community" icon={Users}>Comunidad</NavButton>
-          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo}>Deseos</NavButton>}
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
            {user && (
-            <Button variant="outline" size="sm" onClick={onAddPlant}>
+            <Button variant="outline" size="sm" onClick={onAddPlant} className="flex sm:hidden">
+              <Plus className="h-4 w-4" />
+            </Button>
+           )}
+           {user && (
+             <Button variant="outline" size="sm" onClick={onAddPlant} className="hidden sm:flex">
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
-          )}
+           )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
+          {user && <Button variant="ghost" size="icon" onClick={onOpenWishlist}><ListTodo className="h-5 w-5"/></Button>}
+
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
@@ -822,7 +830,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             <div className="flex items-center gap-2 capitalize">
                                 {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
                                 <span>
-                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : plant.acquisitionType}
+                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : 
+                                     plant.acquisitionType === 'regalo' && plant.giftFrom ? `Regalo de ${plant.giftFrom}` :
+                                     plant.acquisitionType}
                                 </span>
                             </div>
                              <div className="flex items-center gap-2 capitalize">
@@ -830,8 +840,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                                 <span>{plant.startType}</span>
                             </div>
                         </div>
-                        <div className='mt-2'>
+                        <div className='mt-2 flex flex-wrap gap-1'>
                             <Badge variant={plant.status === 'viva' ? 'secondary' : 'destructive'} className='capitalize'>{plant.status}</Badge>
+                            {plant.type && <Badge variant='outline' className='capitalize'>{plant.type}</Badge>}
                         </div>
                     </>
                   ) : null }

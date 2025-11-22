@@ -57,6 +57,7 @@ const compressImage = (file: File, callback: (dataUrl: string) => void) => {
 
 const emptyPlant = {
   name: '',
+  type: '',
   date: new Date().toISOString().split('T')[0],
   status: 'viva' as Plant['status'],
   image: '',
@@ -171,6 +172,7 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                 <div className="space-y-4">
                     <InputGroup label="Nombre de la Planta" value={plant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
+                    <InputGroup label="Tipo (ej. Monstera, Hoya)" value={plant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
                     <InputGroup type="date" label="Fecha de Adquisición" value={plant.date} onChange={(e:any) => handleChange('date', e.target.value)} />
                     <SelectGroup label="Tipo de Adquisición" value={plant.acquisitionType} onValueChange={(v: any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                     
