@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout } from 'lucide-react';
 import { format, parseISO, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
@@ -38,7 +38,7 @@ const acquisitionIcons:any = {
 };
 
 const startIcons: { [key in Plant['startType']]: React.ReactElement } = {
-    planta: <Sun className="h-5 w-5" />,
+    planta: <Sprout className="h-5 w-5" />,
     gajo: <Scissors className="h-5 w-5" />,
     raiz: <Package className="h-5 w-5" />,
     semilla: <Home className="h-5 w-5" />,
@@ -243,7 +243,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           </div>
         </div>
 
-        <DialogFooter className="col-span-1 md:col-span-2">
+        <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
