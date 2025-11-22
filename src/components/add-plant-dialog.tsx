@@ -70,6 +70,29 @@ const emptyPlant = {
   notes: '',
 };
 
+const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
+    <div className="space-y-1">
+      <label className="text-sm font-medium text-muted-foreground">{label}</label>
+      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
+    </div>
+);
+
+const SelectGroup = ({ label, value, onValueChange, options }: any) => (
+<div className="space-y-1">
+    <label className="text-sm font-medium text-muted-foreground">{label}</label>
+    <Select value={value} onValueChange={onValueChange}>
+    <SelectTrigger>{value ? value.charAt(0).toUpperCase() + value.slice(1) : `Select ${label}`}</SelectTrigger>
+    <SelectContent>
+        {options.map((option: string) => (
+        <SelectItem key={option} value={option}>
+            {option.charAt(0).toUpperCase() + option.slice(1)}
+        </SelectItem>
+        ))}
+    </SelectContent>
+    </Select>
+</div>
+);
+
 
 export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, onSave, initialData }: any) {
   const [plant, setPlant] = useState(emptyPlant);
@@ -130,29 +153,6 @@ export const AddPlantDialog = memo(function AddPlantDialog({ isOpen, setIsOpen, 
     }
   };
   
-  const InputGroup = ({ label, type = "text", value, onChange, placeholder }: any) => (
-    <div className="space-y-1">
-      <label className="text-sm font-medium text-muted-foreground">{label}</label>
-      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
-    </div>
-  );
-
-  const SelectGroup = ({ label, value, onValueChange, options }: any) => (
-    <div className="space-y-1">
-      <label className="text-sm font-medium text-muted-foreground">{label}</label>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>{value ? value.charAt(0).toUpperCase() + value.slice(1) : `Select ${label}`}</SelectTrigger>
-        <SelectContent>
-          {options.map((option: string) => (
-            <SelectItem key={option} value={option}>
-              {option.charAt(0).toUpperCase() + option.slice(1)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
   const acquisitionTypeOptions: Plant['acquisitionType'][] = ['compra', 'regalo', 'intercambio', 'rescatada'];
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
