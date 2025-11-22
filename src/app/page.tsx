@@ -572,7 +572,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={() => onViewChange('wishlist')}><ListTodo className="h-5 w-5" /></Button>}
+          {user && <NavButton activeView={view} targetView="wishlist" icon={ListTodo}>Deseos</NavButton>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
@@ -868,3 +868,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
