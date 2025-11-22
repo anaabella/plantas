@@ -568,7 +568,6 @@ export default function GardenApp() {
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         isUserLoading={isUserLoading}
-        onOpenWishlist={() => setView('wishlist')}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -698,23 +697,15 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenStats, isUserLoading }: any) {
-  const { setTheme } = useTheme();
-  
-  const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
-    <Button
-      className="flex items-center gap-2"
-      {...props}
-    >
-      <Icon className="h-5 w-5" />
-      {children}
-    </Button>
-  );
-}
-
-
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
   const { setTheme } = useTheme();
+
+  const NavButton = ({ icon: Icon, children, ...props }: any) => (
+    <Button {...props}>
+      <Icon className="h-5 w-5" />
+      <span className="hidden sm:inline">{children}</span>
+    </Button>
+  );
   
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -725,8 +716,8 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </Link>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-           {user && <NavButton variant={view === 'my-plants' ? "secondary" : "ghost"} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
-          <NavButton variant={view === 'community' ? "secondary" : "ghost"} icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
+           {user && <NavButton variant={view === 'my-plants' ? "secondary" : "ghost"} icon={Leaf} onClick={() => onViewChange('my-plants')}>Mis Plantas</NavButton>}
+           <NavButton variant={view === 'community' ? "secondary" : "ghost"} icon={Users} onClick={() => onViewChange('community')}>Comunidad</NavButton>
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
@@ -744,8 +735,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
              </Button>
           )}
 
-        <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
             <Skeleton className="h-10 w-24" />
