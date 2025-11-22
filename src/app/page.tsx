@@ -588,6 +588,11 @@ export default function GardenApp() {
             onToggleWishlist={handleToggleWishlist}
             wishlistPlantIds={wishlistPlantIds}
             user={user}
+            onOpenImageDetail={(plant, index) => {
+              setSelectedPlant(plant);
+              setImageDetailStartIndex(index);
+              setIsImageDetailOpen(true);
+            }}
           />
         )}
         {view === 'wishlist' && (
@@ -675,9 +680,9 @@ export default function GardenApp() {
 }
 
 // Header Component
-const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
+const NavButton = ({ active, icon: Icon, children, ...props }: any) => (
   <Button
-    variant={activeView === targetView ? "secondary" : "ghost"}
+    variant={active ? "secondary" : "ghost"}
     className="flex items-center gap-2"
     {...props}
   >
@@ -698,8 +703,8 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </div>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-          {user && <NavButton activeView={view} targetView="my-plants" icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
-          <NavButton activeView={view} targetView="community" icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
+          {user && <NavButton active={view === 'my-plants'} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
+          <NavButton active={view === 'community'} icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
@@ -711,7 +716,9 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
            )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
-             <Button variant="ghost" size="icon" activeView={view} targetView="wishlist" onClick={onOpenWishlist}><ListTodo className="h-5 w-5" /></Button>
+             <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={onOpenWishlist}>
+                <ListTodo className="h-5 w-5" />
+             </Button>
           )}
 
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
@@ -766,7 +773,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
   
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -802,6 +809,32 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     );
   }
 
+  const getGalleryImages = (plant: Plant) => {
+    if (!plant) return [];
+    
+    let allImages = [...(plant.gallery || [])];
+
+    if (allImages.length === 0) {
+        const eventPhotos = (plant.events || [])
+            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+        allImages.push(...eventPhotos);
+    }
+
+    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
+        allImages.push({ 
+            imageUrl: plant.image, 
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
+        });
+    }
+    
+    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
+        .map(url => allImages.find(img => img.imageUrl === url)!);
+
+    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {plants.map((plant: Plant, index: number) => {
@@ -814,13 +847,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 
         const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
         const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
+        const galleryImages = getGalleryImages(plant);
 
         const cardContent = (
            <div
               className="group animation-fade-in"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
+              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => isCommunity ? onPlantClick(plant) : onPlantClick(plant)}>
                 <NextImage
                     src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
                     alt={plant.name}
@@ -828,6 +862,12 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     height={500}
                     className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                     unoptimized={true}
+                    onClick={(e) => {
+                      if(isCommunity) {
+                        e.stopPropagation();
+                        onOpenImageDetail(plant, 0);
+                      }
+                    }}
                 />
                 {plant.status !== 'viva' && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -893,7 +933,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         );
         
         if (isCommunity) {
-          return <div key={plant.id}>{cardContent}</div>;
+          return <div key={plant.id} onClick={() => onPlantClick(plant)}>{cardContent}</div>;
         }
 
         return (
