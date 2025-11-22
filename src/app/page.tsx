@@ -203,8 +203,7 @@ export default function GardenApp() {
     if (!firestore) return null;
     return query(
       collection(firestore, 'plants'),
-      where("status", "==", "viva"),
-      where("name", ">", "")
+      where("status", "==", "viva")
     );
   }, [firestore]);
 
@@ -218,10 +217,12 @@ export default function GardenApp() {
     const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
       let allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
-      // Client-side filtering to exclude user's own plants
-      if (user) {
-        allPlants = allPlants.filter(plant => plant.ownerId !== user.uid);
-      }
+      // Client-side filtering for name and owner
+      allPlants = allPlants.filter(plant => {
+        const hasName = !!plant.name && plant.name.trim() !== '';
+        const isNotOwnPlant = user ? plant.ownerId !== user.uid : true;
+        return hasName && isNotOwnPlant;
+      });
 
       allPlants.sort((a, b) => a.name.localeCompare(b.name));
       setCommunityPlants(allPlants);
