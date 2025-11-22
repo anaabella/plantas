@@ -453,16 +453,6 @@ export default function GardenApp() {
     setSelectedWishlistItem(item);
     setIsWishlistDetailOpen(true);
   };
-
-  const openCommunityImage = (plant: Plant) => {
-      setSelectedPlant(plant);
-      // We are only interested in the images, we can derive the rest
-      const galleryImages = getGalleryImages(plant);
-      if (galleryImages.length > 0) {
-        setImageDetailStartIndex(0);
-        setIsImageDetailOpen(true);
-      }
-  }
   
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
@@ -585,7 +575,7 @@ export default function GardenApp() {
         {view === 'community' && (
           <PlantsGrid
             plants={filteredPlants}
-            onPlantClick={openCommunityImage}
+            onPlantClick={openPlantDetails}
             isLoading={isCommunityLoading}
             isCommunity={true}
             onToggleWishlist={handleToggleWishlist}
@@ -714,9 +704,7 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
            )}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
-             <NavButton activeView={view} targetView="wishlist" icon={ListTodo} onClick={onOpenWishlist} className="px-2 sm:px-4" size="icon sm:size-auto">
-                <span className="hidden sm:inline">Deseos</span>
-            </NavButton>
+             <NavButton activeView={view} targetView="wishlist" icon={ListTodo} onClick={onOpenWishlist} size="icon" />
           )}
 
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
@@ -980,3 +968,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
