@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Circle, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -800,7 +800,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
       planta: <Sprout className="h-4 w-4" />,
       gajo: <Scissors className="h-4 w-4" />,
       raiz: <Package className="h-4 w-4" />,
-      semilla: <Circle className="h-4 w-4" />,
+      semilla: <Sprout className="h-4 w-4" />,
   };
   
   if (isLoading) {
@@ -888,7 +888,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                 )}
                 {isCommunity && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <div className='flex items-center gap-2 flex-grow min-w-0' onClick={(e) => e.stopPropagation()}>
+                     <div className='flex items-center gap-2 flex-grow min-w-0'>
                         <Avatar className="h-8 w-8 border-2 border-background">
                            <AvatarImage src={plant.ownerPhotoURL} />
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
@@ -1000,7 +1000,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
       <div className="text-right mb-4">
         <Button onClick={onAddNew}><Plus className="mr-2 h-4 w-4"/>Añadir Manualmente</Button>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
         {items.map((item: WishlistItem) => (
           <div key={item.id} className="group relative cursor-pointer" onClick={() => onItemClick(item)}>
             <div className="relative overflow-hidden rounded-lg">
