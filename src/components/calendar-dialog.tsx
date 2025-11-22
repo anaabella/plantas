@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useState, useMemo } from 'react';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Baby, Plus, Skull } from 'lucide-react';
+import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Sprout, Plus, Skull } from 'lucide-react';
 import type { Plant, PlantEvent } from '@/app/page';
 import { ScrollArea } from './ui/scroll-area';
 
@@ -63,7 +63,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
       nota: <History className="h-5 w-5 text-yellow-500" />,
       revivida: <Plus className="h-5 w-5 text-green-500" />,
       fallecida: <Skull className="h-5 w-5 text-red-500" />,
-      esqueje: <Baby className="h-5 w-5 text-cyan-500" />,
+      esqueje: <Sprout className="h-5 w-5 text-cyan-500" />,
     };
 
     const statIcons: { [key in PlantEvent['type']]: React.ReactElement } = {
@@ -76,7 +76,7 @@ export function CalendarDialog({ isOpen, setIsOpen, plants }: any) {
         nota: <History className="h-4 w-4 text-yellow-500" />,
         revivida: <Plus className="h-4 w-4 text-green-500" />,
         fallecida: <Skull className="h-4 w-4 text-red-500" />,
-        esqueje: <Baby className="h-4 w-4 text-cyan-500" />,
+        esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
     };
 
     return (

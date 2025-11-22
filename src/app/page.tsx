@@ -34,7 +34,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, doc, onSnapshot, getDocs, writeBatch, orderBy } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AddPlantDialog } from '@/components/add-plant-dialog';
@@ -207,7 +207,8 @@ export default function GardenApp() {
     if (!firestore) return null;
     return query(
       collection(firestore, 'plants'),
-      where("status", "==", "viva")
+      where("status", "==", "viva"),
+      orderBy("createdAt", "desc")
     );
   }, [firestore]);
 
@@ -228,7 +229,6 @@ export default function GardenApp() {
         return hasName && isNotOwnPlant;
       });
 
-      allPlants.sort((a, b) => a.name.localeCompare(b.name));
       setCommunityPlants(allPlants);
       setIsCommunityLoading(false);
     }, error => {
@@ -936,7 +936,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
-                            {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Baby className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
+                            {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
                     </>
                   ) : null }

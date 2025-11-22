@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus, RefreshCw, Baby } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Upload, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent } from '@/app/page';
@@ -477,7 +477,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     nota: <History className="h-4 w-4 text-yellow-500" />,
     revivida: <Plus className="h-4 w-4 text-green-500" />,
     fallecida: <Skull className="h-4 w-4 text-red-500" />,
-    esqueje: <Baby className="h-4 w-4 text-cyan-500" />,
+    esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
   };
   
   if (!editedPlant) return null;
@@ -507,7 +507,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                         <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Shovel className="mr-1 h-4 w-4"/>Transplantar</QuickEventButton>
                         <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Beaker className="mr-1 h-4 w-4"/>Fertilizar</QuickEventButton>
                         <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Bug className="mr-1 h-4 w-4"/>Plaga</QuickEventButton>
-                        <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Baby className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
+                        <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent}><Sprout className="mr-1 h-4 w-4"/>Hacer Esqueje</QuickEventButton>
                         
                         <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-1 h-4 w-4"/>Nueva Oportunidad</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('fallecida', 'La planta ha fallecido')}><Skull className="mr-1 h-4 w-4"/>Falleció</Button>
