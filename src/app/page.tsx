@@ -205,9 +205,9 @@ export default function GardenApp() {
 
   const communityPlantsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // Simplified query to avoid composite index
     return query(
       collection(firestore, 'plants'),
-      where("status", "==", "viva"),
       orderBy("createdAt", "desc")
     );
   }, [firestore]);
@@ -222,11 +222,12 @@ export default function GardenApp() {
     const unsubscribe = onSnapshot(communityPlantsQuery, snapshot => {
       let allPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
-      // Client-side filtering for name and owner
+      // Client-side filtering for status, name, and owner
       allPlants = allPlants.filter(plant => {
+        const isAlive = plant.status === 'viva';
         const hasName = !!plant.name && plant.name.trim() !== '';
         const isNotOwnPlant = user ? plant.ownerId !== user.uid : true;
-        return hasName && isNotOwnPlant;
+        return isAlive && hasName && isNotOwnPlant;
       });
 
       setCommunityPlants(allPlants);
@@ -697,16 +698,18 @@ export default function GardenApp() {
 }
 
 // Header Component
-const NavButton = ({ active, icon: Icon, children, ...props }: any) => (
-  <Button
-    variant={active ? "secondary" : "ghost"}
-    className="flex items-center gap-2"
-    {...props}
-  >
-    <Icon className="h-5 w-5" />
-    {children}
-  </Button>
-);
+function NavButton({ icon: Icon, children, ...props }: any) {
+  return (
+    <Button
+      className="flex items-center gap-2"
+      {...props}
+    >
+      <Icon className="h-5 w-5" />
+      {children}
+    </Button>
+  );
+}
+
 
 function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, isUserLoading }: any) {
   const { setTheme } = useTheme();
@@ -720,8 +723,8 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </Link>
         
         <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-          {user && <NavButton active={view === 'my-plants'} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
-          <NavButton active={view === 'community'} icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
+           {user && <NavButton variant={view === 'my-plants' ? "secondary" : "ghost"} icon={Leaf} onClick={() => onViewChange('my-plants')}><span className="hidden sm:inline">Mis Plantas</span></NavButton>}
+          <NavButton variant={view === 'community' ? "secondary" : "ghost"} icon={Users} onClick={() => onViewChange('community')}><span className="hidden sm:inline">Comunidad</span></NavButton>
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
