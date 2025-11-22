@@ -439,6 +439,7 @@ export default function GardenApp() {
         onLogin={handleLogin}
         onLogout={handleLogout}
         onAddPlant={() => { setPlantToAddFromWishlist(null); setIsAddDialogOpen(true); }}
+        onOpenWishlist={() => setView('wishlist')}
         onOpenStats={() => setIsStatsOpen(true)}
         isUserLoading={isUserLoading}
       />
@@ -531,7 +532,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, isUserLoading }: any) {
+function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenWishlist, onOpenStats, isUserLoading }: any) {
   const { setTheme } = useTheme();
   
   const NavButton = ({ activeView, targetView, icon: Icon, children, ...props }: any) => (
@@ -572,7 +573,6 @@ function Header({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
         </nav>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">
-          {user && <Button variant={view === 'wishlist' ? "secondary" : "ghost"} size="icon" onClick={() => onViewChange('wishlist')}><ListTodo className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
           {isUserLoading ? (
