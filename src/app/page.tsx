@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -343,7 +343,7 @@ export default function GardenApp() {
       setIsEditDialogOpen(false); // Close edit dialog if open
       setSelectedPlant(null); // Deselect if it was being viewed
       setIsDetailOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting plant:", error);
     }
   }, [firestore, user]);
@@ -872,7 +872,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className='min-w-0'>
-                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate group-hover:underline">{plant.name}</h3>
+                            <h3 className="font-headline text-md sm:text-lg font-bold text-white text-clip overflow-hidden whitespace-nowrap group-hover:underline">{plant.name}</h3>
                             <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
                         </div>
                      </div>
@@ -888,7 +888,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                   {!isCommunity ? (
                     <>
                         <div className='flex items-center gap-2'>
-                          <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                          <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
                           {duplicateIndex > 1 && (
                             <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
                                 #{duplicateIndex}
@@ -998,7 +998,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
                 />
             </div>
             <div className="p-2 bg-transparent">
-               <h3 className="font-headline text-lg font-bold truncate">{item.name}</h3>
+               <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap">{item.name}</h3>
                {item.notes && <p className="text-sm text-muted-foreground truncate">{item.notes}</p>}
             </div>
           </div>
