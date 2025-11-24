@@ -9,6 +9,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -29,12 +35,12 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2 } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, CalendarIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,7 +48,6 @@ import { ImageDetailDialog } from './image-detail-dialog';
 import { Separator } from './ui/separator';
 import { ImageCropDialog } from './image-crop-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Checkbox } from './ui/checkbox';
 import * as LucideIcons from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
@@ -95,10 +100,19 @@ const QuickEventButton = ({
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
-              {children}
-              <span className="ml-2">{label}</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
+                      {children}
+                      <span className="ml-2 hidden sm:inline">{label}</span>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent className='sm:hidden'>
+                  <p>{label}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </ContextMenuTrigger>
           <ContextMenuContent>
             <ContextMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive">
@@ -246,7 +260,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const firestore = useFirestore();
   const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [imageToCrop, setImageToCrop]_useState<string | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
   const [isMobile, setIsMobile] = useState(false);
   
@@ -487,8 +501,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const galleryImages = useMemo(() => getGalleryImages(editedPlant), [editedPlant]);
 
   const eventsByAttempt = useMemo(() => {
-      const grouped: { [attempt: number]: PlantEvent[] } = {};
       const sortedEvents = [...(editedPlant.events || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const grouped: { [attempt: number]: PlantEvent[] } = {};
       
       sortedEvents.forEach((event: PlantEvent) => {
           const attempt = event.attempt || 1;
@@ -561,7 +575,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                   <TabsContent value="log" className='p-1'>
                       <div className="space-y-4 mb-6">
                         <h3 className="font-semibold px-1">Eventos Rápidos</h3>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                            <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Poda"><Scissors/></QuickEventButton>
                            <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Transplante"><Shovel/></QuickEventButton>
                            <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Fertilizante"><Beaker/></QuickEventButton>
@@ -576,17 +590,16 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                            <Button variant="destructive" size="sm" onClick={() => handleStatusChangeEvent('intercambiada', 'La planta fue intercambiada')}><ArrowRightLeft className="mr-2 h-4 w-4"/>Intercambié</Button>
                         </div>
                       </div>
-
-                      <div className="space-y-6">
+                      
+                      <Accordion type="multiple" defaultValue={[`attempt-${currentAttempt}`]} className="w-full">
                           {eventsByAttempt.length > 0 ? (
                               eventsByAttempt.map(([attempt, events]) => (
-                                  <div key={`attempt-${attempt}`}>
-                                      <div className="flex items-center mb-2">
-                                          <Separator className="flex-grow" />
-                                          <h4 className="px-4 text-sm font-semibold text-muted-foreground">{attempt}º Intento</h4>
-                                          <Separator className="flex-grow" />
-                                      </div>
-                                      <div className="space-y-3">
+                                <AccordionItem key={`attempt-${attempt}`} value={`attempt-${attempt}`}>
+                                    <AccordionTrigger className="text-sm font-semibold text-muted-foreground">
+                                        {Number(attempt) === currentAttempt ? 'Intento Actual' : `Intento Anterior #${attempt}`}
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-3 pt-2">
                                           {events.map((event: PlantEvent) => (
                                               <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
                                                   <div className="flex items-start gap-3">
@@ -617,12 +630,13 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                                               </div>
                                           ))}
                                       </div>
-                                  </div>
+                                    </AccordionContent>
+                                </AccordionItem>
                               ))
                           ) : (
                               <p className="text-sm text-center text-muted-foreground py-4">No hay eventos registrados.</p>
                           )}
-                      </div>
+                      </Accordion>
                   </TabsContent>
                   <TabsContent value="gallery" className='p-1'>
                       <div className="grid gap-2 mb-4 grid-cols-2">

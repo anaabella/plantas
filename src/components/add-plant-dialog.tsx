@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useRef, memo, useEffect } from 'react';
+import { useState, useRef, memo, useEffect, useMemo, useCallback } from 'react';
 import type { Plant, UserProfile } from '@/app/page';
 import { Camera, Upload, Flower2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
@@ -30,8 +30,7 @@ const getEmptyPlant = () => ({
   giftFrom: '',
   exchangeSource: '',
   rescuedFrom: '',
-  notes: '',
-  tags: [],
+notes: '',
 });
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder, listId }: any) => (
@@ -209,6 +208,24 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants 
 });
 
 export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userProfile, plants }: any) => {
+
+    const handleBeforeUnload = useCallback((e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For old browsers
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            window.addEventListener('beforeunload', handleBeforeUnload);
+        } else {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isOpen, handleBeforeUnload]);
 
   const handleSave = (plantData: any) => {
     onSave(plantData);
