@@ -944,8 +944,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </Badge>
                           )}
                         </div>
-                        {plant.type && <p className='text-sm text-muted-foreground capitalize'>{plant.type}</p>}
-                        <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                        {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
+                        <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4" />
                                 <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
