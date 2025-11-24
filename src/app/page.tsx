@@ -228,10 +228,19 @@ export default function GardenApp() {
     setIsLoading(true);
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
-      // Sort plants: alive first, then by name
+      
+      const needsCompletion = (p: Plant) => !p.name || p.name.trim() === '' || p.name.toLowerCase() === 'nose';
+
       userPlants.sort((a, b) => {
+          const aNeedsCompletion = needsCompletion(a);
+          const bNeedsCompletion = needsCompletion(b);
+
+          if (aNeedsCompletion && !bNeedsCompletion) return -1;
+          if (!aNeedsCompletion && bNeedsCompletion) return 1;
+
           if (a.status === 'viva' && b.status !== 'viva') return -1;
           if (a.status !== 'viva' && b.status === 'viva') return 1;
+          
           return a.name.localeCompare(b.name);
       });
       setPlants(userPlants);
@@ -376,18 +385,18 @@ export default function GardenApp() {
   const handleDeletePlant = async (plantId: string) => {
     if (!firestore || !user) return;
     try {
-      await deleteDoc(doc(firestore, 'plants', plantId));
-      toast({
-        title: "Planta eliminada",
-        description: "Tu planta ha sido eliminada permanentemente.",
-      });
+        await deleteDoc(doc(firestore, 'plants', plantId));
+        toast({
+            title: "Planta eliminada",
+            description: "Tu planta ha sido eliminada permanentemente.",
+        });
     } catch (error) {
-      console.error("Error deleting plant:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al eliminar",
-        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
-      });
+        console.error("Error deleting plant:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al eliminar",
+            description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+        });
     }
   };
   
@@ -881,7 +890,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
   
-  const handleDeleteClick = (plantId: string) => {
+  const handleDeleteClick = (e: Event, plantId: string) => {
+    e.preventDefault();
     setPlantToDeleteId(plantId);
     setIsAlertOpen(true);
   };
@@ -889,7 +899,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
   const confirmDelete = () => {
     if (plantToDeleteId) {
         onDeletePlant(plantToDeleteId);
-        // Ensure any open dialogs for this plant are closed
         if(setIsDetailOpen) setIsDetailOpen(false);
         if(setIsEditDialogOpen) setIsEditDialogOpen(false);
     }
@@ -1015,7 +1024,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                   {cardContent}
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDeleteClick(plant.id)}>
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => handleDeleteClick(e, plant.id)}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Eliminar Planta
                   </ContextMenuItem>
