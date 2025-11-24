@@ -35,7 +35,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, CalendarIcon } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, CalendarIcon, Bot } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
@@ -50,6 +50,7 @@ import { ImageCropDialog } from './image-crop-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import * as LucideIcons from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { IdentifyPlantDialog } from './identify-plant-dialog';
 
 
 interface QuickEventButtonProps extends ButtonProps {
@@ -105,7 +106,7 @@ const QuickEventButton = ({
                 <TooltipTrigger asChild>
                     <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
                       {children}
-                      <span className="ml-2 hidden sm:inline">{label}</span>
+                      <span className="ml-2">{label}</span>
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent className='sm:hidden'>
@@ -123,7 +124,7 @@ const QuickEventButton = ({
         </ContextMenu>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar último evento de "{eventType}"?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar último evento de "{label}"?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará el evento más reciente de este tipo.
             </AlertDialogDescription>
@@ -300,7 +301,11 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleAddEvent = async (event: Omit<PlantEvent, 'id' | 'note' | 'attempt'> & { note?: string, imageData?: string }, statusChange?: Plant['status']) => {
     if (!firestore || !user || !editedPlant) return;
     
-    const eventNote = event.type === 'foto' ? "Se añadió una nueva foto" : (event.note || '');
+    let eventNote = event.note || "";
+     if (event.type === 'foto' && !event.note) {
+        eventNote = "Se añadió una nueva foto";
+    }
+
     const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote, attempt: currentAttempt };
     
     let updatedEvents = [...(editedPlant.events || []), newEvent];
@@ -669,10 +674,17 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                              <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
                              <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} listId="plant-types-edit" />
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
-                               <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
+                              <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
                           </div>
+                           {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
+
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
+                             <SelectGroup label="Comienzo como" value={editedPlant.startType} onValueChange={(v:any) => handleChange('startType', v)} options={startTypeOptions} />
+                          </div>
+
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                               <div className='self-end'>
@@ -682,11 +694,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                                   {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" listId="rescued-from-list-edit"/>}
                               </div>
                           </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <SelectGroup label="Ubicación" value={editedPlant.location} onValueChange={(v:any) => handleChange('location', v)} options={locationOptions} />
-                             <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
-                          </div>
-                           {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
 
                           <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                       </div>
