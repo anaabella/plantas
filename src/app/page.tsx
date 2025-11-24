@@ -374,30 +374,27 @@ export default function GardenApp() {
 
   const handleDeletePlant = async (plantId: string) => {
     if (!firestore || !user) return;
-
+    
     // Close any open dialogs first
     setIsEditDialogOpen(false);
     setIsDetailOpen(false);
     setEditingPlant(null);
     setSelectedPlant(null);
 
-    // Give UI time to close dialogs before deleting
-    setTimeout(async () => {
-        try {
-            await deleteDoc(doc(firestore, 'plants', plantId));
-            toast({
-                title: "Planta eliminada",
-                description: "Tu planta ha sido eliminada permanentemente.",
-            });
-        } catch (error) {
-            console.error("Error deleting plant:", error);
-            toast({
-                variant: "destructive",
-                title: "Error al eliminar",
-                description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
-            });
-        }
-    }, 150);
+    try {
+      await deleteDoc(doc(firestore, 'plants', plantId));
+      toast({
+        title: "Planta eliminada",
+        description: "Tu planta ha sido eliminada permanentemente.",
+      });
+    } catch (error) {
+      console.error("Error deleting plant:", error);
+      toast({
+        variant: "destructive",
+        title: "Error al eliminar",
+        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+      });
+    }
   };
   
   const handleClonePlant = useCallback((plant: Plant) => {
@@ -819,6 +816,8 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 // Plants Grid
 function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
   
+  const [plantToDelete, setPlantToDelete] = useState<Plant | null>(null);
+
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
     regalo: <Gift className="h-4 w-4" />,
@@ -878,141 +877,152 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
+  
+  const confirmDelete = () => {
+    if (plantToDelete) {
+      onDeletePlant(plantToDelete.id);
+      setPlantToDelete(null);
+    }
+  };
+
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-      {plants.map((plant: Plant, index: number) => {
-        const isInWishlist = wishlistPlantIds?.has(plant.id);
-        
-        let duplicateIndex = 0;
-        if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
-            duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
-        }
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
+        {plants.map((plant: Plant, index: number) => {
+          const isInWishlist = wishlistPlantIds?.has(plant.id);
+          
+          let duplicateIndex = 0;
+          if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
+              duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
+          }
 
-        const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
-        const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
-        const galleryImages = getGalleryImages(plant);
+          const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
+          const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
+          const galleryImages = getGalleryImages(plant);
 
-        const cardContent = (
-           <div
-              className="group animation-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
-                <NextImage
-                    src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
-                    alt={plant.name}
-                    width={400}
-                    height={500}
-                    className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
-                    unoptimized={true}
-                />
-                {plant.status !== 'viva' && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="flex flex-col items-center text-white/90">
-                            {plant.status === 'fallecida' && <HeartCrack className="h-8 w-8 sm:h-10 sm:w-10" />}
-                            {plant.status === 'intercambiada' && <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10" />}
-                            <p className="mt-2 font-semibold capitalize text-sm sm:text-base">{plant.status}</p>
-                        </div>
+          const cardContent = (
+            <div
+                className="group animation-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => onPlantClick(plant)}>
+                  <NextImage
+                      src={plant.image || 'https://placehold.co/400x500/A0D995/333333?text=?'}
+                      alt={plant.name}
+                      width={400}
+                      height={500}
+                      className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
+                      unoptimized={true}
+                  />
+                  {plant.status !== 'viva' && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <div className="flex flex-col items-center text-white/90">
+                              {plant.status === 'fallecida' && <HeartCrack className="h-8 w-8 sm:h-10 sm:w-10" />}
+                              {plant.status === 'intercambiada' && <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10" />}
+                              <p className="mt-2 font-semibold capitalize text-sm sm:text-base">{plant.status}</p>
+                          </div>
+                      </div>
+                  )}
+                  {isCommunity && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
+                      <div className='flex items-center gap-2 flex-grow min-w-0'>
+                          <Avatar className="h-8 w-8 border-2 border-background">
+                            <AvatarImage src={plant.ownerPhotoURL} />
+                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className='min-w-0'>
+                              <h3 className="font-headline text-md sm:text-lg font-bold text-white text-clip overflow-hidden whitespace-nowrap group-hover:underline">{plant.name}</h3>
+                              <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
+                          </div>
+                      </div>
+                      {user && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); onToggleWishlist(plant); }}>
+                            <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                          </Button>
+                      )}
                     </div>
-                )}
-                {isCommunity && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 flex items-center justify-between gap-2">
-                     <div className='flex items-center gap-2 flex-grow min-w-0'>
-                        <Avatar className="h-8 w-8 border-2 border-background">
-                           <AvatarImage src={plant.ownerPhotoURL} />
-                           <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className='min-w-0'>
-                            <h3 className="font-headline text-md sm:text-lg font-bold text-white text-clip overflow-hidden whitespace-nowrap group-hover:underline">{plant.name}</h3>
-                            <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
-                        </div>
-                     </div>
-                     {user && (
-                         <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0 text-white hover:text-red-400 hover:bg-white/20" onClick={(e) => { e.stopPropagation(); onToggleWishlist(plant); }}>
-                           <Heart className={`h-5 w-5 transition-all ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
-                         </Button>
-                     )}
-                   </div>
-                )}
+                  )}
+                </div>
+                <div className="p-2 bg-transparent">
+                    {!isCommunity ? (
+                      <>
+                          <div className='flex items-baseline gap-2'>
+                            <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                          </div>
+                          <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
+                              </div>
+                              <div className="flex items-center gap-2 capitalize">
+                                  {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
+                                  <span>
+                                      {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : 
+                                      plant.acquisitionType === 'regalo' && plant.giftFrom ? `Regalo de ${plant.giftFrom}` :
+                                      plant.acquisitionType}
+                                  </span>
+                              </div>
+                              <div className="flex items-center gap-2 capitalize">
+                                  {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
+                                  <span>{plant.startType}</span>
+                              </div>
+                          </div>
+                          <div className='mt-2 flex flex-wrap gap-1'>
+                              {duplicateIndex > 1 && (
+                                <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
+                                    #{duplicateIndex}
+                                </Badge>
+                              )}
+                              {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
+                              {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
+                              {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
+                          </div>
+                      </>
+                    ) : null }
+                </div>
               </div>
-              <div className="p-2 bg-transparent">
-                  {!isCommunity ? (
-                    <>
-                        <div className='flex items-baseline gap-2'>
-                          <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
-                          {duplicateIndex > 1 && (
-                            <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
-                                #{duplicateIndex}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                <span>{formatDistanceToNow(new Date(plant.date), { locale: es, addSuffix: true })}</span>
-                            </div>
-                            <div className="flex items-center gap-2 capitalize">
-                                {acquisitionIcons[plant.acquisitionType] || <Sprout className="h-4 w-4"/>}
-                                <span>
-                                    {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : 
-                                     plant.acquisitionType === 'regalo' && plant.giftFrom ? `Regalo de ${plant.giftFrom}` :
-                                     plant.acquisitionType}
-                                </span>
-                            </div>
-                             <div className="flex items-center gap-2 capitalize">
-                                {startIcons[plant.startType] || <Sprout className="h-4 w-4"/>}
-                                <span>{plant.startType}</span>
-                            </div>
-                        </div>
-                        <div className='mt-2 flex flex-wrap gap-1'>
-                            {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
-                            {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
-                            {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
-                        </div>
-                    </>
-                  ) : null }
-              </div>
-            </div>
-        );
-        
-        if (isCommunity) {
-          return <div key={plant.id}>{cardContent}</div>;
-        }
+          );
+          
+          if (isCommunity) {
+            return <div key={plant.id}>{cardContent}</div>;
+          }
 
-        return (
-          <AlertDialog key={plant.id}>
-            <ContextMenu>
+          return (
+            <ContextMenu key={plant.id}>
                 <ContextMenuTrigger>
                   {cardContent}
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <AlertDialogTrigger asChild>
-                    <ContextMenuItem className="text-destructive focus:text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar Planta
-                    </ContextMenuItem>
-                  </AlertDialogTrigger>
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={() => setPlantToDelete(plant)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar Planta
+                  </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
+          );
+        })}
+      </div>
+      
+      {plantToDelete && (
+          <AlertDialog open={!!plantToDelete} onOpenChange={(isOpen) => !isOpen && setPlantToDelete(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta "{plant.name}" y todos sus datos.
+                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta "{plantToDelete.name}" y todos sus datos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDeletePlant(plant.id)}>
+                <AlertDialogAction onClick={confirmDelete}>
                   Eliminar
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        );
-      })}
-    </div>
+        )}
+    </>
   );
 }
 
