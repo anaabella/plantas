@@ -381,20 +381,23 @@ export default function GardenApp() {
     setEditingPlant(null);
     setSelectedPlant(null);
 
-    try {
-      await deleteDoc(doc(firestore, 'plants', plantId));
-      toast({
-        title: "Planta eliminada",
-        description: "Tu planta ha sido eliminada permanentemente.",
-      });
-    } catch (error) {
-      console.error("Error deleting plant:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al eliminar",
-        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
-      });
-    }
+    // Give UI time to close dialogs before deleting
+    setTimeout(async () => {
+        try {
+            await deleteDoc(doc(firestore, 'plants', plantId));
+            toast({
+                title: "Planta eliminada",
+                description: "Tu planta ha sido eliminada permanentemente.",
+            });
+        } catch (error) {
+            console.error("Error deleting plant:", error);
+            toast({
+                variant: "destructive",
+                title: "Error al eliminar",
+                description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+            });
+        }
+    }, 150);
   };
   
   const handleClonePlant = useCallback((plant: Plant) => {
@@ -938,7 +941,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     <>
                         <div className='flex items-baseline gap-2'>
                           <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
-                          {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
                           {duplicateIndex > 1 && (
                             <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
                                 #{duplicateIndex}
@@ -966,6 +968,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                         <div className='mt-2 flex flex-wrap gap-1'>
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
+                            {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
                         </div>
                     </>
                   ) : null }
