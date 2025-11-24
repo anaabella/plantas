@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
 import { SettingsDialog } from '@/components/settings-dialog';
-
+import { useToast } from '@/hooks/use-toast';
 
 // Tipos
 export type UserProfile = {
@@ -89,7 +89,6 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
-  tags?: string[];
 };
 
 export type PlantEvent = {
@@ -115,6 +114,7 @@ export default function GardenApp() {
   const { user, isLoading: isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const [plants, setPlants] = useState<Plant[]>([]);
   const [communityPlants, setCommunityPlants] = useState<Plant[]>([]);
@@ -286,6 +286,7 @@ export default function GardenApp() {
   const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'events'>) => {
     if (!user || !firestore) return;
     try {
+      setIsAddDialogOpen(false);
       const initialEvent: PlantEvent = {
         id: new Date().getTime().toString(),
         type: 'nota',
@@ -306,11 +307,15 @@ export default function GardenApp() {
 
       await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       
+      toast({
+        title: "Planta Añadida",
+        description: `"${newPlantData.name}" ha sido añadida a tu colección.`,
+      });
+
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
       setPlantToAddFromWishlist(null);
-      setIsAddDialogOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
     }
@@ -338,14 +343,13 @@ export default function GardenApp() {
       setIsEditDialogOpen(false); // Close edit dialog if open
       setSelectedPlant(null); // Deselect if it was being viewed
       setIsDetailOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting plant:", error);
     }
   }, [firestore, user]);
   
   const handleClonePlant = useCallback((plant: Plant) => {
     if (!user) {
-        // No toast, as they are disabled
         return;
     }
     setPlantToAddFromWishlist({
@@ -491,11 +495,14 @@ export default function GardenApp() {
   }, [wishlist]);
   
   const plantRenderData = useMemo(() => {
-    const typeCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+    const nameCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
     const attemptCounts: { [plantId: string]: number } = {};
     const offspringCounts: { [plantId: string]: number } = {};
 
-    plants.forEach(plant => {
+    // First sort by creation date to have a stable order for indexing
+    const sortedPlants = [...plants].sort((a,b) => (a.createdAt?.toDate() || 0) - (b.createdAt?.toDate() || 0));
+
+    sortedPlants.forEach(plant => {
         const events = plant.events || [];
         // Count attempts
         const maxAttempt = events.reduce((max, event) => Math.max(max, event.attempt || 1), 0);
@@ -504,26 +511,24 @@ export default function GardenApp() {
         // Count offspring
         offspringCounts[plant.id] = events.filter(e => e.type === 'esqueje').length;
 
-        // Count type duplicates
-        if (plant.type) {
-            const typeKey = plant.type.toLowerCase();
-            if (!typeCounts[typeKey]) {
-                typeCounts[typeKey] = { total: 0, indices: {} };
-            }
-            typeCounts[typeKey].total++;
+        // Count name duplicates
+        const nameKey = plant.name.toLowerCase();
+        if (!nameCounts[nameKey]) {
+            nameCounts[nameKey] = { total: 0, indices: {} };
         }
+        nameCounts[nameKey].total++;
     });
     
-    Object.keys(typeCounts).forEach(typeKey => {
-        if (typeCounts[typeKey].total > 1) {
+    Object.keys(nameCounts).forEach(nameKey => {
+        if (nameCounts[nameKey].total > 1) {
             let index = 1;
-            plants.filter(p => p.type?.toLowerCase() === typeKey).forEach(p => {
-                typeCounts[typeKey].indices[p.id] = index++;
+            sortedPlants.filter(p => p.name.toLowerCase() === nameKey).forEach(p => {
+                nameCounts[nameKey].indices[p.id] = index++;
             });
         }
     });
 
-    return { typeCounts, attemptCounts, offspringCounts };
+    return { nameCounts, attemptCounts, offspringCounts };
   }, [plants]);
 
 
@@ -828,8 +833,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         const isInWishlist = wishlistPlantIds?.has(plant.id);
         
         let duplicateIndex = 0;
-        if (!isCommunity && plant.type && plantRenderData.typeCounts[plant.type.toLowerCase()]?.total > 1) {
-            duplicateIndex = plantRenderData.typeCounts[plant.type.toLowerCase()].indices[plant.id];
+        if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
+            duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
         }
 
         const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
@@ -882,7 +887,15 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
               <div className="p-2 bg-transparent">
                   {!isCommunity ? (
                     <>
-                        <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                        <div className='flex items-center gap-2'>
+                          <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                          {duplicateIndex > 1 && (
+                            <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
+                                #{duplicateIndex}
+                            </Badge>
+                          )}
+                        </div>
+                        {plant.type && <p className='text-sm text-muted-foreground capitalize'>{plant.type}</p>}
                         <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4" />
@@ -902,13 +915,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
-                            {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
-                            {plant.type && (
-                                <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>
-                                    {plant.type}
-                                    {duplicateIndex > 0 && <span className='ml-1.5 opacity-75'>#{duplicateIndex}</span>}
-                                </Badge>
-                            )}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
