@@ -890,8 +890,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
   
-  const handleDeleteClick = (e: Event, plantId: string) => {
-    e.preventDefault();
+  const handleDeleteClick = (e: React.MouseEvent, plantId: string) => {
+    e.stopPropagation();
     setPlantToDeleteId(plantId);
     setIsAlertOpen(true);
   };
@@ -994,6 +994,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                                   <span>
                                       {plant.acquisitionType === 'compra' && plant.price ? `Costó $${plant.price}` : 
                                       plant.acquisitionType === 'regalo' && plant.giftFrom ? `Regalo de ${plant.giftFrom}` :
+                                      plant.acquisitionType === 'rescatada' && plant.rescuedFrom ? `Rescatada de ${plant.rescuedFrom}` :
                                       plant.acquisitionType}
                                   </span>
                               </div>
@@ -1024,7 +1025,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                   {cardContent}
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => handleDeleteClick(e, plant.id)}>
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => handleDeleteClick(e as any, plant.id)}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Eliminar Planta
                   </ContextMenuItem>
@@ -1099,4 +1100,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
 }
 
 
+    
     
