@@ -30,7 +30,7 @@ const getEmptyPlant = () => ({
   giftFrom: '',
   exchangeSource: '',
   rescuedFrom: '',
-  notes: '',
+notes: '',
 });
 
 const InputGroup = memo(({ label, type = "text", value, onChange, placeholder, listId }: any) => (
@@ -58,7 +58,7 @@ const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
 ));
 SelectGroup.displayName = 'SelectGroup';
 
-const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants, isSaving }: any) => {
+const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants }: any) => {
   const [plant, setPlant] = useState(() => initialData ? { ...getEmptyPlant(), ...initialData } : getEmptyPlant());
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
@@ -191,9 +191,7 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
       </ScrollArea>
       <DialogFooter className='p-4 pt-0'>
         <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? "Guardando..." : "Guardar Planta"}
-        </Button>
+        <Button onClick={handleSubmit}>Guardar Planta</Button>
       </DialogFooter>
 
       {imageToCrop && (
@@ -210,15 +208,12 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
 });
 
 export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userProfile, plants }: any) => {
-    const [isSaving, setIsSaving] = useState(false);
 
     const handleBeforeUnload = useCallback((e: BeforeUnloadEvent) => {
-        if (!isSaving && isOpen) {
-            e.preventDefault();
-            e.returnValue = ''; // For modern browsers
-            return ''; // For old browsers
-        }
-    }, [isSaving, isOpen]);
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For old browsers
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -232,13 +227,8 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
         };
     }, [isOpen, handleBeforeUnload]);
 
-  const handleSave = async (plantData: any) => {
-    setIsSaving(true);
-    try {
-      await onSave(plantData);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSave = (plantData: any) => {
+    onSave(plantData);
   };
   
   if (!isOpen) return null;
@@ -252,17 +242,8 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
               Rellena los detalles de tu nueva compañera verde.
             </DialogDescription>
           </DialogHeader>
-          <AddPlantForm 
-            onSave={handleSave} 
-            initialData={initialData} 
-            onCancel={() => setIsOpen(false)} 
-            userProfile={userProfile} 
-            plants={plants}
-            isSaving={isSaving}
-          />
+          <AddPlantForm onSave={handleSave} initialData={initialData} onCancel={() => setIsOpen(false)} userProfile={userProfile} plants={plants} />
         </DialogContent>
       </Dialog>
   );
 };
-
-    

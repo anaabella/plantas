@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
-  HeartCrack, Leaf, Moon, Sun, Bot,
+  HeartCrack, Leaf, Moon, Sun,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
@@ -53,8 +53,7 @@ import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
 import { SettingsDialog } from '@/components/settings-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { IdentifyPlantDialog } from '@/components/identify-plant-dialog';
+
 
 // Tipos
 export type UserProfile = {
@@ -90,6 +89,7 @@ export type Plant = {
   ownerId: string;
   ownerName?: string;
   ownerPhotoURL?: string;
+  tags?: string[];
 };
 
 export type PlantEvent = {
@@ -115,7 +115,6 @@ export default function GardenApp() {
   const { user, isLoading: isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const [plants, setPlants] = useState<Plant[]>([]);
   const [communityPlants, setCommunityPlants] = useState<Plant[]>([]);
@@ -146,7 +145,6 @@ export default function GardenApp() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isIdentifyOpen, setIsIdentifyOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
@@ -288,7 +286,6 @@ export default function GardenApp() {
   const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'events'>) => {
     if (!user || !firestore) return;
     try {
-      setIsAddDialogOpen(false);
       const initialEvent: PlantEvent = {
         id: new Date().getTime().toString(),
         type: 'nota',
@@ -309,15 +306,11 @@ export default function GardenApp() {
 
       await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       
-      toast({
-        title: "Planta Añadida",
-        description: `"${newPlantData.name}" ha sido añadida a tu colección.`,
-      });
-
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
       setPlantToAddFromWishlist(null);
+      setIsAddDialogOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
     }
@@ -352,6 +345,7 @@ export default function GardenApp() {
   
   const handleClonePlant = useCallback((plant: Plant) => {
     if (!user) {
+        // No toast, as they are disabled
         return;
     }
     setPlantToAddFromWishlist({
@@ -421,12 +415,6 @@ export default function GardenApp() {
       image: item.image,
     });
     setIsWishlistDetailOpen(false);
-    setIsAddDialogOpen(true);
-  };
-
-  const handleIdentifyComplete = (data: { type: string, image: string }) => {
-    setPlantToAddFromWishlist(prev => ({ ...prev, type: data.type, image: data.image }));
-    setIsIdentifyOpen(false);
     setIsAddDialogOpen(true);
   };
 
@@ -503,14 +491,11 @@ export default function GardenApp() {
   }, [wishlist]);
   
   const plantRenderData = useMemo(() => {
-    const nameCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
+    const typeCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
     const attemptCounts: { [plantId: string]: number } = {};
     const offspringCounts: { [plantId: string]: number } = {};
 
-    // First sort by creation date to have a stable order for indexing
-    const sortedPlants = [...plants].sort((a,b) => (a.createdAt?.toDate() || 0) - (b.createdAt?.toDate() || 0));
-
-    sortedPlants.forEach(plant => {
+    plants.forEach(plant => {
         const events = plant.events || [];
         // Count attempts
         const maxAttempt = events.reduce((max, event) => Math.max(max, event.attempt || 1), 0);
@@ -519,24 +504,26 @@ export default function GardenApp() {
         // Count offspring
         offspringCounts[plant.id] = events.filter(e => e.type === 'esqueje').length;
 
-        // Count name duplicates
-        const nameKey = plant.name.toLowerCase();
-        if (!nameCounts[nameKey]) {
-            nameCounts[nameKey] = { total: 0, indices: {} };
+        // Count type duplicates
+        if (plant.type) {
+            const typeKey = plant.type.toLowerCase();
+            if (!typeCounts[typeKey]) {
+                typeCounts[typeKey] = { total: 0, indices: {} };
+            }
+            typeCounts[typeKey].total++;
         }
-        nameCounts[nameKey].total++;
     });
     
-    Object.keys(nameCounts).forEach(nameKey => {
-        if (nameCounts[nameKey].total > 1) {
+    Object.keys(typeCounts).forEach(typeKey => {
+        if (typeCounts[typeKey].total > 1) {
             let index = 1;
-            sortedPlants.filter(p => p.name.toLowerCase() === nameKey).forEach(p => {
-                nameCounts[nameKey].indices[p.id] = index++;
+            plants.filter(p => p.type?.toLowerCase() === typeKey).forEach(p => {
+                typeCounts[typeKey].indices[p.id] = index++;
             });
         }
     });
 
-    return { nameCounts, attemptCounts, offspringCounts };
+    return { typeCounts, attemptCounts, offspringCounts };
   }, [plants]);
 
 
@@ -554,7 +541,6 @@ export default function GardenApp() {
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenIdentify={() => setIsIdentifyOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -664,11 +650,6 @@ export default function GardenApp() {
         setIsOpen={setIsSettingsOpen}
         userProfile={userProfile}
       />
-      <IdentifyPlantDialog 
-        isOpen={isIdentifyOpen}
-        setIsOpen={setIsIdentifyOpen}
-        onComplete={handleIdentifyComplete}
-      />
       <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
@@ -683,7 +664,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, onOpenIdentify, isUserLoading }: any) => {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
@@ -713,7 +694,6 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
            )}
-          <Button variant="ghost" size="icon" onClick={onOpenIdentify}><Bot className="h-5 w-5" /></Button>
           {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
@@ -831,7 +811,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
@@ -848,8 +828,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         const isInWishlist = wishlistPlantIds?.has(plant.id);
         
         let duplicateIndex = 0;
-        if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
-            duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
+        if (!isCommunity && plant.type && plantRenderData.typeCounts[plant.type.toLowerCase()]?.total > 1) {
+            duplicateIndex = plantRenderData.typeCounts[plant.type.toLowerCase()].indices[plant.id];
         }
 
         const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
@@ -887,7 +867,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                            <AvatarFallback>{plant.ownerName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className='min-w-0'>
-                            <h3 className="font-headline text-md sm:text-lg font-bold text-white text-clip overflow-hidden whitespace-nowrap group-hover:underline">{plant.name}</h3>
+                            <h3 className="font-headline text-md sm:text-lg font-bold text-white truncate group-hover:underline">{plant.name}</h3>
                             <span className="text-xs text-white/80 hidden sm:inline truncate">{plant.ownerName}</span>
                         </div>
                      </div>
@@ -902,15 +882,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
               <div className="p-2 bg-transparent">
                   {!isCommunity ? (
                     <>
-                        <div className='flex items-center gap-2'>
-                          <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
-                          {duplicateIndex > 1 && (
-                            <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
-                                #{duplicateIndex}
-                            </Badge>
-                          )}
-                        </div>
-                        {plant.type && <p className='text-sm text-muted-foreground capitalize'>{plant.type}</p>}
+                        <h3 className="font-headline text-lg font-bold truncate cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
                         <div className="mt-1 space-y-1 text-xs sm:text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4" />
@@ -930,6 +902,13 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
+                            {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
+                            {plant.type && (
+                                <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>
+                                    {plant.type}
+                                    {duplicateIndex > 0 && <span className='ml-1.5 opacity-75'>#{duplicateIndex}</span>}
+                                </Badge>
+                            )}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                             {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
@@ -1013,7 +992,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
                 />
             </div>
             <div className="p-2 bg-transparent">
-               <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap">{item.name}</h3>
+               <h3 className="font-headline text-lg font-bold truncate">{item.name}</h3>
                {item.notes && <p className="text-sm text-muted-foreground truncate">{item.notes}</p>}
             </div>
           </div>
@@ -1022,3 +1001,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
