@@ -373,28 +373,22 @@ export default function GardenApp() {
   };
 
   const handleDeletePlant = async (plantId: string) => {
-    if (!firestore || !user) return;
-    
-    // Close any open dialogs first
-    setIsEditDialogOpen(false);
-    setIsDetailOpen(false);
-    setEditingPlant(null);
-    setSelectedPlant(null);
+      if (!firestore || !user) return;
 
-    try {
-      await deleteDoc(doc(firestore, 'plants', plantId));
-      toast({
-        title: "Planta eliminada",
-        description: "Tu planta ha sido eliminada permanentemente.",
-      });
-    } catch (error) {
-      console.error("Error deleting plant:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al eliminar",
-        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
-      });
-    }
+      try {
+          await deleteDoc(doc(firestore, 'plants', plantId));
+          toast({
+              title: "Planta eliminada",
+              description: "Tu planta ha sido eliminada permanentemente.",
+          });
+      } catch (error) {
+          console.error("Error deleting plant:", error);
+          toast({
+              variant: "destructive",
+              title: "Error al eliminar",
+              description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+          });
+      }
   };
   
   const handleClonePlant = useCallback((plant: Plant) => {
@@ -881,6 +875,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
   const confirmDelete = () => {
     if (plantToDelete) {
       onDeletePlant(plantToDelete.id);
+      setIsDetailOpen(false); // Close detail dialog if open
+      setIsEditDialogOpen(false); // Close edit dialog if open
       setPlantToDelete(null);
     }
   };
@@ -894,12 +890,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           
           let duplicateIndex = 0;
           if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
-              duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
+              duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[p.id];
           }
 
           const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
           const galleryImages = getGalleryImages(plant);
+          
+          const needsCompletion = !plant.name || plant.name.toLowerCase() === 'nose';
 
           const cardContent = (
             <div
@@ -915,6 +913,11 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                       className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                       unoptimized={true}
                   />
+                  {needsCompletion && !isCommunity && (
+                        <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full z-10">
+                            Completar datos
+                        </div>
+                   )}
                   {plant.status !== 'viva' && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                           <div className="flex flex-col items-center text-white/90">
