@@ -936,15 +936,15 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
               <div className="p-2 bg-transparent">
                   {!isCommunity ? (
                     <>
-                        <div className='flex items-center gap-2'>
+                        <div className='flex items-baseline gap-2'>
                           <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                          {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
                           {duplicateIndex > 1 && (
                             <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
                                 #{duplicateIndex}
                             </Badge>
                           )}
                         </div>
-                        {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
                         <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4" />
