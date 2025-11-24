@@ -260,7 +260,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const firestore = useFirestore();
   const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
-  const [imageToCrop, setImageToCrop]_useState<string | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
   const [isMobile, setIsMobile] = useState(false);
   
@@ -487,7 +487,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
