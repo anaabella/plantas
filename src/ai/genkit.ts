@@ -58,5 +58,3 @@ export const ai = genkit({
 
 // Utility to get a specific model
 export const getModel = (modelName: GoogleAIGeminiModel) => ai.model(modelName);
-
-    
