@@ -8,30 +8,6 @@ class MockAIService implements AIService {
     console.log('Mock AI Generate Request:', request);
 
     let responseText = '';
-    const isIdentification = request.messages.some((m:any) => m.content[0].text?.includes('expert botanist'));
-    
-    if (isIdentification) {
-        return {
-            candidates: [{
-                message: {
-                    role: 'model',
-                    content: [{
-                        data: {
-                            isPlant: true,
-                            commonName: 'Monstera Deliciosa',
-                            latinName: 'Monstera deliciosa'
-                        }
-                    }]
-                }
-            }],
-            usage: {
-                inputCharacters: 100,
-                outputCharacters: 50,
-                inputTokens: 20,
-                outputTokens: 10,
-            } as GenerationUsage
-        }
-    }
     
     return {
       candidates: [
@@ -82,3 +58,5 @@ export const ai = genkit({
 
 // Utility to get a specific model
 export const getModel = (modelName: GoogleAIGeminiModel) => ai.model(modelName);
+
+    

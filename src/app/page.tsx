@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,6 @@ import { ImageDetailDialog } from '@/components/image-detail-dialog';
 import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
 import { SettingsDialog } from '@/components/settings-dialog';
-import { IdentifyPlantDialog } from '@/components/identify-plant-dialog';
 
 
 // Tipos
@@ -146,7 +145,6 @@ export default function GardenApp() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isIdentifyOpen, setIsIdentifyOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
@@ -442,13 +440,6 @@ export default function GardenApp() {
     setIsWishlistDetailOpen(true);
   };
 
-  const handleIdentificationComplete = (data: { type: string, image: string }) => {
-    setIsIdentifyOpen(false);
-    setPlantToAddFromWishlist({ type: data.type, image: data.image });
-    setTimeout(() => {
-        setIsAddDialogOpen(true);
-    }, 150); // Delay to allow dialogs to transition smoothly
-  };
   
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
@@ -550,7 +541,6 @@ export default function GardenApp() {
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onIdentifyPlant={() => setIsIdentifyOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -669,17 +659,12 @@ export default function GardenApp() {
         onDeleteImage={() => {}} // No-op for community/main page view
         onUpdateImageDate={() => {}} // No-op
     />
-    <IdentifyPlantDialog
-        isOpen={isIdentifyOpen}
-        setIsOpen={setIsIdentifyOpen}
-        onComplete={handleIdentificationComplete}
-    />
     </div>
   );
 }
 
 // Header Component
-const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, onIdentifyPlant, isUserLoading }: any) => {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
@@ -709,7 +694,6 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
            )}
-          {user && <Button variant="ghost" size="icon" onClick={onIdentifyPlant}><Bot className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
@@ -918,6 +902,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
+                            {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
                             {plant.type && (
                                 <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>
                                     {plant.type}
@@ -1016,3 +1001,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
