@@ -29,7 +29,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
@@ -39,12 +39,10 @@ import { ScrollArea } from './ui/scroll-area';
 import NextImage from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageDetailDialog } from './image-detail-dialog';
-import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ImageCropDialog } from './image-crop-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import { Badge } from './ui/badge';
 import * as LucideIcons from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
@@ -55,7 +53,7 @@ interface QuickEventButtonProps extends ButtonProps {
   onAdd: (type: PlantEvent['type']) => void;
   onRemove: (eventId: string) => void;
   children: React.ReactNode;
-  tooltip?: string;
+  label: string;
 }
 
 const QuickEventButton = ({
@@ -65,8 +63,7 @@ const QuickEventButton = ({
   onRemove,
   children,
   variant = 'outline',
-  size = 'icon',
-  tooltip,
+  label,
   ...props
 }: QuickEventButtonProps) => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -98,8 +95,9 @@ const QuickEventButton = ({
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <Button variant={variant} size={size} onClick={() => onAdd(eventType)} {...props}>
+            <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
               {children}
+              <span className="ml-2">{label}</span>
             </Button>
           </ContextMenuTrigger>
           <ContextMenuContent>
@@ -124,28 +122,13 @@ const QuickEventButton = ({
       </AlertDialog>
   );
 
-  if (tooltip) {
-    return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    {button}
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{tooltip}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    )
-  }
-
   return button;
 };
 
-const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
+const InputGroup = memo(({ label, type = "text", value, onChange, placeholder, listId }: any) => (
     <div className="space-y-1">
       <label className="text-sm font-medium text-muted-foreground">{label}</label>
-      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
+      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} list={listId} />
     </div>
 ));
 InputGroup.displayName = 'InputGroup';
@@ -250,6 +233,7 @@ const defaultEventIcons: Record<PlantEvent['type'], React.ReactElement> = {
   revivida: <Plus className="h-4 w-4 text-green-500" />,
   fallecida: <Skull className="h-4 w-4 text-red-500" />,
   esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
+  floracion: <Flower2 className="h-4 w-4 text-pink-500" />,
 };
 
 const getIcon = (iconName: string, className: string): React.ReactElement => {
@@ -258,12 +242,12 @@ const getIcon = (iconName: string, className: string): React.ReactElement => {
 };
 
 
-export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, userProfile }: { plant: Plant; isOpen: boolean; setIsOpen: (isOpen: boolean) => void; onSave: (id: string, data: Partial<Plant>) => void; onDelete: (id: string) => void; userProfile: UserProfile | null; }) {
+export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, setIsOpen, onSave, onDelete, userProfile, plants }: { plant: Plant; isOpen: boolean; setIsOpen: (isOpen: boolean) => void; onSave: (id: string, data: Partial<Plant>) => void; onDelete: (id: string) => void; userProfile: UserProfile | null; plants: Plant[] }) {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { toast } = useToast();
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
   const [isMobile, setIsMobile] = useState(false);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -290,14 +274,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleChange = (field: keyof Plant, value: any) => {
     setEditedPlant({ ...editedPlant, [field]: value });
   };
-
-  const handleTagChange = (tag: string) => {
-      const currentTags = editedPlant.tags || [];
-      const newTags = currentTags.includes(tag)
-          ? currentTags.filter((t: string) => t !== tag)
-          : [...currentTags, tag];
-      handleChange('tags', newTags);
-  };
   
   const handleSave = () => {
     onSave(plant.id, editedPlant);
@@ -314,16 +290,12 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     const newEvent: PlantEvent = { ...event, id: new Date().getTime().toString(), note: eventNote, attempt: currentAttempt };
     
     let updatedEvents = [...(editedPlant.events || []), newEvent];
-    updatedEvents = updatedEvents.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     const plantRef = doc(firestore, 'plants', editedPlant.id);
     const updatePayload: Partial<Plant> = { events: updatedEvents };
 
     if (event.type === 'riego') {
         updatePayload.lastWatered = event.date;
-    }
-    if (event.type === 'esqueje') {
-        toast({ title: '¡Nuevo esqueje registrado!' });
     }
     if (event.type === 'foto' && event.imageData) {
         updatePayload.lastPhotoUpdate = event.date;
@@ -333,7 +305,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         if (!currentGallery.some(g => g.imageUrl === newGalleryEntry.imageUrl)) {
             updatePayload.gallery = [newGalleryEntry, ...currentGallery];
         }
-        toast({ title: 'Nueva foto añadida' });
     }
     if (statusChange) {
         updatePayload.status = statusChange;
@@ -382,8 +353,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         attempt: nextAttempt
     };
     
-    const updatedEvents = [...(editedPlant.events || []), deathEvent, revivalEvent]
-        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const updatedEvents = [...(editedPlant.events || []), deathEvent, revivalEvent];
 
     const updatePayload: Partial<Plant> = {
         status: 'viva',
@@ -408,7 +378,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     const plantRef = doc(firestore, 'plants', editedPlant.id);
     await updateDoc(plantRef, { events: updatedEvents });
     setEditedPlant({ ...editedPlant, events: updatedEvents });
-    toast({title: "Evento eliminado"});
   };
 
   const handleQuickAddEvent = (type: PlantEvent['type']) => {
@@ -419,6 +388,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         case 'fertilizante': note = "Nutrientes añadidos."; break;
         case 'plaga': note = "Se detectó y trató una plaga."; break;
         case 'esqueje': note = "Se ha tomado un esqueje de la planta."; break;
+        case 'floracion': note = "La planta ha florecido."; break;
         default: note = "Evento registrado."; break;
     }
     handleAddEvent({ type, date: new Date().toISOString().split('T')[0], note });
@@ -437,6 +407,16 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
         event.target.value = "";
     }
   };
+  
+  const triggerFileUpload = (aspect: number | undefined) => {
+    setCropAspect(aspect);
+    uploadInputRef.current?.click();
+  }
+
+  const triggerCameraCapture = (aspect: number | undefined) => {
+    setCropAspect(aspect);
+    captureInputRef.current?.click();
+  }
 
   const handleCroppedImage = (croppedImageDataUrl: string) => {
     handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: croppedImageDataUrl});
@@ -457,7 +437,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     await updateDoc(plantRef, updatePayload);
     
     setEditedPlant(prev => ({...prev, ...updatePayload }));
-    toast({ title: 'Foto eliminada' });
 
     if(updatedGallery.length === 0){
         setIsImageDetailOpen(false);
@@ -477,7 +456,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     await updateDoc(plantRef, updatePayload);
     
     setEditedPlant(prev => ({...prev, ...updatePayload }));
-    toast({ title: 'Fecha de la foto actualizada' });
   };
 
   const getGalleryImages = (plant: Plant | null) => {
@@ -546,10 +524,26 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   
   if (!editedPlant) return null;
 
-  const customTags = userProfile?.tags || [];
+  const uniqueTypes = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.type).filter(Boolean))), [plants]);
+  const uniqueGiftFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.giftFrom).filter(Boolean))), [plants]);
+  const uniqueExchangeSource = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.exchangeSource).filter(Boolean))), [plants]);
+  const uniqueRescuedFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.rescuedFrom).filter(Boolean))), [plants]);
 
   return (
     <>
+      <datalist id="plant-types-edit">
+        {uniqueTypes.map(type => <option key={type} value={type} />)}
+      </datalist>
+      <datalist id="gift-from-list-edit">
+        {uniqueGiftFrom.map(name => <option key={name} value={name} />)}
+      </datalist>
+      <datalist id="exchange-source-list-edit">
+        {uniqueExchangeSource.map(source => <option key={source} value={source} />)}
+      </datalist>
+      <datalist id="rescued-from-list-edit">
+        {uniqueRescuedFrom.map(location => <option key={location} value={location} />)}
+      </datalist>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
           <DialogHeader className="pr-10">
@@ -567,13 +561,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                   <TabsContent value="log" className='p-1'>
                       <div className="space-y-4 mb-6">
                         <h3 className="font-semibold px-1">Eventos Rápidos</h3>
-                        <div className="grid grid-cols-3 gap-2">
-                           <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Podar"><Scissors className="h-4 w-4"/></QuickEventButton>
-                           <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Transplantar"><Shovel className="h-4 w-4"/></QuickEventButton>
-                           <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Fertilizar"><Beaker className="h-4 w-4"/></QuickEventButton>
-                           <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Plaga"><Bug className="h-4 w-4"/></QuickEventButton>
-                           <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} size="icon" tooltip="Hacer Esqueje"><Sprout className="h-4 w-4"/></QuickEventButton>
-                           <QuickEventButton eventType='nota' plantEvents={editedPlant.events} onAdd={() => handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note: prompt("Añade una nota:") || "" })} onRemove={handleRemoveEvent} size="icon" tooltip="Añadir Nota"><Info className="h-4 w-4"/></QuickEventButton>
+                        <div className="grid grid-cols-2 gap-2">
+                           <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Poda"><Scissors/></QuickEventButton>
+                           <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Transplante"><Shovel/></QuickEventButton>
+                           <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Fertilizante"><Beaker/></QuickEventButton>
+                           <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Plaga"><Bug/></QuickEventButton>
+                           <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Esqueje"><Sprout/></QuickEventButton>
+                           <QuickEventButton eventType='floracion' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Floración"><Flower2/></QuickEventButton>
+                           <QuickEventButton eventType='nota' plantEvents={editedPlant.events} onAdd={() => handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note: prompt("Añade una nota:") || "" })} onRemove={handleRemoveEvent} label="Nota"><Info/></QuickEventButton>
                         </div>
                         <div className='flex flex-col space-y-2'>
                            <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-2 h-4 w-4"/>Nueva Oportunidad</Button>
@@ -630,14 +625,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       </div>
                   </TabsContent>
                   <TabsContent value="gallery" className='p-1'>
-                      <div className={`grid gap-2 mb-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                          <Button variant="outline" size="sm" onClick={() => uploadInputRef.current?.click()}>
-                              <Upload className="mr-2 h-4 w-4" /> Subir Foto
-                          </Button>
+                      <div className="grid gap-2 mb-4 grid-cols-2">
+                          <Button variant="outline" size="sm" onClick={() => triggerFileUpload(4/5)}>Subir Cuadrada</Button>
+                          <Button variant="outline" size="sm" onClick={() => triggerFileUpload(undefined)}>Subir Libre</Button>
                           {isMobile && (
-                            <Button variant="outline" size="sm" onClick={() => captureInputRef.current?.click()}>
-                                <Camera className="mr-2 h-4 w-4" /> Capturar Foto
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => triggerCameraCapture(4/5)}>Captura Cuadrada</Button>
+                              <Button variant="outline" size="sm" onClick={() => triggerCameraCapture(undefined)}>Captura Libre</Button>
+                            </>
                           )}
                           <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
                           <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
@@ -658,7 +653,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       <div className="space-y-4 p-1">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <InputGroup label="Nombre de la Planta" value={editedPlant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
-                             <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
+                             <InputGroup label="Tipo (ej. Monstera, Hoya)" value={editedPlant.type} onChange={(e:any) => handleChange('type', e.target.value)} listId="plant-types-edit" />
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <InputGroup type="date" label="Fecha de Adquisición" value={editedPlant.date.split('T')[0]} onChange={(e:any) => handleChange('date', e.target.value)} />
@@ -668,9 +663,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                               <SelectGroup label="Tipo de Adquisición" value={editedPlant.acquisitionType} onValueChange={(v:any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                               <div className='self-end'>
                                   {editedPlant.acquisitionType === 'compra' && <InputGroup label="Precio" value={editedPlant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                                  {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                                  {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                                  {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                                  {editedPlant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={editedPlant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" listId="gift-from-list-edit"/>}
+                                  {editedPlant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={editedPlant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" listId="exchange-source-list-edit"/>}
+                                  {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" listId="rescued-from-list-edit"/>}
                               </div>
                           </div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -678,20 +673,6 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                              <SelectGroup label="Estado Actual" value={editedPlant.status} onValueChange={(v:any) => handleChange('status', v)} options={statusOptions} />
                           </div>
                            {editedPlant.status === 'intercambiada' && <InputGroup label="Destino del Intercambio" value={editedPlant.exchangeDest} onChange={(e:any) => handleChange('exchangeDest', e.target.value)} placeholder="Ej: amigo, vivero" />}
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Etiquetas</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {customTags.map((tag:string) => (
-                                        <div key={tag} onClick={() => handleTagChange(tag)} className="cursor-pointer">
-                                            <Badge variant={(editedPlant.tags || []).includes(tag) ? 'default' : 'secondary'}>
-                                                {tag}
-                                            </Badge>
-                                        </div>
-                                    ))}
-                                </div>
-                                {customTags.length === 0 && <p className="text-xs text-muted-foreground">Crea etiquetas en los Ajustes.</p>}
-                            </div>
 
                           <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                       </div>
@@ -742,6 +723,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
             setIsOpen={() => setImageToCrop(null)}
             imageSrc={imageToCrop}
             onCropComplete={handleCroppedImage}
+            aspect={cropAspect}
         />
       )}
     </>

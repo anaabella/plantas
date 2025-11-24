@@ -27,7 +27,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -95,7 +94,7 @@ export type Plant = {
 
 export type PlantEvent = {
   id: string;
-  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida' | 'esqueje';
+  type: 'riego' | 'poda' | 'transplante' | 'foto' | 'plaga' | 'fertilizante' | 'nota' | 'revivida' | 'fallecida' | 'esqueje' | 'floracion';
   date: string; // ISO date string
   note: string;
   attempt: number;
@@ -116,7 +115,6 @@ export default function GardenApp() {
   const { user, isLoading: isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const [plants, setPlants] = useState<Plant[]>([]);
   const [communityPlants, setCommunityPlants] = useState<Plant[]>([]);
@@ -179,28 +177,6 @@ export default function GardenApp() {
         });
         return () => unsubscribe();
     }, [user, firestore]);
-
-  // Request notification permission
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      // Small delay to not overwhelm the user on first load
-      const timer = setTimeout(() => {
-        setNotificationPromptOpen(true);
-      }, 5000); 
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleRequestNotificationPermission = () => {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        toast({ title: "¡Gracias!", description: "Recibirás recordatorios útiles." });
-      } else {
-        toast({ variant: 'destructive', title: "Lástima", description: "Te pierdes de los recordatorios automáticos." });
-      }
-      setNotificationPromptOpen(false);
-    });
-  };
 
   // -- Data fetching effects --
   const userPlantsQuery = useMemoFirebase(() => {
@@ -299,27 +275,12 @@ export default function GardenApp() {
         return;
       }
       console.error("Error initiating sign-in popup:", error);
-       if (error.code === 'auth/unauthorized-domain') {
-          toast({
-            variant: "destructive",
-            title: "Dominio no autorizado",
-            description: "El dominio de esta aplicación no está autorizado para el inicio de sesión. Por favor, añádelo en la configuración de autenticación de tu proyecto de Firebase.",
-            duration: 10000,
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error al iniciar sesión",
-            description: "No se pudo iniciar el proceso de autenticación con Google.",
-          });
-        }
     }
   };
 
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
-    toast({ title: "Has cerrado sesión." });
   };
 
   // -- Plant Handlers --
@@ -345,17 +306,14 @@ export default function GardenApp() {
       };
 
       await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
-      toast({ title: "¡Planta añadida!", description: `${newPlantData.name} se ha unido a tu jardín.` });
       
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
       setPlantToAddFromWishlist(null);
       setIsAddDialogOpen(false);
-      setIsDetailOpen(false);
     } catch (error: any) {
       console.error("Error adding plant:", error);
-      toast({ variant: "destructive", title: "Error", description: `No se pudo añadir la planta: ${error.message}` });
     }
   };
 
@@ -364,7 +322,6 @@ export default function GardenApp() {
     try {
       const plantRef = doc(firestore, 'plants', plantId);
       await updateDoc(plantRef, updatedData);
-      toast({ title: "Planta actualizada", description: "Los cambios se han guardado." });
       setIsEditDialogOpen(false);
       setEditingPlant(null);
        if (selectedPlant && selectedPlant.id === plantId) {
@@ -372,7 +329,6 @@ export default function GardenApp() {
       }
     } catch (error: any) {
       console.error("Error updating plant:", error);
-      toast({ variant: "destructive", title: "Error", description: `No se pudo actualizar la planta: ${error.message}` });
     }
   };
 
@@ -380,19 +336,17 @@ export default function GardenApp() {
     if (!firestore || !user) return;
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
-      toast({ title: "Planta eliminada" });
       setIsEditDialogOpen(false); // Close edit dialog if open
       setSelectedPlant(null); // Deselect if it was being viewed
       setIsDetailOpen(false);
     } catch (error: any) {
       console.error("Error deleting plant:", error);
-      toast({ variant: "destructive", title: "Error", description: `No se pudo eliminar la planta: ${error.message}` });
     }
-  }, [firestore, user, toast]);
+  }, [firestore, user]);
   
   const handleClonePlant = useCallback((plant: Plant) => {
     if (!user) {
-        toast({ variant: "destructive", title: "Necesitas iniciar sesión", description: "Inicia sesión para añadir plantas a tu colección." });
+        // No toast, as they are disabled
         return;
     }
     setPlantToAddFromWishlist({
@@ -402,7 +356,7 @@ export default function GardenApp() {
     });
     setIsDetailOpen(false); // Close detail view
     setTimeout(() => setIsAddDialogOpen(true), 150); // Short delay to allow dialog transition
-  }, [user, toast]);
+  }, [user]);
 
   // -- Wishlist Handlers --
   const handleSaveWishlistItem = async (itemData: Omit<WishlistItem, 'id'>, id?: string) => {
@@ -410,16 +364,13 @@ export default function GardenApp() {
     try {
       if (id) {
         await setDoc(doc(firestore, `users/${user.uid}/wishlist`, id), itemData, { merge: true });
-        toast({ title: "Artículo actualizado" });
       } else {
         await addDoc(collection(firestore, `users/${user.uid}/wishlist`), itemData);
-        toast({ title: "Artículo añadido a tu lista de deseos" });
       }
       setIsWishlistFormOpen(false);
       setEditingWishlistItem(null);
     } catch (error: any) {
       console.error("Error saving wishlist item:", error);
-      toast({ variant: "destructive", title: "Error", description: `No se pudo guardar: ${error.message}` });
     }
   };
 
@@ -427,7 +378,6 @@ export default function GardenApp() {
     if (!user || !firestore) return;
     try {
       await deleteDoc(doc(firestore, `users/${user.uid}/wishlist`, id));
-      toast({ title: "Artículo eliminado" });
       setIsWishlistDetailOpen(false);
       setSelectedWishlistItem(null);
     } catch (error: any) {
@@ -437,7 +387,6 @@ export default function GardenApp() {
   
   const handleToggleWishlist = async (plant: Plant) => {
     if (!user || !firestore) {
-        toast({ variant: "destructive", title: "Necesitas iniciar sesión", description: "Inicia sesión para añadir plantas a tu lista de deseos." });
         return;
     }
 
@@ -452,16 +401,11 @@ export default function GardenApp() {
             image: plant.image,
             plantId: plant.id
         });
-        toast({ 
-            title: "¡Añadido a tus deseos!",
-            description: `Se ha notificado a ${plant.ownerName || 'el dueño'} que te interesa su planta ${plant.name}.`
-        });
     } else {
         // Remove from wishlist
         const batch = writeBatch(firestore);
         existing.docs.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
-        toast({ title: "Eliminado de tus deseos" });
     }
   };
 
@@ -646,25 +590,6 @@ export default function GardenApp() {
         )}
       </main>
       
-       {isNotificationPromptOpen && (
-        <div className="fixed bottom-4 right-4 z-50">
-           <AlertDialog open={isNotificationPromptOpen} onOpenChange={setNotificationPromptOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Activar notificaciones?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Nos gustaría enviarte recordatorios para el cuidado de tus plantas. ¡No te preocupes, no te enviaremos spam!
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Ahora no</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRequestNotificationPermission}>Activar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
-      
       {/* Dialogs */}
       <AddPlantDialog
         isOpen={isAddDialogOpen}
@@ -672,6 +597,7 @@ export default function GardenApp() {
         onSave={handleAddPlant}
         initialData={plantToAddFromWishlist}
         userProfile={userProfile}
+        plants={plants}
       />
       {editingPlant && (
         <EditPlantDialog
@@ -681,6 +607,7 @@ export default function GardenApp() {
           onSave={handleUpdatePlant}
           onDelete={handleDeletePlant}
           userProfile={userProfile}
+          plants={plants}
         />
       )}
        <PlantDetailDialog
@@ -974,10 +901,13 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             </div>
                         </div>
                         <div className='mt-2 flex flex-wrap gap-1'>
-                             {plant.tags?.map(tag => <Badge key={tag} variant='secondary' className='capitalize'>{tag}</Badge>)}
-                            {plant.type && <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>{plant.type}</Badge>}
+                            {plant.type && (
+                                <Badge variant='default' className='capitalize bg-green-600/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent hover:bg-green-600/30'>
+                                    {plant.type}
+                                    {duplicateIndex > 0 && <span className='ml-1.5 opacity-75'>#{duplicateIndex}</span>}
+                                </Badge>
+                            )}
                             {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
-                            {duplicateIndex > 0 && <Badge variant='outline'>#{duplicateIndex}</Badge>}
                             {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
                         </div>
                     </>

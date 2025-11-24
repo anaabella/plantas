@@ -16,10 +16,10 @@ import ReactCrop, {
   type Crop,
   type PixelCrop,
 } from 'react-image-crop';
-import { useToast } from '@/hooks/use-toast';
+import 'react-image-crop/dist/ReactCrop.css';
+
 
 // Constants
-const ASPECT_RATIO = 1;
 const MIN_DIMENSION = 150;
 
 interface ImageCropDialogProps {
@@ -27,6 +27,7 @@ interface ImageCropDialogProps {
   setIsOpen: (isOpen: boolean) => void;
   imageSrc: string;
   onCropComplete: (croppedImageDataUrl: string) => void;
+  aspect?: number;
 }
 
 // Function to get the cropped image as a data URL
@@ -73,8 +74,8 @@ export function ImageCropDialog({
   setIsOpen,
   imageSrc,
   onCropComplete,
+  aspect
 }: ImageCropDialogProps) {
-  const { toast } = useToast();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -86,7 +87,7 @@ export function ImageCropDialog({
         unit: '%',
         width: 90,
       },
-      ASPECT_RATIO,
+      aspect,
       width,
       height
     );
@@ -98,11 +99,7 @@ export function ImageCropDialog({
   const handleCrop = async () => {
     if (completedCrop && imgRef.current) {
         if (completedCrop.width < MIN_DIMENSION || completedCrop.height < MIN_DIMENSION) {
-            toast({
-                variant: 'destructive',
-                title: 'Recorte demasiado pequeño',
-                description: `La imagen debe tener al menos ${MIN_DIMENSION}px de ancho y alto.`,
-            });
+            alert(`La imagen debe tener al menos ${MIN_DIMENSION}px de ancho y alto.`);
             return;
         }
         try {
@@ -110,11 +107,6 @@ export function ImageCropDialog({
             onCropComplete(croppedDataUrl);
         } catch (error) {
             console.error("Error cropping image:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error al recortar',
-                description: 'No se pudo procesar la imagen. Inténtalo de nuevo.',
-            });
         }
     }
   };
@@ -134,7 +126,7 @@ export function ImageCropDialog({
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     onComplete={(c) => setCompletedCrop(c)}
-                    aspect={ASPECT_RATIO}
+                    aspect={aspect}
                     minWidth={MIN_DIMENSION}
                     circularCrop={false}
                 >
