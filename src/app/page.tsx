@@ -340,7 +340,7 @@ export default function GardenApp() {
       setIsEditDialogOpen(false); // Close edit dialog if open
       setSelectedPlant(null); // Deselect if it was being viewed
       setIsDetailOpen(false);
-    } catch (error: any) => {
+    } catch (error: any) {
       console.error("Error deleting plant:", error);
     }
   }, [firestore, user]);
