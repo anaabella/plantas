@@ -15,11 +15,12 @@ import type { Plant } from '@/app/page';
 import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout } from 'lucide-react';
 import { format, parseISO, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
 import { ImageDetailDialog } from './image-detail-dialog';
+import { cn } from '@/lib/utils';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -52,11 +53,55 @@ function InfoSection({ icon, title, children }: { icon: React.ReactNode, title: 
       <div className="flex-shrink-0 text-muted-foreground pt-1">{icon}</div>
       <div>
         <h4 className="font-semibold font-headline">{title}</h4>
-        <p className="text-sm text-muted-foreground capitalize">{children}</p>
+        {typeof children === 'string' ? (
+             <p className="text-sm text-muted-foreground capitalize">{children}</p>
+        ) : (
+            children
+        )}
       </div>
     </div>
   );
 }
+
+const ExpandableNote = ({ text }: { text: string }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpandable, setIsExpandable] = useState(false);
+    const noteRef = useRef<HTMLParagraphElement>(null);
+
+    useEffect(() => {
+        if (noteRef.current) {
+            // Check if the text is overflowing after it has rendered
+            // A common way is to check scrollHeight vs clientHeight
+            const element = noteRef.current;
+            if (element.scrollHeight > element.clientHeight) {
+                setIsExpandable(true);
+            }
+        }
+    }, [text]);
+
+    return (
+        <div>
+            <p
+                ref={noteRef}
+                className={cn(
+                    "text-sm text-muted-foreground whitespace-pre-wrap",
+                    !isExpanded && "line-clamp-3"
+                )}
+            >
+                {text}
+            </p>
+            {isExpandable && (
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="text-sm font-semibold text-primary mt-1"
+                >
+                    {isExpanded ? 'Ver menos' : 'Ver más'}
+                </button>
+            )}
+        </div>
+    );
+};
+
 
 export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isCommunityView, onClonePlant }: PlantDetailDialogProps) {
   const firestore = useFirestore();
@@ -234,7 +279,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                         </div>
                         {plant.notes && (
                             <InfoSection icon={<Home className="h-5 w-5" />} title="Notas">
-                                {plant.notes}
+                                <ExpandableNote text={plant.notes} />
                             </InfoSection>
                         )}
                     </div>
@@ -255,6 +300,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
         startIndex={imageDetailStartIndex}
         plant={plant}
         onDeleteImage={() => {}} // This is a read-only view
+        onUpdateImageDate={() => {}}
     />
     </>
   );
