@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export function StatsComponent({ plants }: { plants: Plant[] }) {
-  const stats = useMemo(() => {
+  const { stats, chartConfig } = useMemo(() => {
     const total = plants.length;
     const alive = plants.filter((p: Plant) => p.status === 'viva').length;
     const deceased = plants.filter((p: Plant) => p.status === 'fallecida').length;
@@ -15,6 +15,14 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
     
     const acquisition = plants.reduce((acc: any, p: Plant) => {
       acc[p.acquisitionType] = (acc[p.acquisitionType] || 0) + 1;
+      return acc;
+    }, {});
+
+    const types = plants.reduce((acc: any, p: Plant) => {
+      if (p.type && p.type.trim()) {
+        const typeKey = p.type.trim().toLowerCase();
+        acc[typeKey] = (acc[typeKey] || 0) + 1;
+      }
       return acc;
     }, {});
 
@@ -30,11 +38,37 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
         fill: `hsl(var(--chart-${index + 1}))`
     })).filter(item => item.value > 0);
     
+    const typesData = Object.entries(types)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .map(([name, value], index) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value: value as number,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+    })).filter(item => item.value > 0);
+    
     const totalSpent = plants
       .filter((p: Plant) => p.acquisitionType === 'compra' && p.price)
       .reduce((sum: number, p: Plant) => sum + parseFloat(p.price || '0'), 0);
 
-    return { total, alive, deceased, traded, acquisition, totalSpent, statusData, acquisitionData };
+    const dynamicChartConfig: any = {
+      value: { label: 'Plantas' },
+      Vivas: { label: 'Vivas', color: 'hsl(var(--chart-2))' },
+      Fallecidas: { label: 'Fallecidas', color: 'hsl(var(--destructive))' },
+      Intercambiadas: { label: 'Intercambiadas', color: 'hsl(var(--chart-4))' },
+      Compra: { label: 'Compra', color: 'hsl(var(--chart-1))' },
+      Regalo: { label: 'Regalo', color: 'hsl(var(--chart-2))' },
+      Intercambio: { label: 'Intercambio', color: 'hsl(var(--chart-3))' },
+      Rescatada: { label: 'Rescatada', color: 'hsl(var(--chart-5))' },
+    };
+
+    typesData.forEach(item => {
+        dynamicChartConfig[item.name] = { label: item.name, color: item.fill };
+    });
+
+    return { 
+        stats: { total, alive, deceased, traded, totalSpent, statusData, acquisitionData, typesData },
+        chartConfig: dynamicChartConfig 
+    };
   }, [plants]);
 
 
@@ -49,17 +83,6 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
       </div>
     </div>
   );
-
-  const chartConfig = {
-    value: { label: 'Plantas' },
-    Vivas: { label: 'Vivas', color: 'hsl(var(--chart-2))' },
-    Fallecidas: { label: 'Fallecidas', color: 'hsl(var(--destructive))' },
-    Intercambiadas: { label: 'Intercambiadas', color: 'hsl(var(--chart-4))' },
-    Compra: { label: 'Compra', color: 'hsl(var(--chart-1))' },
-    Regalo: { label: 'Regalo', color: 'hsl(var(--chart-2))' },
-    Intercambio: { label: 'Intercambio', color: 'hsl(var(--chart-3))' },
-    Rescatada: { label: 'Rescatada', color: 'hsl(var(--chart-5))' },
-  };
 
   return (
     <div>
@@ -121,6 +144,30 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
                 </Card>
             )}
         </div>
+         {stats.typesData.length > 0 && (
+            <div className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Tipos de Plantas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="w-full h-[250px]">
+                            <ResponsiveContainer>
+                                <BarChart data={stats.typesData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} />
+                                    <ChartTooltip
+                                        cursor={{ fill: 'hsl(var(--muted))' }}
+                                        content={<ChartTooltipContent hideLabel nameKey="name" />}
+                                    />
+                                    <Bar dataKey="value" radius={5} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
     </div>
   );
 }

@@ -11,12 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useState, useRef, memo, useEffect } from 'react';
+import { useState, useRef, memo, useEffect, useMemo, useCallback } from 'react';
 import type { Plant, UserProfile } from '@/app/page';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, Flower2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { ImageCropDialog } from './image-crop-dialog';
-import { Badge } from './ui/badge';
 
 const getEmptyPlant = () => ({
   name: '',
@@ -25,20 +24,19 @@ const getEmptyPlant = () => ({
   status: 'viva' as Plant['status'],
   image: '',
   startType: 'planta' as Plant['startType'],
-  location: 'interior' as Plant['location'],
-  acquisitionType: 'compra' as Plant['acquisitionType'],
+  location: 'exterior' as Plant['location'],
+  acquisitionType: 'regalo' as Plant['acquisitionType'],
   price: '',
   giftFrom: '',
   exchangeSource: '',
   rescuedFrom: '',
-  notes: '',
-  tags: [],
+notes: '',
 });
 
-const InputGroup = memo(({ label, type = "text", value, onChange, placeholder }: any) => (
+const InputGroup = memo(({ label, type = "text", value, onChange, placeholder, listId }: any) => (
     <div className="space-y-1">
       <label className="text-sm font-medium text-muted-foreground">{label}</label>
-      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} />
+      <Input type={type} value={value || ''} onChange={onChange} placeholder={placeholder} list={listId} />
     </div>
 ));
 InputGroup.displayName = 'InputGroup';
@@ -60,9 +58,10 @@ const SelectGroup = memo(({ label, value, onValueChange, options }: any) => (
 ));
 SelectGroup.displayName = 'SelectGroup';
 
-const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) => {
+const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants }: any) => {
   const [plant, setPlant] = useState(() => initialData ? { ...getEmptyPlant(), ...initialData } : getEmptyPlant());
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
   const [isMobile, setIsMobile] = useState(false);
 
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -74,21 +73,13 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) 
 
    useEffect(() => {
     if (initialData) {
-      setPlant({ ...getEmptyPlant(), ...initialData });
+      setPlant(currentPlant => ({ ...getEmptyPlant(), ...currentPlant, ...initialData }));
     }
   }, [initialData]);
 
   const handleChange = (field: keyof Plant, value: any) => {
     setPlant(prev => ({...prev, [field]: value}));
   }
-
-  const handleTagChange = (tag: string) => {
-      const currentTags = plant.tags || [];
-      const newTags = currentTags.includes(tag)
-          ? currentTags.filter((t: string) => t !== tag)
-          : [...currentTags, tag];
-      handleChange('tags', newTags);
-  };
 
   const handleSubmit = () => {
     if (!plant.name || !plant.date) {
@@ -114,6 +105,16 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) 
     }
     if (event.target) event.target.value = "";
   };
+  
+  const triggerFileUpload = (aspect: number | undefined) => {
+    setCropAspect(aspect);
+    uploadInputRef.current?.click();
+  }
+
+  const triggerCameraCapture = (aspect: number | undefined) => {
+    setCropAspect(aspect);
+    captureInputRef.current?.click();
+  }
 
   const handleCroppedImage = (croppedImageDataUrl: string) => {
     handleChange('image', croppedImageDataUrl);
@@ -124,39 +125,55 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) 
   const startTypeOptions: Plant['startType'][] = ['planta', 'gajo', 'raiz', 'semilla'];
   const locationOptions: Plant['location'][] = ['interior', 'exterior'];
 
-  const customTags = userProfile?.tags || [];
+  const uniqueTypes = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.type).filter(Boolean))), [plants]);
+  const uniqueGiftFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.giftFrom).filter(Boolean))), [plants]);
+  const uniqueExchangeSource = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.exchangeSource).filter(Boolean))), [plants]);
+  const uniqueRescuedFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.rescuedFrom).filter(Boolean))), [plants]);
 
   return (
     <>
+      <datalist id="plant-types">
+        {uniqueTypes.map(type => <option key={type} value={type} />)}
+      </datalist>
+      <datalist id="gift-from-list">
+        {uniqueGiftFrom.map(name => <option key={name} value={name} />)}
+      </datalist>
+      <datalist id="exchange-source-list">
+        {uniqueExchangeSource.map(source => <option key={source} value={source} />)}
+      </datalist>
+      <datalist id="rescued-from-list">
+        {uniqueRescuedFrom.map(location => <option key={location} value={location} />)}
+      </datalist>
+
       <ScrollArea className='max-h-[70vh]'>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
               <div className="space-y-4">
                   <InputGroup label="Nombre de la Planta" value={plant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
-                  <InputGroup label="Tipo (ej. Monstera, Hoya)" value={plant.type} onChange={(e:any) => handleChange('type', e.target.value)} />
+                  <InputGroup label="Tipo (ej. Monstera, Hoya)" value={plant.type} onChange={(e:any) => handleChange('type', e.target.value)} listId="plant-types" />
                   <InputGroup type="date" label="Fecha de Adquisición" value={plant.date} onChange={(e:any) => handleChange('date', e.target.value)} />
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <SelectGroup label="Tipo de Adquisición" value={plant.acquisitionType} onValueChange={(v: any) => handleChange('acquisitionType', v)} options={acquisitionTypeOptions} />
                       <div className='self-end'>
                           {plant.acquisitionType === 'compra' && <InputGroup label="Precio" value={plant.price} onChange={(e:any) => handleChange('price', e.target.value)} placeholder="$0.00" />}
-                          {plant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={plant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" />}
-                          {plant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={plant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" />}
-                          {plant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={plant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" />}
+                          {plant.acquisitionType === 'regalo' && <InputGroup label="Regalo de" value={plant.giftFrom} onChange={(e:any) => handleChange('giftFrom', e.target.value)} placeholder="Nombre" listId="gift-from-list" />}
+                          {plant.acquisitionType === 'intercambio' && <InputGroup label="Intercambio por" value={plant.exchangeSource} onChange={(e:any) => handleChange('exchangeSource', e.target.value)} placeholder="Ej: un esqueje" listId="exchange-source-list" />}
+                          {plant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={plant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" listId="rescued-from-list" />}
                       </div>
                   </div>
               </div>
               <div className="space-y-4">
-                  <div className="space-y-1">
+                   <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                      <div className={`grid gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                            <Button variant="outline" onClick={() => uploadInputRef.current?.click()}>
-                                <Upload className="h-4 w-4 mr-2" /> Subir
-                            </Button>
-                            {isMobile && (
-                                <Button variant="outline" onClick={() => captureInputRef.current?.click()}>
-                                    <Camera className="h-4 w-4 mr-2" /> Capturar
-                                </Button>
-                            )}
+                       <div className="grid gap-2 grid-cols-2">
+                          <Button variant="outline" onClick={() => triggerFileUpload(4/5)}>Subir Cuadrada</Button>
+                          <Button variant="outline" onClick={() => triggerFileUpload(undefined)}>Subir Libre</Button>
+                          {isMobile && (
+                            <>
+                              <Button variant="outline" onClick={() => triggerCameraCapture(4/5)}>Captura Cuadrada</Button>
+                              <Button variant="outline" onClick={() => triggerCameraCapture(undefined)}>Captura Libre</Button>
+                            </>
+                          )}
                       </div>
                       <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
                       <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
@@ -169,19 +186,6 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) 
               </div>
           </div>
           <div className='p-4 pt-0 space-y-4'>
-            <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Etiquetas</label>
-                <div className="flex flex-wrap gap-2">
-                    {customTags.map((tag:string) => (
-                        <div key={tag} onClick={() => handleTagChange(tag)} className="cursor-pointer">
-                            <Badge variant={(plant.tags || []).includes(tag) ? 'default' : 'secondary'}>
-                                {tag}
-                            </Badge>
-                        </div>
-                    ))}
-                </div>
-                {customTags.length === 0 && <p className="text-xs text-muted-foreground">Crea etiquetas en los Ajustes para empezar a usarlas.</p>}
-            </div>
            <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
           </div>
       </ScrollArea>
@@ -196,17 +200,35 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile }: any) 
             setIsOpen={() => setImageToCrop(null)}
             imageSrc={imageToCrop}
             onCropComplete={handleCroppedImage}
+            aspect={cropAspect}
         />
       )}
     </>
   );
 });
 
-export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userProfile }: any) => {
+export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userProfile, plants }: any) => {
+
+    const handleBeforeUnload = useCallback((e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For old browsers
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            window.addEventListener('beforeunload', handleBeforeUnload);
+        } else {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isOpen, handleBeforeUnload]);
 
   const handleSave = (plantData: any) => {
     onSave(plantData);
-    setIsOpen(false);
   };
   
   if (!isOpen) return null;
@@ -220,7 +242,7 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
               Rellena los detalles de tu nueva compañera verde.
             </DialogDescription>
           </DialogHeader>
-          <AddPlantForm onSave={handleSave} initialData={initialData} onCancel={() => setIsOpen(false)} userProfile={userProfile}/>
+          <AddPlantForm onSave={handleSave} initialData={initialData} onCancel={() => setIsOpen(false)} userProfile={userProfile} plants={plants} />
         </DialogContent>
       </Dialog>
   );

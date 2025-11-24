@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useState, useMemo } from 'react';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Sprout, Plus, Skull } from 'lucide-react';
+import { Droplets, Scissors, Shovel, Camera, Bug, Beaker, History, Sprout, Plus, Skull, Flower2 } from 'lucide-react';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
 import { ScrollArea } from './ui/scroll-area';
 import * as LucideIcons from 'lucide-react';
@@ -28,6 +28,7 @@ const defaultEventIcons: Record<PlantEvent['type'], React.ReactElement> = {
   revivida: <Plus className="h-5 w-5 text-green-500" />,
   fallecida: <Skull className="h-5 w-5 text-red-500" />,
   esqueje: <Sprout className="h-5 w-5 text-cyan-500" />,
+  floracion: <Flower2 className="h-5 w-5 text-pink-500" />,
 };
 
 const defaultStatIcons: Record<PlantEvent['type'], React.ReactElement> = {
@@ -41,6 +42,7 @@ const defaultStatIcons: Record<PlantEvent['type'], React.ReactElement> = {
     revivida: <Plus className="h-4 w-4 text-green-500" />,
     fallecida: <Skull className="h-4 w-4 text-red-500" />,
     esqueje: <Sprout className="h-4 w-4 text-cyan-500" />,
+    floracion: <Flower2 className="h-4 w-4 text-pink-500" />,
 };
 
 const getIcon = (iconName: string, className: string): React.ReactElement => {

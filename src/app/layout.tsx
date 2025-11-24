@@ -1,6 +1,5 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import 'react-image-crop/dist/ReactCrop.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -32,9 +31,9 @@ export default function RootLayout({
           >
           <FirebaseClientProvider>
               {children}
-              <Toaster />
           </FirebaseClientProvider>
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   );
