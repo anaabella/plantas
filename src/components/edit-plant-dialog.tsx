@@ -261,7 +261,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const { user } = useUser();
   const [editedPlant, setEditedPlant] = useState(plant);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
+  const [cropAspect, setCropAspect] = useState<number | undefined>(undefined);
   const [isMobile, setIsMobile] = useState(false);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -426,13 +426,13 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     }
   };
   
-  const triggerFileUpload = (aspect: number | undefined) => {
-    setCropAspect(aspect);
+  const triggerFileUpload = () => {
+    setCropAspect(undefined);
     uploadInputRef.current?.click();
   }
 
-  const triggerCameraCapture = (aspect: number | undefined) => {
-    setCropAspect(aspect);
+  const triggerCameraCapture = () => {
+    setCropAspect(undefined);
     captureInputRef.current?.click();
   }
 
@@ -643,14 +643,10 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       </Accordion>
                   </TabsContent>
                   <TabsContent value="gallery" className='p-1'>
-                      <div className="grid gap-2 mb-4 grid-cols-2">
-                          <Button variant="outline" size="sm" onClick={() => triggerFileUpload(4/5)}>Subir Cuadrada</Button>
-                          <Button variant="outline" size="sm" onClick={() => triggerFileUpload(undefined)}>Subir Libre</Button>
+                      <div className="grid gap-2 mb-4 grid-cols-1">
+                          <Button variant="outline" size="sm" onClick={triggerFileUpload}>Subir Imagen</Button>
                           {isMobile && (
-                            <>
-                              <Button variant="outline" size="sm" onClick={() => triggerCameraCapture(4/5)}>Captura Cuadrada</Button>
-                              <Button variant="outline" size="sm" onClick={() => triggerCameraCapture(undefined)}>Captura Libre</Button>
-                            </>
+                              <Button variant="outline" size="sm" onClick={triggerCameraCapture}>Tomar Foto</Button>
                           )}
                           <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
                           <Input type="file" accept="image/*" capture="environment" onChange={handleFileChange} ref={captureInputRef} className="hidden" />
@@ -749,3 +745,5 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     </>
   );
 });
+
+    

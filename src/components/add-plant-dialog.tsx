@@ -61,7 +61,7 @@ SelectGroup.displayName = 'SelectGroup';
 const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants, isSaving }: any) => {
   const [plant, setPlant] = useState(() => initialData ? { ...getEmptyPlant(), ...initialData } : getEmptyPlant());
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [cropAspect, setCropAspect] = useState<number | undefined>(4/5);
+  const [cropAspect, setCropAspect] = useState<number | undefined>(undefined);
   const [isMobile, setIsMobile] = useState(false);
 
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -106,13 +106,13 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
     if (event.target) event.target.value = "";
   };
   
-  const triggerFileUpload = (aspect: number | undefined) => {
-    setCropAspect(aspect);
+  const triggerFileUpload = () => {
+    setCropAspect(undefined);
     uploadInputRef.current?.click();
   }
 
-  const triggerCameraCapture = (aspect: number | undefined) => {
-    setCropAspect(aspect);
+  const triggerCameraCapture = () => {
+    setCropAspect(undefined);
     captureInputRef.current?.click();
   }
 
@@ -165,14 +165,10 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
               <div className="space-y-4">
                    <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Imagen</label>
-                       <div className="grid gap-2 grid-cols-2">
-                          <Button variant="outline" onClick={() => triggerFileUpload(4/5)}>Subir Cuadrada</Button>
-                          <Button variant="outline" onClick={() => triggerFileUpload(undefined)}>Subir Libre</Button>
+                       <div className="grid gap-2 grid-cols-1">
+                          <Button variant="outline" onClick={triggerFileUpload}>Subir Imagen</Button>
                           {isMobile && (
-                            <>
-                              <Button variant="outline" onClick={() => triggerCameraCapture(4/5)}>Captura Cuadrada</Button>
-                              <Button variant="outline" onClick={() => triggerCameraCapture(undefined)}>Captura Libre</Button>
-                            </>
+                              <Button variant="outline" onClick={triggerCameraCapture}>Tomar Foto</Button>
                           )}
                       </div>
                       <Input type="file" accept="image/*" onChange={handleFileChange} ref={uploadInputRef} className="hidden" />
@@ -265,4 +261,5 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
   );
 };
 
+    
     
