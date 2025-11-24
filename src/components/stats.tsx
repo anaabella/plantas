@@ -20,7 +20,7 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
 
     const types = plants.reduce((acc: any, p: Plant) => {
       if (p.type && p.type.trim()) {
-        const typeKey = p.type.trim();
+        const typeKey = p.type.trim().toLowerCase();
         acc[typeKey] = (acc[typeKey] || 0) + 1;
       }
       return acc;
