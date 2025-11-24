@@ -162,6 +162,42 @@ export default function GardenApp() {
     };
   }, [inputValue]);
 
+  // Handle back button for modals
+  useEffect(() => {
+    const isAnyModalOpen = isAddDialogOpen || isEditDialogOpen || isDetailOpen || isWishlistFormOpen || isWishlistDetailOpen || isStatsOpen || isCalendarOpen || isSettingsOpen || isImageDetailOpen;
+
+    const onPopState = (event: PopStateEvent) => {
+      if (isAnyModalOpen) {
+        event.preventDefault();
+        setIsAddDialogOpen(false);
+        setIsEditDialogOpen(false);
+        setIsDetailOpen(false);
+        setIsWishlistFormOpen(false);
+        setIsWishlistDetailOpen(false);
+        setIsStatsOpen(false);
+        setIsCalendarOpen(false);
+        setIsSettingsOpen(false);
+        setIsImageDetailOpen(false);
+      }
+    };
+
+    if (isAnyModalOpen) {
+        // Push a state to the history when a modal opens
+        window.history.pushState({ modalOpen: true }, '');
+        window.addEventListener('popstate', onPopState);
+    }
+
+    return () => {
+        window.removeEventListener('popstate', onPopState);
+        // If the component unmounts while a modal is open, we might need to go back
+        // if the history state was pushed.
+        if (window.history.state?.modalOpen) {
+          window.history.back();
+        }
+    };
+  }, [isAddDialogOpen, isEditDialogOpen, isDetailOpen, isWishlistFormOpen, isWishlistDetailOpen, isStatsOpen, isCalendarOpen, isSettingsOpen, isImageDetailOpen]);
+
+
   // Fetch user profile for custom settings
     useEffect(() => {
         if (!user || !firestore) {
@@ -316,7 +352,7 @@ export default function GardenApp() {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
       setPlantToAddFromWishlist(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error adding plant:", error);
     }
   };
@@ -331,20 +367,20 @@ export default function GardenApp() {
        if (selectedPlant && selectedPlant.id === plantId) {
         setSelectedPlant(prev => prev ? { ...prev, ...updatedData } : null);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating plant:", error);
     }
   };
 
   const handleDeletePlant = async (plantId: string) => {
     if (!firestore || !user) return;
-    
+
     // Close any open dialogs first
     setIsEditDialogOpen(false);
     setIsDetailOpen(false);
     setEditingPlant(null);
     setSelectedPlant(null);
-    
+
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
       toast({
@@ -385,7 +421,7 @@ export default function GardenApp() {
       }
       setIsWishlistFormOpen(false);
       setEditingWishlistItem(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving wishlist item:", error);
     }
   };
@@ -396,7 +432,7 @@ export default function GardenApp() {
       await deleteDoc(doc(firestore, `users/${user.uid}/wishlist`, id));
       setIsWishlistDetailOpen(false);
       setSelectedWishlistItem(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting wishlist item:", error);
     }
   };
