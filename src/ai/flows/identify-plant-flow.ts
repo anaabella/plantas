@@ -32,6 +32,7 @@ export async function identifyPlant(input: IdentifyPlantInput): Promise<Identify
 
 const prompt = ai.definePrompt({
   name: 'identifyPlantPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: IdentifyPlantInputSchema },
   output: { schema: IdentifyPlantOutputSchema },
   prompt: `You are an expert botanist. Your task is to identify the plant in the provided image.
