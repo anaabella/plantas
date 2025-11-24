@@ -322,7 +322,6 @@ export default function GardenApp() {
   const handleAddPlant = async (newPlantData: Omit<Plant, 'id' | 'createdAt' | 'ownerId' | 'events'>) => {
     if (!user || !firestore) return;
     try {
-      setIsAddDialogOpen(false);
       const initialEvent: PlantEvent = {
         id: new Date().getTime().toString(),
         type: 'nota',
@@ -351,9 +350,11 @@ export default function GardenApp() {
       if (plantToAddFromWishlist && plantToAddFromWishlist.id) {
         await handleDeleteWishlistItem(plantToAddFromWishlist.id);
       }
-      setPlantToAddFromWishlist(null);
     } catch (error) {
       console.error("Error adding plant:", error);
+    } finally {
+        setIsAddDialogOpen(false);
+        setPlantToAddFromWishlist(null);
     }
   };
 
@@ -611,6 +612,8 @@ export default function GardenApp() {
               isLoading={isLoading} 
               onDeletePlant={handleDeletePlant} 
               plantRenderData={plantRenderData}
+              setIsDetailOpen={setIsDetailOpen}
+              setIsEditDialogOpen={setIsEditDialogOpen}
           />
         )}
         {view === 'community' && (
@@ -808,9 +811,10 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail, setIsDetailOpen, setIsEditDialogOpen }: any) {
   
-  const [plantToDelete, setPlantToDelete] = useState<Plant | null>(null);
+  const [plantToDeleteId, setPlantToDeleteId] = useState<string | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -872,13 +876,19 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
   
+  const handleDeleteClick = (plantId: string) => {
+    setPlantToDeleteId(plantId);
+    setIsAlertOpen(true);
+  };
+  
   const confirmDelete = () => {
-    if (plantToDelete) {
-      onDeletePlant(plantToDelete.id);
-      setIsDetailOpen(false); // Close detail dialog if open
-      setIsEditDialogOpen(false); // Close edit dialog if open
-      setPlantToDelete(null);
+    if (plantToDeleteId) {
+      onDeletePlant(plantToDeleteId);
+      if (setIsDetailOpen) setIsDetailOpen(false);
+      if (setIsEditDialogOpen) setIsEditDialogOpen(false);
+      setPlantToDeleteId(null);
     }
+    setIsAlertOpen(false);
   };
 
 
@@ -890,14 +900,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           
           let duplicateIndex = 0;
           if (!isCommunity && plant.name && plantRenderData.nameCounts[plant.name.toLowerCase()]?.total > 1) {
-              duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[p.id];
+              duplicateIndex = plantRenderData.nameCounts[plant.name.toLowerCase()].indices[plant.id];
           }
 
           const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
           const galleryImages = getGalleryImages(plant);
           
-          const needsCompletion = !plant.name || plant.name.toLowerCase() === 'nose';
+          const needsCompletion = !plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose';
 
           const cardContent = (
             <div
@@ -997,7 +1007,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                   {cardContent}
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={() => setPlantToDelete(plant)}>
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDeleteClick(plant.id)}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Eliminar Planta
                   </ContextMenuItem>
@@ -1007,13 +1017,13 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         })}
       </div>
       
-      {plantToDelete && (
-          <AlertDialog open={!!plantToDelete} onOpenChange={(isOpen) => !isOpen && setPlantToDelete(null)}>
+      {plantToDeleteId && (
+          <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta "{plantToDelete.name}" y todos sus datos.
+                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -1072,3 +1082,6 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+
+    
