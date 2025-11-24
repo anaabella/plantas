@@ -51,6 +51,11 @@
             "required": ["imageUrl", "date"]
           }
         },
+        "tags": {
+            "type": "array",
+            "description": "A list of custom tags for the plant.",
+            "items": { "type": "string" }
+        },
         "ownerId": { "type": "string", "description": "The UID of the user who owns the plant." },
         "ownerName": { "type": "string", "description": "The name of the user who owns the plant." },
         "ownerPhotoURL": { "type": "string", "description": "The photo URL of the user who owns the plant." }
@@ -86,6 +91,11 @@
         },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string", "format": "uri" },
+        "tags": {
+            "type": "array",
+            "description": "A list of custom tags created by the user.",
+            "items": { "type": "string" }
+        },
         "eventIconConfiguration": {
           "type": "object",
           "description": "User's custom configuration for event icons.",
@@ -99,8 +109,7 @@
             "nota": { "type": "string" },
             "revivida": { "type": "string" },
             "fallecida": { "type": "string" },
-            "esqueje": { "type": "string" },
-            "floracion": { "type": "string" }
+            "esqueje": { "type": "string" }
           }
         }
       },
