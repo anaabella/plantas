@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export function StatsComponent({ plants }: { plants: Plant[] }) {
-  const stats = useMemo(() => {
+  const { stats, chartConfig } = useMemo(() => {
     const total = plants.length;
     const alive = plants.filter((p: Plant) => p.status === 'viva').length;
     const deceased = plants.filter((p: Plant) => p.status === 'fallecida').length;
@@ -50,7 +50,25 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
       .filter((p: Plant) => p.acquisitionType === 'compra' && p.price)
       .reduce((sum: number, p: Plant) => sum + parseFloat(p.price || '0'), 0);
 
-    return { total, alive, deceased, traded, acquisition, totalSpent, statusData, acquisitionData, typesData };
+    const dynamicChartConfig: any = {
+      value: { label: 'Plantas' },
+      Vivas: { label: 'Vivas', color: 'hsl(var(--chart-2))' },
+      Fallecidas: { label: 'Fallecidas', color: 'hsl(var(--destructive))' },
+      Intercambiadas: { label: 'Intercambiadas', color: 'hsl(var(--chart-4))' },
+      Compra: { label: 'Compra', color: 'hsl(var(--chart-1))' },
+      Regalo: { label: 'Regalo', color: 'hsl(var(--chart-2))' },
+      Intercambio: { label: 'Intercambio', color: 'hsl(var(--chart-3))' },
+      Rescatada: { label: 'Rescatada', color: 'hsl(var(--chart-5))' },
+    };
+
+    typesData.forEach(item => {
+        dynamicChartConfig[item.name] = { label: item.name, color: item.fill };
+    });
+
+    return { 
+        stats: { total, alive, deceased, traded, totalSpent, statusData, acquisitionData, typesData },
+        chartConfig: dynamicChartConfig 
+    };
   }, [plants]);
 
 
@@ -65,17 +83,6 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
       </div>
     </div>
   );
-
-  const chartConfig = {
-    value: { label: 'Plantas' },
-    Vivas: { label: 'Vivas', color: 'hsl(var(--chart-2))' },
-    Fallecidas: { label: 'Fallecidas', color: 'hsl(var(--destructive))' },
-    Intercambiadas: { label: 'Intercambiadas', color: 'hsl(var(--chart-4))' },
-    Compra: { label: 'Compra', color: 'hsl(var(--chart-1))' },
-    Regalo: { label: 'Regalo', color: 'hsl(var(--chart-2))' },
-    Intercambio: { label: 'Intercambio', color: 'hsl(var(--chart-3))' },
-    Rescatada: { label: 'Rescatada', color: 'hsl(var(--chart-5))' },
-  };
 
   return (
     <div>
@@ -151,7 +158,7 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
                                     <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} />
                                     <ChartTooltip
                                         cursor={{ fill: 'hsl(var(--muted))' }}
-                                        content={<ChartTooltipContent hideLabel />}
+                                        content={<ChartTooltipContent hideLabel nameKey="name" />}
                                     />
                                     <Bar dataKey="value" radius={5} />
                                 </BarChart>
