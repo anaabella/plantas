@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
-  HeartCrack, Leaf, Moon, Sun,
+  HeartCrack, Leaf, Moon, Sun, Bot,
   Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
 } from 'lucide-react';
 import NextImage from 'next/image';
@@ -54,6 +54,7 @@ import { CalendarDialog } from '@/components/calendar-dialog';
 import Link from 'next/link';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { IdentifyPlantDialog } from '@/components/identify-plant-dialog';
 
 // Tipos
 export type UserProfile = {
@@ -145,6 +146,7 @@ export default function GardenApp() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isIdentifyOpen, setIsIdentifyOpen] = useState(false);
   
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
@@ -422,6 +424,12 @@ export default function GardenApp() {
     setIsAddDialogOpen(true);
   };
 
+  const handleIdentifyComplete = (data: { type: string, image: string }) => {
+    setPlantToAddFromWishlist(prev => ({ ...prev, type: data.type, image: data.image }));
+    setIsIdentifyOpen(false);
+    setIsAddDialogOpen(true);
+  };
+
   // -- UI Handlers --
   const openPlantDetails = (plant: Plant) => {
     setSelectedPlant(plant);
@@ -546,6 +554,7 @@ export default function GardenApp() {
         onOpenStats={() => setIsStatsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenIdentify={() => setIsIdentifyOpen(true)}
         isUserLoading={isUserLoading}
       />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -655,6 +664,11 @@ export default function GardenApp() {
         setIsOpen={setIsSettingsOpen}
         userProfile={userProfile}
       />
+      <IdentifyPlantDialog 
+        isOpen={isIdentifyOpen}
+        setIsOpen={setIsIdentifyOpen}
+        onComplete={handleIdentifyComplete}
+      />
       <ImageDetailDialog 
         isOpen={isImageDetailOpen} 
         setIsOpen={setIsImageDetailOpen}
@@ -669,7 +683,7 @@ export default function GardenApp() {
 }
 
 // Header Component
-const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, isUserLoading }: any) => {
+const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpenStats, onOpenCalendar, onOpenWishlist, onOpenSettings, onOpenIdentify, isUserLoading }: any) => {
   const { setTheme } = useTheme();
 
   const NavButton = ({ icon: Icon, children, ...props }: any) => (
@@ -699,6 +713,7 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               <span className="hidden sm:inline">Añadir Planta</span>
             </Button>
            )}
+          <Button variant="ghost" size="icon" onClick={onOpenIdentify}><Bot className="h-5 w-5" /></Button>
           {user && <Button variant="ghost" size="icon" onClick={onOpenCalendar}><CalendarDays className="h-5 w-5" /></Button>}
           {user && <Button variant="ghost" size="icon" onClick={onOpenStats}><BarChart3 className="h-5 w-5" /></Button>}
           {user && (
@@ -816,7 +831,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
     if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
         allImages.push({ 
             imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate()?.toISOString() || plant.date,
+            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
             attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
         });
     }
@@ -1007,5 +1022,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-    
