@@ -18,6 +18,14 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
       return acc;
     }, {});
 
+    const types = plants.reduce((acc: any, p: Plant) => {
+      if (p.type && p.type.trim()) {
+        const typeKey = p.type.trim();
+        acc[typeKey] = (acc[typeKey] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
     const statusData = [
         { name: 'Vivas', value: alive, fill: 'hsl(var(--chart-2))' },
         { name: 'Fallecidas', value: deceased, fill: 'hsl(var(--destructive))' },
@@ -30,11 +38,19 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
         fill: `hsl(var(--chart-${index + 1}))`
     })).filter(item => item.value > 0);
     
+    const typesData = Object.entries(types)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .map(([name, value], index) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value: value as number,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+    })).filter(item => item.value > 0);
+    
     const totalSpent = plants
       .filter((p: Plant) => p.acquisitionType === 'compra' && p.price)
       .reduce((sum: number, p: Plant) => sum + parseFloat(p.price || '0'), 0);
 
-    return { total, alive, deceased, traded, acquisition, totalSpent, statusData, acquisitionData };
+    return { total, alive, deceased, traded, acquisition, totalSpent, statusData, acquisitionData, typesData };
   }, [plants]);
 
 
@@ -121,6 +137,30 @@ export function StatsComponent({ plants }: { plants: Plant[] }) {
                 </Card>
             )}
         </div>
+         {stats.typesData.length > 0 && (
+            <div className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Tipos de Plantas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="w-full h-[250px]">
+                            <ResponsiveContainer>
+                                <BarChart data={stats.typesData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} />
+                                    <ChartTooltip
+                                        cursor={{ fill: 'hsl(var(--muted))' }}
+                                        content={<ChartTooltipContent hideLabel />}
+                                    />
+                                    <Bar dataKey="value" radius={5} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
     </div>
   );
 }
