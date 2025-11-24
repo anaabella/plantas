@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot, Flower2
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -374,22 +374,21 @@ export default function GardenApp() {
   };
 
   const handleDeletePlant = async (plantId: string) => {
-      if (!firestore || !user) return;
-
-      try {
-          await deleteDoc(doc(firestore, 'plants', plantId));
-          toast({
-              title: "Planta eliminada",
-              description: "Tu planta ha sido eliminada permanentemente.",
-          });
-      } catch (error) {
-          console.error("Error deleting plant:", error);
-          toast({
-              variant: "destructive",
-              title: "Error al eliminar",
-              description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
-          });
-      }
+    if (!firestore || !user) return;
+    try {
+      await deleteDoc(doc(firestore, 'plants', plantId));
+      toast({
+        title: "Planta eliminada",
+        description: "Tu planta ha sido eliminada permanentemente.",
+      });
+    } catch (error) {
+      console.error("Error deleting plant:", error);
+      toast({
+        variant: "destructive",
+        title: "Error al eliminar",
+        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+      });
+    }
   };
   
   const handleClonePlant = useCallback((plant: Plant) => {
@@ -542,6 +541,8 @@ export default function GardenApp() {
     const nameCounts: { [key: string]: { total: number, indices: { [plantId: string]: number } } } = {};
     const attemptCounts: { [plantId: string]: number } = {};
     const offspringCounts: { [plantId: string]: number } = {};
+    const hasFlowered: { [plantId: string]: boolean } = {};
+
 
     // First sort by creation date to have a stable order for indexing
     const sortedPlants = [...plants].sort((a,b) => (a.createdAt?.toDate() || 0) - (b.createdAt?.toDate() || 0));
@@ -554,6 +555,10 @@ export default function GardenApp() {
 
         // Count offspring
         offspringCounts[plant.id] = events.filter(e => e.type === 'esqueje').length;
+
+        // Check for flowering
+        hasFlowered[plant.id] = events.some(e => e.type === 'floracion');
+
 
         // Count name duplicates
         const nameKey = plant.name.toLowerCase();
@@ -572,7 +577,7 @@ export default function GardenApp() {
         }
     });
 
-    return { nameCounts, attemptCounts, offspringCounts };
+    return { nameCounts, attemptCounts, offspringCounts, hasFlowered };
   }, [plants]);
 
 
@@ -883,13 +888,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
   
   const confirmDelete = () => {
     if (plantToDeleteId) {
-      onDeletePlant(plantToDeleteId);
-      if (setIsDetailOpen) setIsDetailOpen(false);
-      if (setIsEditDialogOpen) setIsEditDialogOpen(false);
-      setPlantToDeleteId(null);
+        onDeletePlant(plantToDeleteId);
+        // Ensure any open dialogs for this plant are closed
+        if(setIsDetailOpen) setIsDetailOpen(false);
+        if(setIsEditDialogOpen) setIsEditDialogOpen(false);
     }
+    setPlantToDeleteId(null);
     setIsAlertOpen(false);
-  };
+};
 
 
   return (
@@ -905,6 +911,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
 
           const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
+          const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           const galleryImages = getGalleryImages(plant);
           
           const needsCompletion = !plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose';
@@ -961,7 +968,12 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     {!isCommunity ? (
                       <>
                           <div className='flex items-baseline gap-2'>
-                            <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                              <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                              {duplicateIndex > 1 && (
+                                <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
+                                    #{duplicateIndex}
+                                </Badge>
+                              )}
                           </div>
                           <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
@@ -982,14 +994,10 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                               </div>
                           </div>
                           <div className='mt-2 flex flex-wrap gap-1'>
-                              {duplicateIndex > 1 && (
-                                <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
-                                    #{duplicateIndex}
-                                </Badge>
-                              )}
                               {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                               {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
-                              {plant.type && <Badge variant='secondary' className='capitalize'>{plant.type}</Badge>}
+                              {hasFlowered && <Badge variant='secondary' className='bg-pink-500/20 text-pink-600 border-transparent hover:bg-pink-500/30 dark:bg-pink-500/30 dark:text-pink-400'><Flower2 className="h-3 w-3 mr-1"/></Badge>}
+                              {plant.type && <Badge variant='secondary' className='capitalize bg-green-500/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent'>{plant.type}</Badge>}
                           </div>
                       </>
                     ) : null }
@@ -1017,24 +1025,22 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
         })}
       </div>
       
-      {plantToDeleteId && (
-          <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>
-                  Eliminar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la planta y todos sus datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPlantToDeleteId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
