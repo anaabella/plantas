@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -336,17 +336,30 @@ export default function GardenApp() {
     }
   };
 
-  const handleDeletePlant = useCallback(async (plantId: string) => {
+  const handleDeletePlant = async (plantId: string) => {
     if (!firestore || !user) return;
+    
+    // Close any open dialogs first
+    setIsEditDialogOpen(false);
+    setIsDetailOpen(false);
+    setEditingPlant(null);
+    setSelectedPlant(null);
+    
     try {
       await deleteDoc(doc(firestore, 'plants', plantId));
-      setIsEditDialogOpen(false); // Close edit dialog if open
-      setSelectedPlant(null); // Deselect if it was being viewed
-      setIsDetailOpen(false);
-    } catch (error: any) {
+      toast({
+        title: "Planta eliminada",
+        description: "Tu planta ha sido eliminada permanentemente.",
+      });
+    } catch (error) {
       console.error("Error deleting plant:", error);
+      toast({
+        variant: "destructive",
+        title: "Error al eliminar",
+        description: "No se pudo eliminar la planta. Inténtalo de nuevo.",
+      });
     }
-  }, [firestore, user]);
+  };
   
   const handleClonePlant = useCallback((plant: Plant) => {
     if (!user) {
