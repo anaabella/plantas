@@ -21,6 +21,7 @@ const PlantCareInputSchema = z.object({
 // 2. Define the prompt
 const carePrompt = ai.definePrompt({
   name: 'plantCarePrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: { schema: PlantCareInputSchema },
   output: { schema: PlantCareGuideSchema },
   prompt: `
