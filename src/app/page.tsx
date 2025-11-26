@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot, Flower2
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -1005,8 +1005,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                           <div className='mt-2 flex flex-wrap gap-1'>
                               {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                               {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
-                              {hasFlowered && <Badge variant='secondary' className='bg-pink-500/20 text-pink-600 border-transparent hover:bg-pink-500/30 dark:bg-pink-500/30 dark:text-pink-400'><Flower2 className="h-3 w-3 mr-1"/></Badge>}
                               {plant.type && <Badge variant='secondary' className='capitalize bg-green-500/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent'>{plant.type}</Badge>}
+                              {hasFlowered && <Badge variant='secondary' className='bg-pink-500/20 text-pink-600 border-transparent hover:bg-pink-500/30 dark:bg-pink-500/30 dark:text-pink-400'><Flower2 className="h-3 w-3 mr-1"/></Badge>}
                           </div>
                       </>
                     ) : null }
