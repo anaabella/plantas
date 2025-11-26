@@ -33,7 +33,8 @@
               "type": { "type": "string", "enum": ["riego", "poda", "transplante", "foto", "plaga", "fertilizante", "nota", "revivida", "fallecida", "esqueje", "floracion"] },
               "date": { "type": "string", "format": "date" },
               "note": { "type": "string" },
-              "attempt": { "type": "number", "description": "The attempt number this event belongs to." }
+              "attempt": { "type": "number", "description": "The attempt number this event belongs to." },
+              "imageUrl": { "type": "string", "description": "URL of an image associated with this event.", "format": "uri" }
             },
             "required": ["id", "type", "date", "attempt"]
           }

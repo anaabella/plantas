@@ -26,16 +26,16 @@ import {
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, CalendarIcon } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, MoreVertical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
@@ -54,86 +54,34 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 
 interface QuickEventButtonProps extends ButtonProps {
   eventType: PlantEvent['type'];
-  plantEvents: PlantEvent[];
   onAdd: (type: PlantEvent['type']) => void;
-  onRemove: (eventId: string) => void;
   children: React.ReactNode;
   label: string;
 }
 
 const QuickEventButton = ({
   eventType,
-  plantEvents,
   onAdd,
-  onRemove,
   children,
   variant = 'outline',
   label,
   ...props
 }: QuickEventButtonProps) => {
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  
-  const findLastEventId = () => {
-    const lastEvent = plantEvents
-      ?.filter(e => e.type === eventType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      [0];
-    return lastEvent?.id;
-  };
 
-  const handleRemoveClick = () => {
-    const lastEventId = findLastEventId();
-    if (lastEventId) {
-      setIsAlertOpen(true);
-    }
-  };
-
-  const confirmRemove = () => {
-    const lastEventId = findLastEventId();
-    if (lastEventId) {
-      onRemove(lastEventId);
-    }
-    setIsAlertOpen(false);
-  };
-  
   const button = (
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
-                      {children}
-                      <span className="ml-2">{label}</span>
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent className='sm:hidden'>
-                  <p>{label}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar último
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar último evento de "{label}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará el evento más reciente de este tipo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRemove}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+              <Button variant={variant} size="sm" onClick={() => onAdd(eventType)} {...props} className="w-full justify-start">
+                {children}
+                <span className="ml-2">{label}</span>
+              </Button>
+          </TooltipTrigger>
+          <TooltipContent className='sm:hidden'>
+            <p>{label}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
   );
 
   return button;
@@ -263,6 +211,8 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(undefined);
   const [isMobile, setIsMobile] = useState(false);
+  const eventPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [eventToUpdatePhoto, setEventToUpdatePhoto] = useState<string | null>(null);
   
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
@@ -437,18 +387,65 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   }
 
   const handleCroppedImage = (croppedImageDataUrl: string) => {
-    handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: croppedImageDataUrl});
+     if (eventToUpdatePhoto) {
+        handleEventPhotoAdd(eventToUpdatePhoto, croppedImageDataUrl);
+        setEventToUpdatePhoto(null);
+    } else {
+        handleAddEvent({type: 'foto', date: new Date().toISOString().split('T')[0], imageData: croppedImageDataUrl});
+    }
     setImageToCrop(null);
+  };
+
+  const triggerEventPhotoUpload = (eventId: string) => {
+    setEventToUpdatePhoto(eventId);
+    setCropAspect(undefined);
+    eventPhotoInputRef.current?.click();
+  }
+
+  const handleEventFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && eventToUpdatePhoto) {
+          const reader = new FileReader();
+          reader.onload = (readEvent) => {
+              setImageToCrop(readEvent.target?.result as string);
+          };
+          reader.readAsDataURL(file);
+      }
+      if (e.target) e.target.value = ""; // Reset input
+  };
+  
+  const handleEventPhotoAdd = async (eventId: string, imageUrl: string) => {
+      if (!firestore || !user || !editedPlant) return;
+
+      const updatedEvents = editedPlant.events.map(e => 
+          e.id === eventId ? { ...e, imageUrl } : e
+      );
+
+      const plantRef = doc(firestore, 'plants', editedPlant.id);
+      await updateDoc(plantRef, { events: updatedEvents });
+      setEditedPlant({ ...editedPlant, events: updatedEvents });
   };
     
   const handleDeleteImage = async (imageUrlToDelete: string) => {
     if (!firestore || !user || !editedPlant) return;
     
-    const updatedGallery = editedPlant.gallery?.filter(img => img.imageUrl !== imageUrlToDelete) || [];
-    const updatePayload: Partial<Plant> = { gallery: updatedGallery };
+    // Check if it's an event image and remove it from the event
+    const updatedEvents = editedPlant.events.map(event => {
+        if (event.imageUrl === imageUrlToDelete) {
+            const { imageUrl, ...rest } = event;
+            return rest;
+        }
+        return event;
+    });
+
+    const updatePayload: Partial<Plant> = { events: updatedEvents };
     
+    // Check if it's the main image
     if (editedPlant.image === imageUrlToDelete) {
-        updatePayload.image = updatedGallery.length > 0 ? updatedGallery[0].imageUrl : '';
+        // Find a new main image from gallery or events, sorted by date
+        const newMainImage = getGalleryImages({ ...editedPlant, events: updatedEvents })
+                               .filter(img => img.imageUrl !== imageUrlToDelete)[0];
+        updatePayload.image = newMainImage ? newMainImage.imageUrl : '';
     }
 
     const plantRef = doc(firestore, 'plants', editedPlant.id);
@@ -456,7 +453,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     
     setEditedPlant(prev => ({...prev, ...updatePayload }));
 
-    if(updatedGallery.length === 0){
+    if(getGalleryImages({ ...editedPlant, ...updatePayload }).length === 0){
         setIsImageDetailOpen(false);
     }
   };
@@ -464,11 +461,14 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const handleUpdateImageDate = async (imageUrl: string, newDate: string) => {
     if (!firestore || !user || !editedPlant) return;
     
-    const updatedGallery = (editedPlant.gallery || []).map(img => 
-      img.imageUrl === imageUrl ? { ...img, date: newDate } : img
-    );
+     const updatedEvents = editedPlant.events.map(event => {
+        if (event.imageUrl === imageUrl) {
+            return { ...event, date: newDate };
+        }
+        return event;
+    });
 
-    const updatePayload: Partial<Plant> = { gallery: updatedGallery };
+    const updatePayload: Partial<Plant> = { events: updatedEvents };
 
     const plantRef = doc(firestore, 'plants', editedPlant.id);
     await updateDoc(plantRef, updatePayload);
@@ -479,26 +479,39 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
     
-    let allImages = [...(plant.gallery || [])];
+    // 1. Main plant image
+    const mainImage = plant.image ? [{ 
+        imageUrl: plant.image, 
+        date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
+        attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1),
+        isMain: true
+    }] : [];
 
-    if (allImages.length === 0) {
-        const eventPhotos = (plant.events || [])
-            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
-        allImages.push(...eventPhotos);
-    }
+    // 2. Images from 'foto' events (old system)
+    const eventPhotos = (plant.events || [])
+        .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+        .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt, event: e }));
 
-    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
-        allImages.push({ 
-            imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
-            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
-        });
-    }
+    // 3. Images from the new event.imageUrl property
+    const newEventPhotos = (plant.events || [])
+        .filter(e => e.imageUrl)
+        .map(e => ({ imageUrl: e.imageUrl!, date: e.date, attempt: e.attempt, event: e }));
     
-    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
-        .map(url => allImages.find(img => img.imageUrl === url)!);
+    // 4. Images from the gallery property (for backward compatibility and general storage)
+    const galleryPhotos = (plant.gallery || []).map(g => ({ ...g, isFromGallery: true }));
 
+    // Combine all, ensuring main image is not duplicated if it's also in the gallery
+    let allImages = [
+        ...mainImage, 
+        ...eventPhotos,
+        ...newEventPhotos,
+        ...galleryPhotos
+    ];
+    
+    // Create a unique set of images based on URL to remove duplicates
+    const uniqueImages = Array.from(new Map(allImages.map(img => [img.imageUrl, img])).values());
+
+    // Sort images by date, newest first
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
@@ -580,13 +593,13 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       <div className="space-y-4 mb-6">
                         <h3 className="font-semibold px-1">Eventos Rápidos</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                           <QuickEventButton eventType='poda' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Poda"><Scissors/></QuickEventButton>
-                           <QuickEventButton eventType='transplante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Transplante"><Shovel/></QuickEventButton>
-                           <QuickEventButton eventType='fertilizante' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Fertilizante"><Beaker/></QuickEventButton>
-                           <QuickEventButton eventType='plaga' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Plaga"><Bug/></QuickEventButton>
-                           <QuickEventButton eventType='esqueje' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Esqueje"><Sprout/></QuickEventButton>
-                           <QuickEventButton eventType='floracion' plantEvents={editedPlant.events} onAdd={handleQuickAddEvent} onRemove={handleRemoveEvent} label="Floración"><Flower2/></QuickEventButton>
-                           <QuickEventButton eventType='nota' plantEvents={editedPlant.events} onAdd={() => handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note: prompt("Añade una nota:") || "" })} onRemove={handleRemoveEvent} label="Nota"><Info/></QuickEventButton>
+                           <QuickEventButton eventType='poda' onAdd={handleQuickAddEvent} label="Poda"><Scissors/></QuickEventButton>
+                           <QuickEventButton eventType='transplante' onAdd={handleQuickAddEvent} label="Transplante"><Shovel/></QuickEventButton>
+                           <QuickEventButton eventType='fertilizante' onAdd={handleQuickAddEvent} label="Fertilizante"><Beaker/></QuickEventButton>
+                           <QuickEventButton eventType='plaga' onAdd={handleQuickAddEvent} label="Plaga"><Bug/></QuickEventButton>
+                           <QuickEventButton eventType='esqueje' onAdd={handleQuickAddEvent} label="Esqueje"><Sprout/></QuickEventButton>
+                           <QuickEventButton eventType='floracion' onAdd={handleQuickAddEvent} label="Floración"><Flower2/></QuickEventButton>
+                           <QuickEventButton eventType='nota' onAdd={() => handleAddEvent({ type: 'nota', date: new Date().toISOString().split('T')[0], note: prompt("Añade una nota:") || "" })} label="Nota"><Info/></QuickEventButton>
                         </div>
                         <div className='flex flex-col space-y-2'>
                            <Button variant="outline" size="sm" onClick={() => setIsNewAttemptOpen(true)}><RefreshCw className="mr-2 h-4 w-4"/>Nueva Oportunidad</Button>
@@ -607,30 +620,48 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                                           {events.map((event: PlantEvent) => (
                                               <div key={event.id} className="flex items-start justify-between p-2 rounded-md bg-secondary/50">
                                                   <div className="flex items-start gap-3">
-                                                      {eventIcons[event.type]}
+                                                      {event.imageUrl ? (
+                                                          <img src={event.imageUrl} alt={`Foto del evento ${event.type}`} className="h-10 w-10 rounded object-cover" />
+                                                      ) : (
+                                                          eventIcons[event.type]
+                                                      )}
                                                       <div>
                                                           <p className="font-semibold capitalize">{event.type}</p>
                                                           <p className="text-sm text-muted-foreground">{event.note}</p>
                                                           <p className="text-xs text-muted-foreground/70">{format(parseISO(event.date), "d 'de' MMMM, yyyy", { locale: es })}</p>
                                                       </div>
                                                   </div>
-                                                  <AlertDialog>
-                                                      <AlertDialogTrigger asChild>
-                                                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                              <X className="h-4 w-4" />
-                                                          </Button>
-                                                      </AlertDialogTrigger>
-                                                      <AlertDialogContent>
-                                                          <AlertDialogHeader>
-                                                          <AlertDialogTitle>¿Seguro que quieres eliminar este evento?</AlertDialogTitle>
-                                                          <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                          </AlertDialogHeader>
-                                                          <AlertDialogFooter>
-                                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                          <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
-                                                          </AlertDialogFooter>
-                                                      </AlertDialogContent>
-                                                  </AlertDialog>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuItem onSelect={() => triggerEventPhotoUpload(event.id)}>
+                                                                <Camera className="mr-2 h-4 w-4" />
+                                                                Añadir/Cambiar Foto
+                                                            </DropdownMenuItem>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Eliminar
+                                                                    </DropdownMenuItem>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>¿Eliminar este evento?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleRemoveEvent(event.id)}>Eliminar</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                               </div>
                                           ))}
                                       </div>
@@ -653,7 +684,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                           {galleryImages.map((image, index) => (
-                              <div key={index} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
+                              <div key={image.imageUrl} className="relative aspect-square w-full rounded-md overflow-hidden border group cursor-pointer" onClick={() => handleOpenImageDetail(index)}>
                                   <NextImage src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized />
                                   <div className="absolute bottom-0 w-full bg-black/60 text-white text-center text-xs py-0.5">
                                       {format(parseISO(image.date), 'dd/MM/yy', { locale: es })}
@@ -718,6 +749,9 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
           
         </DialogContent>
       </Dialog>
+      
+      <Input type="file" accept="image/*" onChange={handleEventFileChange} ref={eventPhotoInputRef} className="hidden" />
+
       <ImageDetailDialog 
           isOpen={isImageDetailOpen} 
           setIsOpen={setIsImageDetailOpen}
@@ -745,5 +779,3 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
     </>
   );
 });
-
-    

@@ -20,7 +20,7 @@ import {
 import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type EmblaCarouselType } from '@/components/ui/carousel';
 import { useEffect, useState } from 'react';
-import type { Plant } from '@/app/page';
+import type { Plant, PlantEvent } from '@/app/page';
 import { format, formatDistanceStrict, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from './ui/button';
@@ -29,8 +29,17 @@ import { useUser } from '@/firebase';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 
+interface GalleryImage {
+    imageUrl: string;
+    date: string;
+    attempt?: number;
+    event?: PlantEvent;
+    isMain?: boolean;
+    isFromGallery?: boolean;
+}
+
 interface ImageDetailDialogProps {
-  images: { imageUrl: string; date: string, attempt?: number }[];
+  images: GalleryImage[];
   startIndex: number;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
@@ -91,36 +100,44 @@ export function ImageDetailDialog({
                   ? 'el día que la conseguí'
                   : `a los ${formatDistanceStrict(parseISO(image.date), parseISO(acquisitionDate), { locale: es })}`
                 : '';
+              
+              const eventTitle = image.event ? `Foto del evento: ${image.event.type}` : null;
+              const eventNote = image.event?.note;
 
               return (
-                <CarouselItem key={index}>
+                <CarouselItem key={image.imageUrl}>
                   <div className="relative aspect-auto w-full h-[80vh] flex flex-col items-center justify-center">
                       <Image
                         src={image.imageUrl}
                         alt={`Vista detallada de la imagen ${index + 1}`}
                         fill
                         className="object-contain"
+                        unoptimized
                       />
-                      <div className="absolute bottom-4 flex items-center gap-2 bg-black/60 text-white text-sm py-1 px-3 rounded-full">
-                          <span>{timeSinceAcquisition} ({format(parseISO(image.date), 'dd/MM/yy')})</span>
-                          {isOwner && (
-                             <Popover>
-                              <PopoverTrigger asChild>
-                                <button className='bg-transparent border-none p-0 h-auto'>
-                                  <CalendarIcon className="h-4 w-4 text-white/80 hover:text-white transition-colors" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={parseISO(image.date)}
-                                  onSelect={(newDate) => handleDateSelect(image.imageUrl, newDate)}
-                                  initialFocus
-                                  locale={es}
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          )}
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-auto max-w-[90%] bg-black/60 text-white text-sm py-2 px-4 rounded-full text-center">
+                          {eventTitle && <p className="font-bold capitalize">{eventTitle}</p>}
+                          {eventNote && <p className="text-xs italic">"{eventNote}"</p>}
+                          <div className='flex items-center justify-center gap-2 mt-1'>
+                            <span>{timeSinceAcquisition} ({format(parseISO(image.date), 'dd/MM/yy')})</span>
+                            {isOwner && (
+                               <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className='bg-transparent border-none p-0 h-auto'>
+                                    <CalendarIcon className="h-4 w-4 text-white/80 hover:text-white transition-colors" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={parseISO(image.date)}
+                                    onSelect={(newDate) => handleDateSelect(image.imageUrl, newDate)}
+                                    initialFocus
+                                    locale={es}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
                       </div>
 
                       {isOwner && (
@@ -134,7 +151,7 @@ export function ImageDetailDialog({
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente esta foto de la galería.
+                                Esta acción no se puede deshacer. Se eliminará permanentemente esta foto.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
