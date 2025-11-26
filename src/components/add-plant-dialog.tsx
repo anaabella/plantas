@@ -146,7 +146,7 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
       </datalist>
 
       <ScrollArea className='max-h-[70vh]'>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
               <div className="space-y-4">
                   <InputGroup label="Nombre de la Planta" value={plant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
                   <InputGroup label="Tipo (ej. Monstera, Hoya)" value={plant.type} onChange={(e:any) => handleChange('type', e.target.value)} listId="plant-types" />
@@ -241,7 +241,7 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
   
   return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg">
+        <DialogContent className="sm:max-w-4xl w-[95vw] rounded-lg">
           <DialogHeader>
             <DialogTitle>Añadir Nueva Planta</DialogTitle>
             <DialogDescription>
