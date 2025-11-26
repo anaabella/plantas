@@ -26,7 +26,8 @@ const carePrompt = ai.definePrompt({
   output: { schema: PlantCareGuideSchema },
   prompt: `
     You are an expert botanist. A user has asked for care information for their plant.
-    Based on the provided plant name and type, provide a concise guide for the following aspects.
+    Ignore any images and base your answer solely on the provided plant name and type.
+    Provide a concise guide for the following aspects.
     
     Plant Name: {{{plantName}}}
     {{#if plantType}}Plant Type: {{{plantType}}}{{/if}}
