@@ -150,6 +150,8 @@ export default function GardenApp() {
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  const [hasPushedState, setHasPushedState] = useState(false);
 
   // Debounce effect for search
   useEffect(() => {
@@ -163,39 +165,46 @@ export default function GardenApp() {
   }, [inputValue]);
 
   // Handle back button for modals
-  useEffect(() => {
+ useEffect(() => {
     const isAnyModalOpen = isAddDialogOpen || isEditDialogOpen || isDetailOpen || isWishlistFormOpen || isWishlistDetailOpen || isStatsOpen || isCalendarOpen || isSettingsOpen || isImageDetailOpen;
 
     const onPopState = (event: PopStateEvent) => {
-      if (isAnyModalOpen) {
-        event.preventDefault();
-        setIsAddDialogOpen(false);
-        setIsEditDialogOpen(false);
-        setIsDetailOpen(false);
-        setIsWishlistFormOpen(false);
-        setIsWishlistDetailOpen(false);
-        setIsStatsOpen(false);
-        setIsCalendarOpen(false);
-        setIsSettingsOpen(false);
-        setIsImageDetailOpen(false);
-      }
-    };
-
-    if (isAnyModalOpen) {
-        // Push a state to the history when a modal opens
-        window.history.pushState({ modalOpen: true }, '');
-        window.addEventListener('popstate', onPopState);
-    }
-
-    return () => {
-        window.removeEventListener('popstate', onPopState);
-        // If the component unmounts while a modal is open, we might need to go back
-        // if the history state was pushed.
-        if (window.history.state?.modalOpen) {
-          window.history.back();
+        // Only act if we expect a modal to be open
+        if (hasPushedState) {
+            event.preventDefault();
+            // Close all modals
+            setIsAddDialogOpen(false);
+            setIsEditDialogOpen(false);
+            setIsDetailOpen(false);
+            setIsWishlistFormOpen(false);
+            setIsWishlistDetailOpen(false);
+            setIsStatsOpen(false);
+            setIsCalendarOpen(false);
+            setIsSettingsOpen(false);
+            setIsImageDetailOpen(false);
+            
+            // Reset the state so we can push again next time
+            setHasPushedState(false); 
         }
     };
-  }, [isAddDialogOpen, isEditDialogOpen, isDetailOpen, isWishlistFormOpen, isWishlistDetailOpen, isStatsOpen, isCalendarOpen, isSettingsOpen, isImageDetailOpen]);
+    
+    // If a modal is opening and we haven't pushed a state yet, push one.
+    if (isAnyModalOpen && !hasPushedState) {
+        window.history.pushState({ modalOpen: true }, '');
+        setHasPushedState(true);
+    }
+    
+    // If all modals are closed, it's safe to reset the hasPushedState flag.
+    if (!isAnyModalOpen) {
+        setHasPushedState(false);
+    }
+    
+    window.addEventListener('popstate', onPopState);
+    
+    return () => {
+        window.removeEventListener('popstate', onPopState);
+    };
+}, [isAddDialogOpen, isEditDialogOpen, isDetailOpen, isWishlistFormOpen, isWishlistDetailOpen, isStatsOpen, isCalendarOpen, isSettingsOpen, isImageDetailOpen, hasPushedState]);
 
 
   // Fetch user profile for custom settings
@@ -1098,7 +1107,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-
-    
-    
