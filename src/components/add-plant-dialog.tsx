@@ -82,8 +82,8 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
   }
 
   const handleSubmit = () => {
-    if (!plant.name || !plant.date) {
-      alert("El nombre y la fecha son obligatorios.");
+    if (!plant.date || (!plant.name && !plant.image)) {
+      alert("La fecha es obligatoria. Debes proporcionar un nombre o una imagen para la planta.");
       return;
     }
     const newPlantData: Partial<Plant> = { ...plant };
@@ -260,6 +260,3 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
       </Dialog>
   );
 };
-
-    
-    

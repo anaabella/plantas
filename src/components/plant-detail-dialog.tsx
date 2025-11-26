@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout, Droplets, Flower2, Loader2, Lightbulb } from 'lucide-react';
 import { format, parseISO, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState, useRef, useEffect } from 'react';
@@ -21,6 +21,7 @@ import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -121,8 +122,8 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
 
     if (allImages.length === 0) {
         const eventPhotos = (plant.events || [])
-            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+            .filter(e => (e.type === 'foto' && e.note && e.note.startsWith('data:image')) || e.imageUrl)
+            .map(e => ({ imageUrl: e.imageUrl || e.note, date: e.date, attempt: e.attempt }));
         allImages.push(...eventPhotos);
     }
 
@@ -157,6 +158,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           type: 'foto' as const,
           date: new Date().toISOString(),
           note: "Se añadió una nueva foto",
+          imageUrl,
           attempt: currentAttempt,
         };
         const updatedEvents = [...(plant.events || []), newEvent];
@@ -223,7 +225,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                             <CarouselItem key={index} className="basis-1/2 sm:basis-1/3 md:basis-1/4">
                             <div className="p-1" onClick={() => handleOpenImageDetail(index)}>
                                 <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent cursor-pointer">
-                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized/>
                                     <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
                                         {format(parseISO(image.date), 'dd/MM/yy')}
                                     </div>
@@ -248,15 +250,16 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                 </div>
             )}
              
+            <Separator className="my-4" />
+             
              {isCommunityView ? (
-                <div className="pt-4">
+                <div className="space-y-4">
                     <Button className="w-full" onClick={() => onClonePlant(plant)}>
                         <Copy className="mr-2 h-4 w-4" /> Yo la tengo
                     </Button>
                 </div>
              ) : (
                 <>
-                    <Separator className="my-4" />
                     <div className="space-y-4">
                         <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
                             <div className="text-primary">{Icon}</div>

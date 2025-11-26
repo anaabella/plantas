@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Bot, Flower2
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -97,6 +97,7 @@ export type PlantEvent = {
   date: string; // ISO date string
   note: string;
   attempt: number;
+  imageUrl?: string;
 };
 
 export type WishlistItem = {
@@ -150,6 +151,8 @@ export default function GardenApp() {
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  const [hasPushedState, setHasPushedState] = useState(false);
 
   // Debounce effect for search
   useEffect(() => {
@@ -163,39 +166,53 @@ export default function GardenApp() {
   }, [inputValue]);
 
   // Handle back button for modals
-  useEffect(() => {
+ useEffect(() => {
     const isAnyModalOpen = isAddDialogOpen || isEditDialogOpen || isDetailOpen || isWishlistFormOpen || isWishlistDetailOpen || isStatsOpen || isCalendarOpen || isSettingsOpen || isImageDetailOpen;
 
     const onPopState = (event: PopStateEvent) => {
-      if (isAnyModalOpen) {
-        event.preventDefault();
-        setIsAddDialogOpen(false);
-        setIsEditDialogOpen(false);
-        setIsDetailOpen(false);
-        setIsWishlistFormOpen(false);
-        setIsWishlistDetailOpen(false);
-        setIsStatsOpen(false);
-        setIsCalendarOpen(false);
-        setIsSettingsOpen(false);
-        setIsImageDetailOpen(false);
-      }
-    };
-
-    if (isAnyModalOpen) {
-        // Push a state to the history when a modal opens
-        window.history.pushState({ modalOpen: true }, '');
-        window.addEventListener('popstate', onPopState);
-    }
-
-    return () => {
-        window.removeEventListener('popstate', onPopState);
-        // If the component unmounts while a modal is open, we might need to go back
-        // if the history state was pushed.
-        if (window.history.state?.modalOpen) {
-          window.history.back();
+        // Only act if we expect a modal to be open
+        if (hasPushedState) {
+            event.preventDefault();
+            // Close all modals
+            setIsAddDialogOpen(false);
+            setIsEditDialogOpen(false);
+            setIsDetailOpen(false);
+            setIsWishlistFormOpen(false);
+            setIsWishlistDetailOpen(false);
+            setIsStatsOpen(false);
+            setIsCalendarOpen(false);
+            setIsSettingsOpen(false);
+            setIsImageDetailOpen(false);
+            
+            // Reset the state so we can push again next time
+            setHasPushedState(false); 
+             if (window.history.state && window.history.state.modalOpen) {
+                window.history.back();
+            }
         }
     };
-  }, [isAddDialogOpen, isEditDialogOpen, isDetailOpen, isWishlistFormOpen, isWishlistDetailOpen, isStatsOpen, isCalendarOpen, isSettingsOpen, isImageDetailOpen]);
+    
+    // If a modal is opening and we haven't pushed a state yet, push one.
+    if (isAnyModalOpen && !hasPushedState) {
+        window.history.pushState({ modalOpen: true }, '');
+        setHasPushedState(true);
+    }
+    
+    // If all modals are closed and we think we pushed a state, it means the user closed it manually.
+    // We should go back to remove our "fake" history entry.
+    if (!isAnyModalOpen && hasPushedState) {
+        if (window.history.state && window.history.state.modalOpen) {
+           window.history.back();
+        }
+        setHasPushedState(false);
+    }
+    
+    window.addEventListener('popstate', onPopState);
+    
+    return () => {
+        window.removeEventListener('popstate', onPopState);
+    };
+}, [isAddDialogOpen, isEditDialogOpen, isDetailOpen, isWishlistFormOpen, isWishlistDetailOpen, isStatsOpen, isCalendarOpen, isSettingsOpen, isImageDetailOpen, hasPushedState]);
 
 
   // Fetch user profile for custom settings
@@ -500,28 +517,37 @@ export default function GardenApp() {
   const getGalleryImages = (plant: Plant | null) => {
     if (!plant) return [];
     
-    let allImages = [...(plant.gallery || [])];
+    // 1. Main plant image
+    const mainImage = plant.image ? [{ 
+        imageUrl: plant.image, 
+        date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
+        attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1),
+        isMain: true
+    }] : [];
 
-    // This logic seems redundant if gallery is being populated correctly. Keep for backwards compatibility.
-    if (allImages.length === 0) {
-        const eventPhotos = (plant.events || [])
-            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
-        allImages.push(...eventPhotos);
-    }
+    // 2. Images from 'foto' events (old system)
+    const eventPhotos = (plant.events || [])
+        .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
+        .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt, event: e }));
 
-    // Also include the main plant image if it's not already in the gallery
-    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
-        allImages.push({ 
-            imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
-            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
-        });
-    }
+    // 3. Images from the new event.imageUrl property
+    const newEventPhotos = (plant.events || [])
+        .filter(e => e.imageUrl)
+        .map(e => ({ imageUrl: e.imageUrl!, date: e.date, attempt: e.attempt, event: e }));
     
-    // Create a unique set of images based on URL
-    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
-        .map(url => allImages.find(img => img.imageUrl === url)!);
+    // 4. Images from the gallery property (for backward compatibility and general storage)
+    const galleryPhotos = (plant.gallery || []).map(g => ({ ...g, isFromGallery: true }));
+
+    // Combine all, ensuring main image is not duplicated if it's also in the gallery
+    let allImages = [
+        ...mainImage, 
+        ...eventPhotos,
+        ...newEventPhotos,
+        ...galleryPhotos
+    ];
+    
+    // Create a unique set of images based on URL to remove duplicates
+    const uniqueImages = Array.from(new Map(allImages.map(img => [img.imageUrl, img])).values());
 
     // Sort images by date, newest first
     return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -863,32 +889,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
       </div>
     );
   }
-
-  const getGalleryImages = (plant: Plant) => {
-    if (!plant) return [];
-    
-    let allImages = [...(plant.gallery || [])];
-
-    if (allImages.length === 0) {
-        const eventPhotos = (plant.events || [])
-            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
-        allImages.push(...eventPhotos);
-    }
-
-    if (plant.image && !allImages.some(img => img.imageUrl === plant.image)) {
-        allImages.push({ 
-            imageUrl: plant.image, 
-            date: plant.lastPhotoUpdate || plant.createdAt?.toDate?.()?.toISOString() || plant.date,
-            attempt: (plant.events || []).reduce((max, e) => Math.max(max, e.attempt || 1), 1)
-        });
-    }
-    
-    const uniqueImages = Array.from(new Set(allImages.map(img => img.imageUrl)))
-        .map(url => allImages.find(img => img.imageUrl === url)!);
-
-    return uniqueImages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
   
   const handleDeleteClick = (e: React.MouseEvent, plantId: string) => {
     e.stopPropagation();
@@ -921,7 +921,6 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const attemptCount = isCommunity ? 0 : plantRenderData.attemptCounts[plant.id] || 1;
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
-          const galleryImages = getGalleryImages(plant);
           
           const needsCompletion = !plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose';
 
@@ -1006,8 +1005,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                           <div className='mt-2 flex flex-wrap gap-1'>
                               {attemptCount > 1 && <Badge variant='outline'>{attemptCount}ª Oportunidad</Badge>}
                               {offspringCount > 0 && <Badge variant='secondary' className='bg-cyan-500/20 text-cyan-600 border-transparent hover:bg-cyan-500/30 dark:bg-cyan-500/30 dark:text-cyan-400'><Sprout className="h-3 w-3 mr-1"/>{offspringCount}</Badge>}
-                              {hasFlowered && <Badge variant='secondary' className='bg-pink-500/20 text-pink-600 border-transparent hover:bg-pink-500/30 dark:bg-pink-500/30 dark:text-pink-400'><Flower2 className="h-3 w-3 mr-1"/></Badge>}
                               {plant.type && <Badge variant='secondary' className='capitalize bg-green-500/20 text-green-700 dark:bg-green-700/30 dark:text-green-400 border-transparent'>{plant.type}</Badge>}
+                              {hasFlowered && <Badge variant='secondary' className='bg-pink-500/20 text-pink-600 border-transparent hover:bg-pink-500/30 dark:bg-pink-500/30 dark:text-pink-400'><Flower2 className="h-3 w-3 mr-1"/></Badge>}
                           </div>
                       </>
                     ) : null }
@@ -1098,7 +1097,3 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
-
-
-    
-    
