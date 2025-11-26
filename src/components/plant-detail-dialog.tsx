@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { Plant } from '@/app/page';
-import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout } from 'lucide-react';
+import { Gift, RefreshCw, ShoppingBag, Sun, Home, Package, Scissors, HeartCrack, Upload, Skull, Copy, Sprout, Bot, Droplets, Flower2, Loader2, Lightbulb } from 'lucide-react';
 import { format, parseISO, formatDistanceStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useMemo, useState, useRef, useEffect } from 'react';
@@ -21,6 +21,8 @@ import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { cn } from '@/lib/utils';
+import { getCareTips, type PlantCareGuide } from '@/ai/plant-care-assistant';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface PlantDetailDialogProps {
   plant: Plant | null;
@@ -108,6 +110,37 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
   const { user } = useUser();
   const [isImageDetailOpen, setIsImageDetailOpen] = useState(false);
   const [imageDetailStartIndex, setImageDetailStartIndex] = useState(0);
+
+  const [careGuide, setCareGuide] = useState<PlantCareGuide | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+        // Reset AI state when dialog is closed
+        setCareGuide(null);
+        setIsGenerating(false);
+        setAiError(null);
+    }
+  }, [isOpen]);
+
+  const handleGenerateCareTips = async () => {
+    if (!plant) return;
+    setIsGenerating(true);
+    setAiError(null);
+    try {
+        const tips = await getCareTips({
+            plantName: plant.name,
+            plantType: plant.type || ''
+        });
+        setCareGuide(tips);
+    } catch (error) {
+        console.error("Error generating care tips:", error);
+        setAiError("No se pudieron generar los consejos. Inténtalo de nuevo más tarde.");
+    } finally {
+        setIsGenerating(false);
+    }
+  };
 
   const handleOpenImageDetail = (index: number) => {
     setImageDetailStartIndex(index);
@@ -248,15 +281,55 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                 </div>
             )}
              
+            <Separator className="my-4" />
+             
              {isCommunityView ? (
-                <div className="pt-4">
+                <div className="space-y-4">
+                   <div className='p-4 border rounded-lg bg-secondary/30'>
+                        <h3 className="font-headline text-lg font-semibold mb-3 flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/>Asistente Botánico</h3>
+                        {!careGuide && !isGenerating && !aiError && (
+                             <Button className="w-full" onClick={handleGenerateCareTips}>
+                                Generar Consejos de Cuidado
+                            </Button>
+                        )}
+                        {isGenerating && (
+                            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span>Analizando planta...</span>
+                            </div>
+                        )}
+                        {aiError && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Error de IA</AlertTitle>
+                                <AlertDescription>{aiError}</AlertDescription>
+                            </Alert>
+                        )}
+                        {careGuide && (
+                            <div className="space-y-3 animation-fade-in">
+                                <InfoSection icon={<Droplets />} title="Riego">
+                                    <p className="text-sm text-muted-foreground">{careGuide.watering}</p>
+                                </InfoSection>
+                                <InfoSection icon={<Lightbulb />} title="Luz">
+                                    <p className="text-sm text-muted-foreground">{careGuide.light}</p>
+                                </InfoSection>
+                                <InfoSection icon={<Scissors />} title="Poda">
+                                    <p className="text-sm text-muted-foreground">{careGuide.pruning}</p>
+                                </InfoSection>
+                                <InfoSection icon={<Sprout />} title="Fertilización">
+                                    <p className="text-sm text-muted-foreground">{careGuide.fertilizing}</p>
+                                </InfoSection>
+                                <InfoSection icon={<Flower2 />} title="Floración">
+                                    <p className="text-sm text-muted-foreground">{careGuide.flowering}</p>
+                                </InfoSection>
+                            </div>
+                        )}
+                   </div>
                     <Button className="w-full" onClick={() => onClonePlant(plant)}>
                         <Copy className="mr-2 h-4 w-4" /> Yo la tengo
                     </Button>
                 </div>
              ) : (
                 <>
-                    <Separator className="my-4" />
                     <div className="space-y-4">
                         <div className="flex items-center space-x-3 bg-secondary p-3 rounded-md">
                             <div className="text-primary">{Icon}</div>
