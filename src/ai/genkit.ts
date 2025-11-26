@@ -1,12 +1,12 @@
-'use server';
+/**
+ * @fileOverview Centralized Genkit initialization.
+ */
 
-import {genkit, type Plugin} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
-const googleGenai = googleAI({
-  //You may need to provide a GOOGLE_API_KEY env var
-});
-
+// Initialize Genkit and the Google AI plugin.
+// This is the single source of truth for the `ai` instance.
 export const ai = genkit({
-  plugins: [googleGenai],
+  plugins: [googleAI()],
 });

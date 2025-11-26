@@ -5,11 +5,12 @@
  * This file defines a Genkit flow that provides care instructions for a given plant.
  *
  * - getCareTips - A function that takes a plant's name and type and returns care tips.
- * - PlantCareGuide - The Zod schema and TypeScript type for the structured output.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai } from './genkit'; // Import the centralized ai instance
 import { z } from 'zod';
+import { PlantCareGuide, PlantCareGuideSchema } from './plant-care-assistant.types';
+
 
 // 1. Define the input schema
 const PlantCareInputSchema = z.object({
@@ -17,17 +18,7 @@ const PlantCareInputSchema = z.object({
   plantType: z.string().optional().describe('The specific species or variety of the plant (e.g., Monstera Deliciosa).'),
 });
 
-// 2. Define the output schema
-export const PlantCareGuideSchema = z.object({
-  watering: z.string().describe('Recommended watering frequency and tips.'),
-  light: z.string().describe('Recommended light conditions (e.g., direct sun, indirect light, shade).'),
-  pruning: z.string().describe('When and how to prune the plant.'),
-  fertilizing: z.string().describe('When and with what to fertilize the plant.'),
-  flowering: z.string().describe('Information about if and when the plant is expected to bloom.'),
-});
-export type PlantCareGuide = z.infer<typeof PlantCareGuideSchema>;
-
-// 3. Define the prompt
+// 2. Define the prompt
 const carePrompt = ai.definePrompt({
   name: 'plantCarePrompt',
   input: { schema: PlantCareInputSchema },
@@ -44,7 +35,7 @@ const carePrompt = ai.definePrompt({
   `,
 });
 
-// 4. Define the flow
+// 3. Define the flow
 const careTipsFlow = ai.defineFlow(
   {
     name: 'careTipsFlow',
@@ -57,7 +48,7 @@ const careTipsFlow = ai.defineFlow(
   }
 );
 
-// 5. Export a wrapper function to be called from the client
+// 4. Export a wrapper function to be called from the client
 export async function getCareTips(
   input: z.infer<typeof PlantCareInputSchema>
 ): Promise<PlantCareGuide> {

@@ -21,7 +21,8 @@ import { Input } from './ui/input';
 import { useFirestore, useUser } from '@/firebase';
 import { ImageDetailDialog } from './image-detail-dialog';
 import { cn } from '@/lib/utils';
-import { getCareTips, type PlantCareGuide } from '@/ai/plant-care-assistant';
+import { getCareTips } from '@/ai/plant-care-assistant';
+import type { PlantCareGuide } from '@/ai/plant-care-assistant.types';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface PlantDetailDialogProps {
@@ -154,8 +155,8 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
 
     if (allImages.length === 0) {
         const eventPhotos = (plant.events || [])
-            .filter(e => e.type === 'foto' && e.note && e.note.startsWith('data:image'))
-            .map(e => ({ imageUrl: e.note, date: e.date, attempt: e.attempt }));
+            .filter(e => (e.type === 'foto' && e.note && e.note.startsWith('data:image')) || e.imageUrl)
+            .map(e => ({ imageUrl: e.imageUrl || e.note, date: e.date, attempt: e.attempt }));
         allImages.push(...eventPhotos);
     }
 
@@ -190,6 +191,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
           type: 'foto' as const,
           date: new Date().toISOString(),
           note: "Se añadió una nueva foto",
+          imageUrl,
           attempt: currentAttempt,
         };
         const updatedEvents = [...(plant.events || []), newEvent];
@@ -256,7 +258,7 @@ export function PlantDetailDialog({ plant, isOpen, setIsOpen, onUpdatePlant, isC
                             <CarouselItem key={index} className="basis-1/2 sm:basis-1/3 md:basis-1/4">
                             <div className="p-1" onClick={() => handleOpenImageDetail(index)}>
                                 <div className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent cursor-pointer">
-                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" />
+                                    <Image src={image.imageUrl} alt={`Gallery image ${index + 1}`} fill className="object-cover" unoptimized/>
                                     <div className="absolute bottom-0 w-full bg-black/50 text-white text-center text-xs py-0.5">
                                         {format(parseISO(image.date), 'dd/MM/yy')}
                                     </div>
