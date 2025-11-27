@@ -264,13 +264,17 @@ export default function GardenApp() {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
       const needsPhotoUpdate = (p: Plant) => {
+          // A plant needs a photo update only if it has a main image.
           if (!p.image) return false;
+          
+          // Use the last photo update date, fallback to acquisition date.
           const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
+
           try {
               return differenceInDays(new Date(), new Date(lastUpdate)) >= 90;
           } catch (e) {
               console.error("Invalid date for needsPhotoUpdate:", p);
-              return false; // Treat as not needing update if date is invalid
+              return false;
           }
       };
 
@@ -956,7 +960,18 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           
           const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
-          const needsPhotoUpdate = !isCommunity && plant.image && differenceInDays(new Date(), new Date(plant.lastPhotoUpdate || plant.date || '1970-01-01')) >= 90;
+          
+          const getNeedsPhotoUpdate = (p: Plant) => {
+              if (isCommunity || !p.image) return false;
+              const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
+              try {
+                  return differenceInDays(new Date(), new Date(lastUpdate)) >= 90;
+              } catch {
+                  return false;
+              }
+          };
+          const needsPhotoUpdate = getNeedsPhotoUpdate(plant);
+
 
           const cardContent = (
             <div
@@ -1147,3 +1162,4 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     
 
     
+
