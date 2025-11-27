@@ -117,6 +117,7 @@ const generateColorFromString = (str: string) => {
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
+  const hue = hash % 360;
   // Mix of greens, reds, and browns
   // Hue ranges: 0-40 (reds/browns), 80-140 (greens)
   const isGreen = hash % 3 > 0; // 2/3 chance of being green
@@ -880,7 +881,7 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               </PopoverContent>
             </Popover>
           ) : (
-            <Button onClick={onLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
+            <Button onClick={handleLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
           )}
         </div>
       </div>
@@ -1021,9 +1022,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                       <>
                           <div className='flex items-baseline gap-2'>
                                <h3
-                                className={cn(
-                                    "font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer"
-                                )}
+                                className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer"
                                 style={{ color: plant.custodianOf ? generateColorFromString(plant.custodianOf) : undefined }}
                                 onClick={() => onPlantClick(plant)}
                                 >
@@ -1150,3 +1149,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
