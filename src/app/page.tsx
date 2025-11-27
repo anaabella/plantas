@@ -248,9 +248,15 @@ export default function GardenApp() {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
       const needsPhotoUpdate = (p: Plant) => {
-        if (!p.image) return false; // No image, no update needed
-        const lastUpdate = p.lastPhotoUpdate || p.date;
-        return differenceInMonths(new Date(), new Date(lastUpdate)) >= 3;
+          if (!p.image) return false;
+          // Use a very old date as a fallback to prevent errors with new Date()
+          const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
+          try {
+              return differenceInMonths(new Date(), new Date(lastUpdate)) >= 3;
+          } catch (e) {
+              console.error("Invalid date for needsPhotoUpdate:", p);
+              return false; // Treat as not needing update if date is invalid
+          }
       };
 
       const needsCompletion = (p: Plant) => !p.name || p.name.trim() === '' || p.name.toLowerCase() === 'nose';
@@ -937,7 +943,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           
           const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
-          const needsPhotoUpdate = !isCommunity && plant.image && differenceInMonths(new Date(), new Date(plant.lastPhotoUpdate || plant.date)) >= 3;
+          const needsPhotoUpdate = !isCommunity && plant.image && differenceInMonths(new Date(), new Date(plant.lastPhotoUpdate || plant.date || '1970-01-01')) >= 3;
 
           const cardContent = (
             <div
