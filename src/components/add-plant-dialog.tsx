@@ -192,8 +192,7 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
           </div>
       </ScrollArea>
       <DialogFooter className='p-4 pt-0'>
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={isSaving}>
+        <Button onClick={handleSubmit} disabled={isSaving} className="w-full">
             {isSaving ? "Guardando..." : "Guardar Planta"}
         </Button>
       </DialogFooter>
