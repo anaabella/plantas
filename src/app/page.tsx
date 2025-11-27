@@ -42,7 +42,7 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatDistanceToNow, formatDistanceStrict, differenceInMonths } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -267,7 +267,7 @@ export default function GardenApp() {
           if (!p.image) return false;
           const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
           try {
-              return differenceInMonths(new Date(), new Date(lastUpdate)) >= 3;
+              return differenceInDays(new Date(), new Date(lastUpdate)) >= 90;
           } catch (e) {
               console.error("Invalid date for needsPhotoUpdate:", p);
               return false; // Treat as not needing update if date is invalid
@@ -956,7 +956,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           
           const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
-          const needsPhotoUpdate = !isCommunity && plant.image && differenceInMonths(new Date(), new Date(plant.lastPhotoUpdate || plant.date || '1970-01-01')) >= 3;
+          const needsPhotoUpdate = !isCommunity && plant.image && differenceInDays(new Date(), new Date(plant.lastPhotoUpdate || plant.date || '1970-01-01')) >= 90;
 
           const cardContent = (
             <div
@@ -1017,7 +1017,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                           <div className='flex items-baseline gap-2'>
                                <h3
                                 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer"
-                                style={{ color: generateColorFromString(plant.custodianOf) }}
+                                style={{ color: plant.custodianOf ? generateColorFromString(plant.custodianOf) : 'hsl(var(--foreground))' }}
                                 onClick={() => onPlantClick(plant)}
                                 >
                                 {plant.name}
@@ -1143,5 +1143,7 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
 
     
