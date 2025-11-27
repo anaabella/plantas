@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2, Camera, UserSquare
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatDistanceToNow, formatDistanceStrict } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -73,6 +73,7 @@ export type Plant = {
   status: 'viva' | 'fallecida' | 'intercambiada';
   lastWatered?: string;
   notes?: string;
+  custodianOf?: string;
   image?: string;
   startType: 'planta' | 'gajo' | 'raiz' | 'semilla';
   location: 'interior' | 'exterior';
@@ -109,6 +110,22 @@ export type WishlistItem = {
 };
 
 type View = 'my-plants' | 'community' | 'wishlist';
+
+// Helper function to generate a color from a string
+const generateColorFromString = (str: string | undefined) => {
+    if (!str) return 'hsl(var(--foreground))';
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    const isGreen = hash % 3 > 0;
+    const finalHue = isGreen ? 80 + (hash % 60) : (hash % 80) < 40 ? (hash % 40) : 360 - (hash % 40);
+    const saturation = 30 + (hash % 21);
+    const lightness = 40 + (hash % 21);
+    return `hsl(${finalHue}, ${saturation}%, ${lightness}%)`;
+};
+
 
 // Componente Principal
 export default function GardenApp() {
@@ -246,12 +263,31 @@ export default function GardenApp() {
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
+      const needsPhotoUpdate = (p: Plant) => {
+        // A plant only needs a photo update if it has an image AND a lastPhotoUpdate date.
+        if (!p.image || !p.lastPhotoUpdate) {
+            return false;
+        }
+        
+        try {
+            // Check if it's been 90 days or more since the last photo update.
+            return differenceInDays(new Date(), new Date(p.lastPhotoUpdate)) >= 90;
+        } catch (e) {
+            console.error("Invalid date for needsPhotoUpdate:", p);
+            return false;
+        }
+      };
+
       const needsCompletion = (p: Plant) => !p.name || p.name.trim() === '' || p.name.toLowerCase() === 'nose';
 
       userPlants.sort((a, b) => {
+          const aNeedsUpdate = needsPhotoUpdate(a);
+          const bNeedsUpdate = needsPhotoUpdate(b);
+          if (aNeedsUpdate && !bNeedsUpdate) return -1;
+          if (!aNeedsUpdate && bNeedsUpdate) return 1;
+
           const aNeedsCompletion = needsCompletion(a);
           const bNeedsCompletion = needsCompletion(b);
-
           if (aNeedsCompletion && !bNeedsCompletion) return -1;
           if (!aNeedsCompletion && bNeedsCompletion) return 1;
 
@@ -355,16 +391,25 @@ export default function GardenApp() {
         note: `La planta fue adquirida.`,
         attempt: 1,
       };
+      
+      const now = new Date().toISOString();
 
       const plantDataWithMeta = {
         ...newPlantData,
-        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
+        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: now }] : [],
+        lastPhotoUpdate: newPlantData.image ? now : undefined,
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
         createdAt: serverTimestamp(),
         events: [initialEvent],
       };
+      
+      // Remove lastPhotoUpdate if there's no image to avoid storing an empty string
+      if (!plantDataWithMeta.image) {
+          delete (plantDataWithMeta as Partial<typeof plantDataWithMeta>).lastPhotoUpdate;
+      }
+
 
       await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       
@@ -652,8 +697,6 @@ export default function GardenApp() {
               isLoading={isLoading} 
               onDeletePlant={handleDeletePlant} 
               plantRenderData={plantRenderData}
-              setIsDetailOpen={setIsDetailOpen}
-              setIsEditDialogOpen={setIsEditDialogOpen}
           />
         )}
         {view === 'community' && (
@@ -842,7 +885,7 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
               </PopoverContent>
             </Popover>
           ) : (
-            <Button onClick={onLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
+            <Button onClick={handleLogin}><LogIn className="mr-2 h-4 w-4" />Acceder</Button>
           )}
         </div>
       </div>
@@ -851,10 +894,11 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail, setIsDetailOpen, setIsEditDialogOpen }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
   
   const [plantToDeleteId, setPlantToDeleteId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -899,12 +943,11 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
   const confirmDelete = () => {
     if (plantToDeleteId) {
         onDeletePlant(plantToDeleteId);
-        if(setIsDetailOpen) setIsDetailOpen(false);
-        if(setIsEditDialogOpen) setIsEditDialogOpen(false);
     }
     setPlantToDeleteId(null);
     setIsAlertOpen(false);
-};
+    setIsContextMenuOpen(false);
+  };
 
 
   return (
@@ -922,7 +965,18 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           
-          const needsCompletion = !plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose';
+          const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
+          
+          const getNeedsPhotoUpdate = (p: Plant) => {
+              if (isCommunity || !p.image || !p.lastPhotoUpdate) return false;
+              try {
+                  return differenceInDays(new Date(), new Date(p.lastPhotoUpdate)) >= 90;
+              } catch {
+                  return false;
+              }
+          };
+          const needsPhotoUpdate = getNeedsPhotoUpdate(plant);
+
 
           const cardContent = (
             <div
@@ -938,9 +992,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                       className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                       unoptimized={true}
                   />
-                  {needsCompletion && !isCommunity && (
+                  {needsCompletion && (
                         <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full z-10">
                             Completar datos
+                        </div>
+                   )}
+                   {needsPhotoUpdate && !needsCompletion && (
+                        <div className="absolute top-2 right-2 bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
+                            <Camera className="h-3 w-3"/> Actualizar foto
                         </div>
                    )}
                   {plant.status !== 'viva' && (
@@ -976,13 +1035,20 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     {!isCommunity ? (
                       <>
                           <div className='flex items-baseline gap-2'>
-                              <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                               <h3
+                                className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer"
+                                style={{ color: plant.custodianOf ? generateColorFromString(plant.custodianOf) : 'hsl(var(--foreground))' }}
+                                onClick={() => onPlantClick(plant)}
+                                >
+                                {plant.name}
+                                </h3>
                               {duplicateIndex > 1 && (
                                 <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
                                     #{duplicateIndex}
                                 </Badge>
                               )}
                           </div>
+                           {plant.custodianOf && <p className="text-xs text-muted-foreground flex items-center gap-1"><UserSquare className="h-3 w-3" /> Planta de {plant.custodianOf}</p>}
                           <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4" />
@@ -1019,7 +1085,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           }
 
           return (
-            <ContextMenu key={plant.id}>
+            <ContextMenu key={plant.id} open={isContextMenuOpen} onOpenChange={setIsContextMenuOpen}>
                 <ContextMenuTrigger>
                   {cardContent}
                 </ContextMenuTrigger>
@@ -1097,3 +1163,9 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     </div>
   );
 }
+
+    
+
+    
+
+

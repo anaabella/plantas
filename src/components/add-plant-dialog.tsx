@@ -30,6 +30,7 @@ const getEmptyPlant = () => ({
   giftFrom: '',
   exchangeSource: '',
   rescuedFrom: '',
+  custodianOf: '',
   notes: '',
 });
 
@@ -129,6 +130,7 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
   const uniqueGiftFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.giftFrom).filter(Boolean))), [plants]);
   const uniqueExchangeSource = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.exchangeSource).filter(Boolean))), [plants]);
   const uniqueRescuedFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.rescuedFrom).filter(Boolean))), [plants]);
+  const uniqueCustodianOf = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.custodianOf).filter(Boolean))), [plants]);
 
   return (
     <>
@@ -144,9 +146,12 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
       <datalist id="rescued-from-list">
         {uniqueRescuedFrom.map(location => <option key={location} value={location} />)}
       </datalist>
+      <datalist id="custodian-of-list">
+        {uniqueCustodianOf.map(name => <option key={name} value={name} />)}
+      </datalist>
 
       <ScrollArea className='max-h-[70vh]'>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
               <div className="space-y-4">
                   <InputGroup label="Nombre de la Planta" value={plant.name} onChange={(e:any) => handleChange('name', e.target.value)} />
                   <InputGroup label="Tipo (ej. Monstera, Hoya)" value={plant.type} onChange={(e:any) => handleChange('type', e.target.value)} listId="plant-types" />
@@ -182,12 +187,12 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
               </div>
           </div>
           <div className='p-4 pt-0 space-y-4'>
-           <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+            <InputGroup label="Planta de (Custodio)" value={plant.custodianOf} onChange={(e:any) => handleChange('custodianOf', e.target.value)} placeholder="Ej: Mamá, Oficina" listId="custodian-of-list" />
+            <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
           </div>
       </ScrollArea>
       <DialogFooter className='p-4 pt-0'>
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={isSaving}>
+        <Button onClick={handleSubmit} disabled={isSaving} className="w-full">
             {isSaving ? "Guardando..." : "Guardar Planta"}
         </Button>
       </DialogFooter>
@@ -241,7 +246,7 @@ export const AddPlantDialog = ({ isOpen, setIsOpen, onSave, initialData, userPro
   
   return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg">
+        <DialogContent className="sm:max-w-4xl w-[95vw] rounded-lg">
           <DialogHeader>
             <DialogTitle>Añadir Nueva Planta</DialogTitle>
             <DialogDescription>
