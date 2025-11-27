@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2, Camera
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ import { PlantDetailDialog } from '@/components/plant-detail-dialog';
 import { WishlistFormDialog } from '@/components/wishlist-form-dialog';
 import { StatsDialog } from '@/components/stats-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatDistanceToNow, formatDistanceStrict } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -247,12 +247,22 @@ export default function GardenApp() {
     const unsubscribe = onSnapshot(userPlantsQuery, snapshot => {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
+      const needsPhotoUpdate = (p: Plant) => {
+        if (!p.image) return false; // No image, no update needed
+        const lastUpdate = p.lastPhotoUpdate || p.date;
+        return differenceInMonths(new Date(), new Date(lastUpdate)) >= 3;
+      };
+
       const needsCompletion = (p: Plant) => !p.name || p.name.trim() === '' || p.name.toLowerCase() === 'nose';
 
       userPlants.sort((a, b) => {
+          const aNeedsUpdate = needsPhotoUpdate(a);
+          const bNeedsUpdate = needsPhotoUpdate(b);
+          if (aNeedsUpdate && !bNeedsUpdate) return -1;
+          if (!aNeedsUpdate && bNeedsUpdate) return 1;
+
           const aNeedsCompletion = needsCompletion(a);
           const bNeedsCompletion = needsCompletion(b);
-
           if (aNeedsCompletion && !bNeedsCompletion) return -1;
           if (!aNeedsCompletion && bNeedsCompletion) return 1;
 
@@ -356,10 +366,13 @@ export default function GardenApp() {
         note: `La planta fue adquirida.`,
         attempt: 1,
       };
+      
+      const now = new Date().toISOString();
 
       const plantDataWithMeta = {
         ...newPlantData,
-        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: new Date().toISOString() }] : [],
+        gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: now }] : [],
+        lastPhotoUpdate: newPlantData.image ? now : '',
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
@@ -923,7 +936,8 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const offspringCount = isCommunity ? 0 : plantRenderData.offspringCounts[plant.id] || 0;
           const hasFlowered = isCommunity ? false : plantRenderData.hasFlowered[plant.id];
           
-          const needsCompletion = !plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose';
+          const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
+          const needsPhotoUpdate = !isCommunity && plant.image && differenceInMonths(new Date(), new Date(plant.lastPhotoUpdate || plant.date)) >= 3;
 
           const cardContent = (
             <div
@@ -939,9 +953,14 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                       className="object-cover w-full h-auto aspect-[4/5] transition-transform duration-300 group-hover:scale-105"
                       unoptimized={true}
                   />
-                  {needsCompletion && !isCommunity && (
+                  {needsCompletion && (
                         <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full z-10">
                             Completar datos
+                        </div>
+                   )}
+                   {needsPhotoUpdate && (
+                        <div className="absolute top-2 right-2 bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
+                            <Camera className="h-3 w-3"/> Actualizar foto
                         </div>
                    )}
                   {plant.status !== 'viva' && (
