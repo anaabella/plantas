@@ -117,7 +117,6 @@ const generateColorFromString = (str: string) => {
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = hash % 360;
   // Mix of greens, reds, and browns
   // Hue ranges: 0-40 (reds/browns), 80-140 (greens)
   const isGreen = hash % 3 > 0; // 2/3 chance of being green
