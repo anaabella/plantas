@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Sprout, ListTodo, LogIn, LogOut, Users, Carrot, BarChart3,
   HeartCrack, Leaf, Moon, Sun,
-  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2, Camera
+  Gift, ShoppingBag, RefreshCw, Heart, Package, Clock, Scissors, Skull, Home, ArrowRightLeft, Pencil, Trash2, Bell, Baby, CalendarDays, Settings, Palette, Tags, Flower2, Camera, UserSquare
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -958,7 +958,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                             Completar datos
                         </div>
                    )}
-                   {needsPhotoUpdate && (
+                   {needsPhotoUpdate && !needsCompletion && (
                         <div className="absolute top-2 right-2 bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
                             <Camera className="h-3 w-3"/> Actualizar foto
                         </div>
@@ -999,7 +999,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                                <h3
                                 className={cn(
                                     "font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer",
-                                    plant.custodianOf && "text-blue-600 dark:text-blue-400"
+                                    plant.custodianOf && "text-primary"
                                 )}
                                 onClick={() => onPlantClick(plant)}
                                 >
@@ -1011,7 +1011,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                                 </Badge>
                               )}
                           </div>
-                           {plant.custodianOf && <p className="text-xs text-blue-500 dark:text-blue-400">Planta de {plant.custodianOf}</p>}
+                           {plant.custodianOf && <p className="text-xs text-muted-foreground flex items-center gap-1"><UserSquare className="h-3 w-3" /> Planta de {plant.custodianOf}</p>}
                           <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4" />
