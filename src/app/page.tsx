@@ -264,18 +264,18 @@ export default function GardenApp() {
       const userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plant));
       
       const needsPhotoUpdate = (p: Plant) => {
-          // A plant needs a photo update only if it has a main image.
-          if (!p.image) return false;
-          
-          // Use the last photo update date, fallback to acquisition date.
-          const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
-
-          try {
-              return differenceInDays(new Date(), new Date(lastUpdate)) >= 90;
-          } catch (e) {
-              console.error("Invalid date for needsPhotoUpdate:", p);
-              return false;
-          }
+        // A plant only needs a photo update if it has an image AND a lastPhotoUpdate date.
+        if (!p.image || !p.lastPhotoUpdate) {
+            return false;
+        }
+        
+        try {
+            // Check if it's been 90 days or more since the last photo update.
+            return differenceInDays(new Date(), new Date(p.lastPhotoUpdate)) >= 90;
+        } catch (e) {
+            console.error("Invalid date for needsPhotoUpdate:", p);
+            return false;
+        }
       };
 
       const needsCompletion = (p: Plant) => !p.name || p.name.trim() === '' || p.name.toLowerCase() === 'nose';
@@ -397,13 +397,19 @@ export default function GardenApp() {
       const plantDataWithMeta = {
         ...newPlantData,
         gallery: newPlantData.image ? [{ imageUrl: newPlantData.image, date: now }] : [],
-        lastPhotoUpdate: newPlantData.image ? now : '',
+        lastPhotoUpdate: newPlantData.image ? now : undefined,
         ownerId: user.uid,
         ownerName: user.displayName,
         ownerPhotoURL: user.photoURL,
         createdAt: serverTimestamp(),
         events: [initialEvent],
       };
+      
+      // Remove lastPhotoUpdate if there's no image to avoid storing an empty string
+      if (!plantDataWithMeta.image) {
+          delete (plantDataWithMeta as Partial<typeof plantDataWithMeta>).lastPhotoUpdate;
+      }
+
 
       await addDoc(collection(firestore, 'plants'), plantDataWithMeta);
       
@@ -962,10 +968,9 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           const needsCompletion = !isCommunity && (!plant.name || plant.name.trim() === '' || plant.name.toLowerCase() === 'nose');
           
           const getNeedsPhotoUpdate = (p: Plant) => {
-              if (isCommunity || !p.image) return false;
-              const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
+              if (isCommunity || !p.image || !p.lastPhotoUpdate) return false;
               try {
-                  return differenceInDays(new Date(), new Date(lastUpdate)) >= 90;
+                  return differenceInDays(new Date(), new Date(p.lastPhotoUpdate)) >= 90;
               } catch {
                   return false;
               }
@@ -1162,4 +1167,5 @@ function WishlistGrid({ items, onItemClick, onAddNew }: any) {
     
 
     
+
 
