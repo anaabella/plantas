@@ -35,7 +35,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, MoreVertical } from 'lucide-react';
+import { Trash2, Save, Scissors, Shovel, Camera, Bug, Beaker, History, X, Skull, ArrowRightLeft, Plus, RefreshCw, Sprout, Upload, Droplets, Info, Flower2, MoreVertical, UserSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Plant, PlantEvent, UserProfile } from '@/app/page';
@@ -559,6 +559,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
   const uniqueGiftFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.giftFrom).filter(Boolean))), [plants]);
   const uniqueExchangeSource = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.exchangeSource).filter(Boolean))), [plants]);
   const uniqueRescuedFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.rescuedFrom).filter(Boolean))), [plants]);
+  const uniqueCustodianOf = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.custodianOf).filter(Boolean))), [plants]);
 
   return (
     <>
@@ -574,12 +575,22 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
       <datalist id="rescued-from-list-edit">
         {uniqueRescuedFrom.map(location => <option key={location} value={location} />)}
       </datalist>
+      <datalist id="custodian-of-list-edit">
+        {uniqueCustodianOf.map(name => <option key={name} value={name} />)}
+      </datalist>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-3xl w-[95vw] rounded-lg">
           <DialogHeader className="pr-10">
             <DialogTitle className="text-2xl sm:text-3xl font-bold font-headline">{editedPlant.name}</DialogTitle>
-            <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+             {editedPlant.custodianOf ? (
+                <DialogDescription className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                    <UserSquare className="h-4 w-4" />
+                    Cuidando la planta de {editedPlant.custodianOf}
+                </DialogDescription>
+            ) : (
+                <DialogDescription>Modifica los detalles o revisa el historial.</DialogDescription>
+            )}
           </DialogHeader>
 
            <Tabs defaultValue="log" className="w-full">
@@ -720,7 +731,7 @@ export const EditPlantDialog = memo(function EditPlantDialog({ plant, isOpen, se
                                   {editedPlant.acquisitionType === 'rescatada' && <InputGroup label="Rescatada de" value={editedPlant.rescuedFrom} onChange={(e:any) => handleChange('rescuedFrom', e.target.value)} placeholder="Ubicación" listId="rescued-from-list-edit"/>}
                               </div>
                           </div>
-
+                          <InputGroup label="Planta de (Custodio)" value={editedPlant.custodianOf} onChange={(e:any) => handleChange('custodianOf', e.target.value)} placeholder="Ej: Mamá, Oficina" listId="custodian-of-list-edit" />
                           <TextareaGroup label="Notas Generales" value={editedPlant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
                       </div>
                        <div className="mt-6 flex justify-between items-center">

@@ -30,6 +30,7 @@ const getEmptyPlant = () => ({
   giftFrom: '',
   exchangeSource: '',
   rescuedFrom: '',
+  custodianOf: '',
   notes: '',
 });
 
@@ -129,6 +130,7 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
   const uniqueGiftFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.giftFrom).filter(Boolean))), [plants]);
   const uniqueExchangeSource = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.exchangeSource).filter(Boolean))), [plants]);
   const uniqueRescuedFrom = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.rescuedFrom).filter(Boolean))), [plants]);
+  const uniqueCustodianOf = useMemo(() => Array.from(new Set(plants.map((p: Plant) => p.custodianOf).filter(Boolean))), [plants]);
 
   return (
     <>
@@ -143,6 +145,9 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
       </datalist>
       <datalist id="rescued-from-list">
         {uniqueRescuedFrom.map(location => <option key={location} value={location} />)}
+      </datalist>
+      <datalist id="custodian-of-list">
+        {uniqueCustodianOf.map(name => <option key={name} value={name} />)}
       </datalist>
 
       <ScrollArea className='max-h-[70vh]'>
@@ -182,7 +187,8 @@ const AddPlantForm = memo(({ onSave, initialData, onCancel, userProfile, plants,
               </div>
           </div>
           <div className='p-4 pt-0 space-y-4'>
-           <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
+            <InputGroup label="Planta de (Custodio)" value={plant.custodianOf} onChange={(e:any) => handleChange('custodianOf', e.target.value)} placeholder="Ej: Mamá, Oficina" listId="custodian-of-list" />
+            <Textarea placeholder="Notas adicionales sobre la planta..." value={plant.notes} onChange={(e:any) => handleChange('notes', e.target.value)} />
           </div>
       </ScrollArea>
       <DialogFooter className='p-4 pt-0'>

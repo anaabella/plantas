@@ -73,6 +73,7 @@ export type Plant = {
   status: 'viva' | 'fallecida' | 'intercambiada';
   lastWatered?: string;
   notes?: string;
+  custodianOf?: string;
   image?: string;
   startType: 'planta' | 'gajo' | 'raiz' | 'semilla';
   location: 'interior' | 'exterior';
@@ -976,13 +977,22 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                     {!isCommunity ? (
                       <>
                           <div className='flex items-baseline gap-2'>
-                              <h3 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer" onClick={() => onPlantClick(plant)}>{plant.name}</h3>
+                               <h3
+                                className={cn(
+                                    "font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer",
+                                    plant.custodianOf && "text-blue-600 dark:text-blue-400"
+                                )}
+                                onClick={() => onPlantClick(plant)}
+                                >
+                                {plant.name}
+                                </h3>
                               {duplicateIndex > 1 && (
                                 <Badge variant='secondary' className='capitalize bg-purple-600/20 text-purple-700 dark:bg-purple-700/30 dark:text-purple-400 border-transparent'>
                                     #{duplicateIndex}
                                 </Badge>
                               )}
                           </div>
+                           {plant.custodianOf && <p className="text-xs text-blue-500 dark:text-blue-400">Planta de {plant.custodianOf}</p>}
                           <div className="mt-2 space-y-1 text-xs sm:text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4" />
