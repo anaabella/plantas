@@ -112,23 +112,20 @@ export type WishlistItem = {
 type View = 'my-plants' | 'community' | 'wishlist';
 
 // Helper function to generate a color from a string
-const generateColorFromString = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = hash % 360;
-  // Mix of greens, reds, and browns
-  // Hue ranges: 0-40 (reds/browns), 80-140 (greens)
-  const isGreen = hash % 3 > 0; // 2/3 chance of being green
-  const finalHue = isGreen
-    ? 80 + (hash % 60)
-    : (hash % 80) < 40 ? (hash % 40) : 360 - (hash % 40);
-
-  const saturation = 30 + (hash % 21); // 30-50%
-  const lightness = 40 + (hash % 21); // 40-60%
-  return `hsl(${finalHue}, ${saturation}%, ${lightness}%)`;
+const generateColorFromString = (str: string | undefined) => {
+    if (!str) return 'hsl(var(--foreground))';
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    const isGreen = hash % 3 > 0;
+    const finalHue = isGreen ? 80 + (hash % 60) : (hash % 80) < 40 ? (hash % 40) : 360 - (hash % 40);
+    const saturation = 30 + (hash % 21);
+    const lightness = 40 + (hash % 21);
+    return `hsl(${finalHue}, ${saturation}%, ${lightness}%)`;
 };
+
 
 // Componente Principal
 export default function GardenApp() {
@@ -268,7 +265,6 @@ export default function GardenApp() {
       
       const needsPhotoUpdate = (p: Plant) => {
           if (!p.image) return false;
-          // Use a very old date as a fallback to prevent errors with new Date()
           const lastUpdate = p.lastPhotoUpdate || p.date || '1970-01-01';
           try {
               return differenceInMonths(new Date(), new Date(lastUpdate)) >= 3;
@@ -691,8 +687,6 @@ export default function GardenApp() {
               isLoading={isLoading} 
               onDeletePlant={handleDeletePlant} 
               plantRenderData={plantRenderData}
-              setIsDetailOpen={setIsDetailOpen}
-              setIsEditDialogOpen={setIsEditDialogOpen}
           />
         )}
         {view === 'community' && (
@@ -890,10 +884,11 @@ const Header = ({ view, onViewChange, user, onLogin, onLogout, onAddPlant, onOpe
 }
 
 // Plants Grid
-function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail, setIsDetailOpen, setIsEditDialogOpen }: any) {
+function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onToggleWishlist, wishlistPlantIds, user, onDeletePlant, plantRenderData, onOpenImageDetail }: any) {
   
   const [plantToDeleteId, setPlantToDeleteId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 
   const acquisitionIcons: { [key in Plant['acquisitionType']]: React.ReactElement } = {
     compra: <ShoppingBag className="h-4 w-4" />,
@@ -938,12 +933,11 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
   const confirmDelete = () => {
     if (plantToDeleteId) {
         onDeletePlant(plantToDeleteId);
-        if(setIsDetailOpen) setIsDetailOpen(false);
-        if(setIsEditDialogOpen) setIsEditDialogOpen(false);
     }
     setPlantToDeleteId(null);
     setIsAlertOpen(false);
-};
+    setIsContextMenuOpen(false);
+  };
 
 
   return (
@@ -1023,7 +1017,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
                           <div className='flex items-baseline gap-2'>
                                <h3
                                 className="font-headline text-lg font-bold text-clip overflow-hidden whitespace-nowrap cursor-pointer"
-                                style={{ color: plant.custodianOf ? generateColorFromString(plant.custodianOf) : undefined }}
+                                style={{ color: generateColorFromString(plant.custodianOf) }}
                                 onClick={() => onPlantClick(plant)}
                                 >
                                 {plant.name}
@@ -1071,7 +1065,7 @@ function PlantsGrid({ plants, onPlantClick, isLoading, isCommunity = false, onTo
           }
 
           return (
-            <ContextMenu key={plant.id}>
+            <ContextMenu key={plant.id} open={isContextMenuOpen} onOpenChange={setIsContextMenuOpen}>
                 <ContextMenuTrigger>
                   {cardContent}
                 </ContextMenuTrigger>
